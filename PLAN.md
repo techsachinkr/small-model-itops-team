@@ -26,6 +26,7 @@ Repo: [`techsachinkr/small-model-itops-team`](https://github.com/techsachinkr/sm
    This doesn't block shell commands like `cat`, so the rule in CLAUDE.md still matters.
 3. For each task, follow the loop in `PROMPTS.md`: run `/clear`, press Shift+Tab for plan mode, start the task, review the plan, implement, verify, commit.
 4. If a task runs past its time box, check the cut list at the bottom before pushing on.
+5. Long GPU jobs (training, Lightning rollout collection, eval runs) are run by you in your own terminal, not by Claude in the background (CLAUDE.md "Working style", decided 2026-10-17). Where a task prompt below says "run" or "start" one of these, Claude prepares the command and you run it.
 
 ## What we're submitting
 
