@@ -25,7 +25,9 @@ models:
     tool_call_parser: qwen3_coder
     reasoning_parser: nemotron_v3   # built-in; the card's nano_v3 plugin is the fallback
 
-# Adapters served on the student server, added after training:
-# adapters:
-#   helpdesk_r1: adapters/helpdesk_r1
-#   ops_r1: adapters/ops_r1
+# LoRA adapters on the student (r=16, 17.1M parameters each; base plus adapter 3.99B, within rule 2). A record only:
+# scripts/serve_student.sh serves every folder in adapters/ under the folder's name. Trained in task 2.2
+# (factory/train_lora.py; run in runs/train_<name>/).
+adapters:
+  helpdesk_r1: adapters/helpdesk_r1
+  ops_r1: adapters/ops_r1

@@ -350,6 +350,13 @@ setup on practice next to base_raw, base_seatbelt and lightning.
 
 **Done when:** both adapters pass the smoke check (at least 19/20), and the practice ladder table has an `r1` row. Commit and tag `fallback-v1`.
 
+Progress (2026-10-17; commands and results in `COMMANDS_LOG.md`):
+- `factory/train_lora.py`: TRL `SFTTrainer` + PEFT on the pre-tokenized `text`. The loss covers each assistant turn from after vLLM's generation prompt (`<|im_start|>assistant\n<think></think>`) through `<|im_end|>`. A test with the real template and tokenizer checks that the tokens before each trained span are exactly vLLM's prompt for that turn.
+- Settings (`train:` in `configs/factory.yaml`): PLAN's r=16, alpha=32, lr 2e-4, 2 epochs; also dropout 0.05, cosine schedule, 3% warmup, 16 examples per step as batch 2 x 8, and 5% held out (seeded) for eval loss (the user's choice). Batch 4 x 4 came within 1.3 GB of filling the GPU next to both servers, and was slower.
+- Dry runs: about 8 s per optimizer step, so about 17 min per API (helpdesk 130 steps, ops 122), at most 24.3 GB, with both vLLM servers up. A 3-step adapter loaded into the running student server at runtime, passed `smoke_toolcall` 20/20, and was unloaded.
+- `r1` setup: `gym_configs/r1.yaml` is `base_seatbelt` with the model left unset; `eval/run_eval.py` sets it to `<api>_r1`.
+- Round 1 training (runs `train_helpdesk_r1`, `train_ops_r1`): helpdesk 130 steps in 15.0 min, held-out eval loss 0.156 -> 0.147 over the 2 epochs; ops 122 steps in 13.7 min, 0.271 -> 0.261. Peak 27.6 GB reserved next to both servers.
+
 ### [ ] 2.3 Failure analyst and round 2
 
 ```

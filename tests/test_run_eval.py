@@ -6,6 +6,7 @@ import sys
 from typing import Any
 
 import pytest
+import yaml
 
 from common.eval_config import load_eval_config
 from common.schemas import Case
@@ -50,7 +51,24 @@ def test_main_refuses_the_test_split_before_reading_any_cases(monkeypatch: pytes
 
 
 def test_setups_are_the_gym_configs() -> None:
-    assert run_eval.SETUPS == ["base_raw", "base_seatbelt", "lightning"]
+    assert run_eval.SETUPS == ["base_raw", "base_seatbelt", "lightning", "r1"]
+
+
+def test_r1_is_base_seatbelt_with_the_api_s_own_adapter() -> None:
+    r1, base = (yaml.safe_load((run_eval.GYM_CONFIGS / f"{setup}.yaml").read_text()) for setup in ("r1", "base_seatbelt"))
+    assert r1 | {"policy_model_name": "x"} == base | {"policy_model_name": "x"}  # hard rule 7: only the model differs
+    assert run_eval.adapter_model("r1", "helpdesk") == "helpdesk_r1"
+    assert run_eval.adapter_model("r1", "ops") == "ops_r1"
+    assert run_eval.adapter_model("base_seatbelt", "ops") is None
+
+
+def test_the_adapter_name_reaches_the_agent_and_the_model_server() -> None:
+    omegaconf = pytest.importorskip("omegaconf")
+    files = [omegaconf.OmegaConf.load(path) for path in run_eval.gym_configs("r1")]
+    assert omegaconf.OmegaConf.is_missing(omegaconf.OmegaConf.merge(*files), "policy_model_name")  # Gym stops without it
+    config = omegaconf.OmegaConf.merge(*files, omegaconf.OmegaConf.from_dotlist(["policy_model_name=ops_r1"]))
+    assert config.itops_agent.responses_api_agents.itops_agent.model_name == "ops_r1"
+    assert config.policy_model.responses_api_models.vllm_model.model == "ops_r1"
 
 
 def case(case_id: str) -> Case:

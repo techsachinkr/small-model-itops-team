@@ -1,0 +1,10 @@
+# r1: the round 1 adapter for the API under test, with the seatbelt (CLAUDE.md "Eval setups"). The same as
+# base_seatbelt except for the model. Only the model and the seatbelt switch differ between setups; everything
+# else is in eval.yaml. eval/run_eval.py sets the model to "<api>_r1", the adapter's name on the student server
+# (scripts/serve_student.sh serves adapters/<api>_r1 under that name); left unset here, so Gym stops if it's missing.
+policy_model_name: ???
+policy_base_url: http://localhost:8001/v1
+itops_agent:
+  responses_api_agents:
+    itops_agent:
+      seatbelt: true

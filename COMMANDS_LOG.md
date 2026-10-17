@@ -846,3 +846,80 @@ match; the `other` reason is gone (reward 1 is now exactly: no gave_up, state ma
 
 Session wrap-up: CLAUDE.md Commands now show the round 1 factory commands and `scripts/checks/rescore_answers.py`;
 PLAN.md task 2.1 notes add the `HF_HOME` quirk and what `text` already contains, for task 2.2.
+
+## 2026-10-17: task 2.2 Training and the round 1 evaluation
+
+### Research: TRL 1.14.1, NemotronH in transformers 5.18.0, the student's chat template
+
+```bash
+# How SFTTrainer takes pre-tokenized data, builds labels, and computes the loss
+grep -n "assistant_masks\|completion_mask\|skip_prepare_dataset\|loss_type" .venv/lib/python3.13/site-packages/trl/trainer/sft_trainer.py
+# Result: a dataset with input_ids and labels is used as is (TRL only truncates to max_length and drops fully masked
+# rows). The default loss is chunked_nll: the lm_head runs only on tokens with a label, so the 131k vocabulary
+# costs memory only on the ~10% of tokens trained. It needs base_model + lm_head, which NemotronH has.
+# assistant_only_loss would need {% generation %} markers, which the student's template lacks, so the mask is ours.
+grep -n "truncate_history_thinking\|<think></think>\|add_generation_prompt" \
+  ~/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3-Nano-4B-BF16/snapshots/dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f/chat_template.jinja
+# Result: thinking off, the generation prompt is "<|im_start|>assistant\n<think></think>", and every assistant turn
+# after the last user message renders the same way, so each turn's loss starts after </think> and ends with <|im_end|>
+# (the tokenizer's eos). warmup_ratio is gone in transformers 5.18.0: warmup_steps below 1 is a fraction.
+# Round 1 token counts with the student tokenizer (scratch script): helpdesk median 1,888, max 3,696, 223k of 2.0M
+# tokens trained; ops median 1,753, max 3,584, 189k of 1.8M. Every assistant turn starts with the generation prompt
+# and no token crosses a turn's edge.
+```
+
+### Build and test
+
+`factory/train_lora.py` (settings under `train:` in `configs/factory.yaml`), `gym_configs/r1.yaml` (base_seatbelt with
+the model left unset; `eval/run_eval.py` passes `++policy_model_name=<api>_r1`), tests in `tests/test_train_lora.py`
+and `tests/test_run_eval.py`.
+
+```bash
+.venv/bin/python -m pytest -q          # 206 passed (10 new)
+```
+
+### Dry runs next to both vLLM servers (user approved; adapters in $SCRATCH, runs kept in runs/dryrun_train_*)
+
+```bash
+nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits   # 105647 MiB used by the two servers
+# Batch 4 x 4 (the first setting), 3 steps on a seeded 80 examples: 9.4 s/step, peak 23,032 MiB reserved
+.venv/bin/python -m factory.train_lora --api helpdesk --round 1 --max-steps 3 --limit 80 \
+  --run-id dryrun_train_helpdesk --output $SCRATCH/dryrun_helpdesk_adapter
+# Worst case: one step on the 20 longest helpdesk examples (up to 3,696 tokens), written to $SCRATCH/longest_helpdesk.jsonl.
+# Peak 36,002 MiB reserved; the whole GPU peaked at 142,418 of 143,771 MiB (sampled with nvidia-smi -lms 500). Too close.
+.venv/bin/python -m factory.train_lora --api helpdesk --round 1 --data $SCRATCH/longest_helpdesk.jsonl --max-steps 1 \
+  --run-id dryrun_train_helpdesk_longest --output $SCRATCH/dryrun_longest_adapter
+# Batch 2 x 8 (same 16 per optimizer step; config copy in $SCRATCH/factory_b2.yaml): worst case 24,306 MiB reserved,
+# GPU peak 130,724 MiB (13 GB left); random 80: 7.9 s/step, 15,708 MiB, train loss 0.4492 (4 x 4: 0.4493). Adopted.
+.venv/bin/python -m factory.train_lora --api helpdesk --round 1 --config $SCRATCH/factory_b2.yaml \
+  --data $SCRATCH/longest_helpdesk.jsonl --max-steps 1 --run-id dryrun_train_helpdesk_b2_longest --output $SCRATCH/dryrun_b2_longest_adapter
+.venv/bin/python -m factory.train_lora --api helpdesk --round 1 --config $SCRATCH/factory_b2.yaml \
+  --limit 80 --max-steps 3 --run-id dryrun_train_helpdesk_b2_random --output $SCRATCH/dryrun_b2_random_adapter
+# Full runs at ~8 s/step: helpdesk 130 optimizer steps (1,031 examples, 54 held out), ops 122 (965, 51 held out).
+```
+
+### vLLM loads an adapter from train_lora.py (runtime loading on the running student server, then unloaded)
+
+```bash
+# Task 0.2 loaded attention+MLP and Mamba in_proj adapters separately; this one has all seven targets.
+curl -s -X POST localhost:8001/v1/load_lora_adapter -H 'Content-Type: application/json' \
+  -d '{"lora_name": "dryrun_check", "lora_path": "'$SCRATCH'/dryrun_b2_random_adapter"}'   # 200, added
+.venv/bin/python scripts/smoke_toolcall.py --model dryrun_check --min-parsed 19
+# dryrun_check (live): 20/20 parsed tool calls, pass mark 19: PASS (a 3-step adapter, so this checks loading and
+# routing, not training)
+curl -s -X POST localhost:8001/v1/unload_lora_adapter -H 'Content-Type: application/json' -d '{"lora_name": "dryrun_check"}'
+# 200; /v1/models lists only "student" again
+```
+
+### Round 1 training (the human ran it, in their terminal, both vLLM servers up)
+
+```bash
+uv run --group train python -m factory.train_lora --api helpdesk --round 1 && \
+uv run --group train python -m factory.train_lora --api ops --round 1
+# Both ran from commit aa4ba65 with this task's changes uncommitted (git_diff.patch in each run folder).
+# helpdesk_r1: 1,031 examples (54 held out), 130 steps in 15.0 min; eval loss 0.1556 -> 0.1473 (epochs 1 -> 2),
+#   token accuracy 0.946 -> 0.950; peak 27,582 MiB reserved.
+# ops_r1: 965 examples (51 held out), 122 steps in 13.7 min; eval loss 0.2712 -> 0.2608, accuracy 0.910 -> 0.913;
+#   peak 26,718 MiB reserved. Train loss noisy but falling in both; gradient norm under 0.4 throughout.
+# Adapters in adapters/helpdesk_r1 and adapters/ops_r1 (68 MB each); configs/models.yaml lists them.
+```

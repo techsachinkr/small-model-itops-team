@@ -173,7 +173,8 @@ UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z uv run gym env start --resources-server it
 uv run gym eval run --no-serve --agent itops_simple_agent \
   --input resources_servers/itops/data/example.jsonl --output runs/gym_smoke/rollouts.jsonl
 # One setup on one API's practice cases, 3 attempts each. Needs the setup's vLLM server running; starts and
-# stops the Gym servers itself (port 11000 must be free). Results in runs/<run_id>/. Setups: gym_configs/.
+# stops the Gym servers itself (port 11000 must be free). Results in runs/<run_id>/. Setups: gym_configs/;
+# r1 runs the API's own adapter (helpdesk_r1 for --api helpdesk), so the student server must be serving it.
 uv run python -m eval.run_eval --setup base_seatbelt --api helpdesk --split practice
 # Factory (task 2.1; settings in configs/factory.yaml; methodology in data/generated/README.md). Tasks: sampled
 # actions phrased by Lightning, ~20% written whole by Lightning (needs Lightning on 8000; about 45 min for round 1),
@@ -187,6 +188,11 @@ uv run python -m factory.collect --tasks data/generated/helpdesk/tasks_round_1.j
 uv run --group train python -m factory.filter --run round1_helpdesk --round 1 \
   --output data/generated/helpdesk/round_1.jsonl --show 5
 # The pilot used --name pilot --out-dir data/generated/helpdesk/pilot and --run-id pilot_helpdesk.
+# LoRA training (task 2.2; settings under train: in configs/factory.yaml). Human runs it, one API at a time: about
+# 20 min and up to ~25 GB each, next to both vLLM servers (configs/gpu.md). Adapter in adapters/<api>_r<n>/ (served
+# as "<api>_r<n>" after scripts/serve_student.sh restarts), logs and metrics in runs/train_<api>_r<n>/.
+uv run --group train python -m factory.train_lora --api helpdesk --round 1
+# Dry run to measure memory and speed: --max-steps 3 --limit 80 --run-id <id> --output <scratch dir>
 .venv/bin/python scripts/checks/rescore_answers.py runs/<run_id> ...   # re-score stored rollouts' answer checks
 uv run python -m factory.run_round --api ops --round 1
 uv run python -m eval.run_eval --setup team_trained --split practice

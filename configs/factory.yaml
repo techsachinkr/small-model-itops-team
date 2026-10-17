@@ -26,7 +26,7 @@ writer:                       # Lightning through common/llm.py, with a structur
   max_tokens_phrase: 512
   max_tokens_write: 12288
   max_tries: 3                # per task; a task that still fails a check is dropped and logged
-  concurrency: 16
+  concurrency: 48
 
 # eval/decontaminate.py. Calibrated on the practice cases (task 2.1, 2026-10-17): distinct practice requests
 # score up to 0.63 against each other (pr-ops-05 vs pr-ops-06), hand-made paraphrases of practice requests
@@ -48,3 +48,32 @@ collect:
   thinking: true
   attempts_per_case: 1
   pass_min_attempts: 1
+
+# LoRA fine-tuning (factory/train_lora.py, task 2.2): one adapter per API on that API's kept examples.
+# r, alpha, learning rate and epochs are PLAN.md's starting point ("Data sizes"). Target modules from the task 0.2
+# check: attention, MLP and Mamba in_proj (PEFT refuses Mamba out_proj and conv1d on nemotron_h), and vLLM 0.27.1
+# reproduced HF+PEFT outputs for them.
+train:
+  seed: 0
+  lora:
+    r: 16                     # scripts/serve_student.sh serves up to --max-lora-rank 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: [q_proj, k_proj, v_proj, o_proj, up_proj, down_proj, in_proj]
+  learning_rate: 2.0e-4
+  epochs: 2
+  # 16 examples per optimizer step. Measured next to both vLLM servers (task 2.2 dry runs, runs/dryrun_train_*):
+  # 2 x 8 peaks at 24.3 GB on the 20 longest helpdesk examples and runs 7.9 s per step; 4 x 4 peaked at 36.0 GB,
+  # 1.3 GB short of filling the GPU, and ran 9.4 s per step.
+  batch_size: 2               # per forward pass
+  gradient_accumulation_steps: 8
+  lr_scheduler: cosine
+  warmup_fraction: 0.03       # of the optimizer steps
+  weight_decay: 0.0
+  gradient_checkpointing: true
+  # Tokens. Round 1's longest example is 3,696 tokens (median about 1,800); a longer example stops the run
+  # instead of being cut, because cutting would drop the final answer.
+  max_length: 8192
+  # Held out (seeded) for eval loss only, to see over- or under-fitting; the practice ladder is the real measure.
+  eval_fraction: 0.05
+  logging_steps: 5

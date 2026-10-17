@@ -4,7 +4,8 @@
 
 The vLLM server for the setup's model must already be running (scripts/serve_*.sh). This script
 starts the Gym servers for the setup (resources_servers/itops/configs/itops.yaml, gym_configs/eval.yaml
-and gym_configs/<setup>.yaml), collects `attempts_per_case` rollouts per case with `gym eval run`,
+and gym_configs/<setup>.yaml; adapter setups like r1 run the API's own adapter, "<api>_r1"), collects
+`attempts_per_case` rollouts per case with `gym eval run`,
 stops the servers, and writes to runs/<run_id>/:
     config.json     arguments, the resolved eval config, the Gym config files, the git commit
     git_diff.patch  uncommitted changes, when the tree is dirty (commit + patch = the code that ran)
@@ -45,6 +46,7 @@ GYM = Path(sys.executable).parent / "gym"
 GYM_CONFIGS = REPO / "gym_configs"
 ITOPS_CONFIG = REPO / "resources_servers" / "itops" / "configs" / "itops.yaml"
 SETUPS = sorted(path.stem for path in GYM_CONFIGS.glob("*.yaml") if path.stem != "eval")
+ADAPTER_SETUPS = ("r1", "r2")  # one adapter per API; their gym_configs leave the model unset
 APIS = ("helpdesk", "ops")
 HEAD_SERVER_PORT = 11000  # Gym's default
 READY = re.compile(r"All (\d+) / \1 servers ready")
@@ -91,7 +93,14 @@ def gym_configs(setup: str) -> list[Path]:
     return [ITOPS_CONFIG, GYM_CONFIGS / "eval.yaml", GYM_CONFIGS / f"{setup}.yaml"]
 
 
-def start_servers(setup: str, config_path: Path, chaos: bool, log_path: Path) -> subprocess.Popen:
+def adapter_model(setup: str, api: str) -> str | None:
+    """The model an adapter setup runs: the API's own adapter, which scripts/serve_student.sh serves under its
+    folder's name (adapters/helpdesk_r1 -> "helpdesk_r1"). None for setups whose file names the model."""
+    return f"{api}_{setup}" if setup in ADAPTER_SETUPS else None
+
+
+def start_servers(setup: str, config_path: Path, chaos: bool, log_path: Path, model: str | None = None) -> subprocess.Popen:
+    """`model` replaces the setup's policy model (an adapter setup's file leaves it unset)."""
     with socket.socket() as sock:
         if sock.connect_ex(("127.0.0.1", HEAD_SERVER_PORT)) == 0:
             raise SystemExit(f"Something is already listening on port {HEAD_SERVER_PORT} (a Gym head server?). Stop it first.")
@@ -102,6 +111,8 @@ def start_servers(setup: str, config_path: Path, chaos: bool, log_path: Path) ->
         "+uv_venv_dir=runs/gym_venvs",
         f"++itops_agent.responses_api_agents.itops_agent.eval_config={config_path.relative_to(REPO)}",
     ]
+    if model:
+        command.append(f"++policy_model_name={model}")
     if chaos:
         command.append("++itops.resources_servers.itops.chaos.enabled=true")
     # Gym builds a venv per server; keep their dependencies within hard rule 1 too.
@@ -206,12 +217,14 @@ def main() -> None:
     run_dir = REPO / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
     cases = load_cases(args.split, args.api)
+    adapter = adapter_model(args.setup, args.api)
     (run_dir / "config.json").write_text(json.dumps({
         "run_id": run_id,
         "args": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
         "started_at": started.isoformat(),
         "eval_config": config.model_dump(),
         "gym_configs": [str(path.relative_to(REPO)) for path in gym_configs(args.setup)],
+        "adapter": adapter,
         "cases": len(cases),
         **git_commit(run_dir),
     }, indent=2))
@@ -219,7 +232,7 @@ def main() -> None:
     tasks.write_text("".join(json.dumps(case_to_row(case)) + "\n" for case in cases))
 
     print(f"{run_id}: {len(cases)} cases x {config.attempts_per_case} attempts; starting Gym servers")
-    servers = start_servers(args.setup, config_path, args.chaos, run_dir / "gym_env.log")
+    servers = start_servers(args.setup, config_path, args.chaos, run_dir / "gym_env.log", adapter)
     try:
         returncode = collect(tasks, run_dir / "rollouts.jsonl", config.attempts_per_case, run_dir / "gym_eval.log")
     finally:
