@@ -923,3 +923,49 @@ uv run --group train python -m factory.train_lora --api ops --round 1
 #   peak 26,718 MiB reserved. Train loss noisy but falling in both; gradient norm under 0.4 throughout.
 # Adapters in adapters/helpdesk_r1 and adapters/ops_r1 (68 MB each); configs/models.yaml lists them.
 ```
+
+### Restart with the adapters, smoke checks, r1 evals (the human ran the chain; the evals failed to start)
+
+```bash
+scripts/stop_vllm.sh student && scripts/serve_student.sh && \
+uv run python scripts/smoke_toolcall.py --model helpdesk_r1 --min-parsed 19 && \
+uv run python scripts/smoke_toolcall.py --model ops_r1 --min-parsed 19 && \
+uv run python -m eval.run_eval --setup r1 --api helpdesk --split practice --run-id r1_helpdesk && \
+uv run python -m eval.run_eval --setup r1 --api ops --split practice --run-id r1_ops
+# Student ready after 34 s serving helpdesk_r1 and ops_r1. Smoke: helpdesk_r1 20/20, ops_r1 20/20 (pass mark 19).
+# r1_helpdesk: "Gym servers didn't start" (Process `itops` finished unexpectedly); the chain stopped, so r1_ops didn't run.
+# Cause: Ray's uv hook. Launched under `uv run`, each Gym server's ray.init() rebuilt the uv project for Ray's workers
+# and raised "pyproject.toml is not in the working_dir .../resources_servers/itops". Every earlier eval and collection
+# ran as .venv/bin/python, which never triggers it; CLAUDE.md's Commands showed the `uv run` form.
+```
+
+### Fix: eval/run_eval.py starts Gym with Ray's uv hook off
+
+```bash
+# Reproduced without servers: the step of ray.init() that applies the hook, run from resources_servers/itops
+uv run python $SCRATCH/ray_uv_hook_check.py                                  # RuntimeError: Your .../pyproject.toml is not in the working_dir ...
+RAY_ENABLE_UV_RUN_RUNTIME_ENV=0 uv run python $SCRATCH/ray_uv_hook_check.py  # ok, runtime_env {}
+../../.venv/bin/python $SCRATCH/ray_uv_hook_check.py                         # ok, runtime_env {} (how the baselines ran)
+# start_servers() now passes RAY_ENABLE_UV_RUN_RUNTIME_ENV=0 (Gym copies os.environ into every server), so the
+# servers start as in the baselines however run_eval is launched. gym eval run --no-serve doesn't start Ray.
+.venv/bin/python -m pytest -q          # 207 passed; the new start_servers test fails on commit 65efc94
+mv runs/r1_helpdesk runs/r1_helpdesk_failed_uv_hook   # the failed run's folder, kept; frees the run id
+```
+
+### r1 evals (the human ran them after the fix) and the ladder table: the Done-when check passed
+
+```bash
+.venv/bin/python -m eval.run_eval --setup r1 --api helpdesk --split practice --run-id r1_helpdesk && \
+.venv/bin/python -m eval.run_eval --setup r1 --api ops --split practice --run-id r1_ops
+# r1 on helpdesk practice: 7/12 cases passed; mean latency 5.5 s; $0.17 per 1,000 requests (36/36 attempts)
+# r1 on ops practice: 8/12 cases passed; mean latency 7.3 s; $0.28 per 1,000 requests (36/36 attempts)
+# Same eval_config as the baselines (compared config.json). Against base_seatbelt: helpdesk gains pr-hd-03, 06, 07,
+# loses none (attempts 24/36 vs 16/36); ops gains pr-ops-02, loses pr-ops-06 (to_revision 7 instead of 8 in 2 of 3),
+# attempts 25/36 vs 23/36. Completion tokens and calls per attempt about the same; time per completion token about a
+# third higher (helpdesk 22.8 vs 17.1 ms, ops 20.2 vs 16.3), likely LoRA serving overhead.
+.venv/bin/python -m eval.report --run baseline_base_raw_helpdesk --run baseline_base_seatbelt_helpdesk --run r1_helpdesk \
+  --run baseline_lightning_helpdesk --run baseline_base_raw_ops --run baseline_base_seatbelt_ops --run r1_ops \
+  --run baseline_lightning_ops --output runs/practice_ladder_r1.md
+# PLAN.md's ladder table now has the r1 row. Smoke 20/20 for both adapters (above). Task 2.2's checks pass; the human
+# commits and tags fallback-v1.
+```

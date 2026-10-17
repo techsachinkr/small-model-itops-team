@@ -278,12 +278,13 @@ retry limit. Then help me draft 12 practice cases each for helpdesk and ops.
 
 **Done when:** a human has reviewed the practice cases, and a practice table exists for `base_raw`, `base_seatbelt` and `lightning` on both APIs. If the base model already scores 11/12 or better on an API, make that API harder before going on.
 
-Practice baseline (2026-10-17; `runs/practice_baseline.md`, built by `eval.report` from `runs/baseline_*`; 36/36 attempts each; thinking off):
+Practice ladder (2026-10-17; `runs/practice_ladder_r1.md`, built by `eval.report` from `runs/baseline_*` and, for `r1` (task 2.2), `runs/r1_*`; 36/36 attempts each; thinking off):
 
 | setup | helpdesk | ops |
 |---|---|---|
 | `base_raw` | 4/12 | 8/12 |
 | `base_seatbelt` | 4/12 | 8/12 |
+| `r1` | 7/12 | 8/12 |
 | `lightning` | 9/12 | 8/12* |
 
 \* 7/12 in the run. After the verifier's answer check began reading look-alike hyphens and spaces as ASCII (task 2.1), re-scoring the stored rollouts (`scripts/checks/rescore_answers.py`: same state match, answer checked again) passes one more attempt, pr-ops-08 #2, so that case passes 2/3. No other row changes; `runs/practice_baseline.md` still shows the run's numbers.
@@ -338,7 +339,7 @@ Notes for round 1 and later tasks:
 - For 2.2: `text` in `round_<n>.jsonl` is already rendered with the student's chat template, thinking off (each assistant turn starts with `<think></think>`, the prompt vLLM builds); the loss should cover the assistant turns only.
 - Writing round 1 (both APIs at once, writer concurrency 16 each), measured 21 minutes in: written tasks averaged about 5,700 completion tokens per call, 22% of those calls were retries, and Lightning generated about 1,450 tokens/s with its KV cache near 12%. So a higher `writer.concurrency` is safe.
 
-### [ ] 2.2 Training and the round 1 evaluation
+### [x] 2.2 Training and the round 1 evaluation
 
 ```
 Write factory/train_lora.py using TRL and PEFT (or Unsloth per Gym's tutorial)
@@ -356,6 +357,11 @@ Progress (2026-10-17; commands and results in `COMMANDS_LOG.md`):
 - Dry runs: about 8 s per optimizer step, so about 17 min per API (helpdesk 130 steps, ops 122), at most 24.3 GB, with both vLLM servers up. A 3-step adapter loaded into the running student server at runtime, passed `smoke_toolcall` 20/20, and was unloaded.
 - `r1` setup: `gym_configs/r1.yaml` is `base_seatbelt` with the model left unset; `eval/run_eval.py` sets it to `<api>_r1`.
 - Round 1 training (runs `train_helpdesk_r1`, `train_ops_r1`): helpdesk 130 steps in 15.0 min, held-out eval loss 0.156 -> 0.147 over the 2 epochs; ops 122 steps in 13.7 min, 0.271 -> 0.261. Peak 27.6 GB reserved next to both servers.
+- Done-when check: `smoke_toolcall` parsed 20/20 for `helpdesk_r1` and for `ops_r1`, and the ladder table (task 1.2 above) has the `r1` row: helpdesk 7/12, ops 8/12 (runs `r1_helpdesk`, `r1_ops`, scored by the current verifier; re-scoring left the student's baseline rows unchanged, task 2.1).
+  - helpdesk: r1 passes pr-hd-03, 06 and 07, which `base_seatbelt` failed, and loses none; 24/36 attempts against 16/36 (Lightning 26/36).
+  - ops: r1 gains pr-ops-02 but loses pr-ops-06 (rolled back to revision 7 instead of 8 for "whatever revision was running last Friday", in 2 of 3 attempts), so cases stay at 8/12; attempts 25/36 against 23/36. pr-ops-04, 11 and 12 fail under every setup, Lightning included.
+  - Tokens and calls per attempt about the same as `base_seatbelt`, but about a third more time per completion token (helpdesk 22.8 vs 17.1 ms, ops 20.2 vs 16.3), likely LoRA serving overhead in vLLM; worth measuring in task 4.1. No invalid calls (`base_seatbelt`: 2 per API).
+- Running Gym under `uv run` failed: Ray's uv hook stopped every Gym server at startup. `eval/run_eval.py` now starts Gym with `RAY_ENABLE_UV_RUN_RUNTIME_ENV=0`, so the servers start as in the baselines either way.
 
 ### [ ] 2.3 Failure analyst and round 2
 

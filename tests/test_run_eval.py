@@ -3,6 +3,7 @@ Nothing here reads data/test/ (hard rule 4)."""
 
 import argparse
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -60,6 +61,33 @@ def test_r1_is_base_seatbelt_with_the_api_s_own_adapter() -> None:
     assert run_eval.adapter_model("r1", "helpdesk") == "helpdesk_r1"
     assert run_eval.adapter_model("r1", "ops") == "ops_r1"
     assert run_eval.adapter_model("base_seatbelt", "ops") is None
+
+
+def test_gym_starts_with_the_adapter_and_without_ray_s_uv_hook(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    started: dict[str, Any] = {}
+
+    class Gym:  # stands in for `gym env start`: records how it was called and reports its servers ready
+        def __init__(self, command: list[str], env: dict[str, str], stdout: Any, **kwargs: Any) -> None:
+            started.update(command=command, env=env)
+            stdout.write("All 4 / 4 servers ready\n")
+            stdout.flush()
+
+    class FreePort:
+        def __enter__(self) -> "FreePort":
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            pass
+
+        def connect_ex(self, address: tuple[str, int]) -> int:
+            return 1  # nothing listening
+
+    monkeypatch.setattr(run_eval.subprocess, "Popen", Gym)
+    monkeypatch.setattr(run_eval.socket, "socket", FreePort)
+    run_eval.start_servers("r1", run_eval.EVAL_CONFIG, False, tmp_path / "gym_env.log", "helpdesk_r1")
+    assert "++policy_model_name=helpdesk_r1" in started["command"]
+    # Under `uv run`, Ray's uv hook stopped every Gym server at startup (task 2.2).
+    assert started["env"]["RAY_ENABLE_UV_RUN_RUNTIME_ENV"] == "0"
 
 
 def test_the_adapter_name_reaches_the_agent_and_the_model_server() -> None:

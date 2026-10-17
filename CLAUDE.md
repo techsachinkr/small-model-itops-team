@@ -167,10 +167,12 @@ LLM_MODE=replay <command>                   # answer from runs/cache/ with no se
 uv run python -m gym_env.fixtures.make_fixtures --config configs/fixtures.yaml   # logs.json + incident fixtures
 uv run python -m gym_env.tasks --cases <cases.jsonl> --output <rows.jsonl>       # our cases -> Gym task rows
 # Gym servers (itops + simple agent + Lightning as policy). UV_EXCLUDE_NEWER keeps Gym's per-server
-# venvs (built under runs/gym_venvs/) within rule 1. Runs in the foreground; Ctrl+C stops it.
-UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z uv run gym env start --resources-server itops --model-type vllm_model \
+# venvs (built under runs/gym_venvs/) within rule 1. Runs in the foreground; Ctrl+C stops it. Not `uv run gym`:
+# under uv run, Ray's uv hook stops every Gym server at startup (task 2.2). eval/run_eval.py and factory/collect.py
+# turn the hook off (RAY_ENABLE_UV_RUN_RUNTIME_ENV=0), so they work either way.
+UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z .venv/bin/gym env start --resources-server itops --model-type vllm_model \
   --model lightning --model-url http://localhost:8000/v1 --model-api-key EMPTY +uv_venv_dir=runs/gym_venvs
-uv run gym eval run --no-serve --agent itops_simple_agent \
+.venv/bin/gym eval run --no-serve --agent itops_simple_agent \
   --input resources_servers/itops/data/example.jsonl --output runs/gym_smoke/rollouts.jsonl
 # One setup on one API's practice cases, 3 attempts each. Needs the setup's vLLM server running; starts and
 # stops the Gym servers itself (port 11000 must be free). Results in runs/<run_id>/. Setups: gym_configs/;

@@ -115,9 +115,12 @@ def start_servers(setup: str, config_path: Path, chaos: bool, log_path: Path, mo
         command.append(f"++policy_model_name={model}")
     if chaos:
         command.append("++itops.resources_servers.itops.chaos.enabled=true")
-    # Gym builds a venv per server; keep their dependencies within hard rule 1 too.
+    # Gym builds a venv per server; keep their dependencies within hard rule 1 too. Ray's uv hook stays off: under
+    # `uv run`, every server's ray.init() would set Ray's workers up to run through uv, and stop because
+    # pyproject.toml isn't in the server's folder (task 2.2). Off, the servers start as under .venv/bin/python,
+    # as in the baselines.
     exclude_newer = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["uv"]["exclude-newer"]
-    env = os.environ | {"UV_EXCLUDE_NEWER": exclude_newer}
+    env = os.environ | {"UV_EXCLUDE_NEWER": exclude_newer, "RAY_ENABLE_UV_RUN_RUNTIME_ENV": "0"}
     log = log_path.open("w")
     process = subprocess.Popen(command, cwd=REPO, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     deadline = time.monotonic() + SERVER_TIMEOUT_S
