@@ -948,7 +948,9 @@ RAY_ENABLE_UV_RUN_RUNTIME_ENV=0 uv run python $SCRATCH/ray_uv_hook_check.py  # o
 ../../.venv/bin/python $SCRATCH/ray_uv_hook_check.py                         # ok, runtime_env {} (how the baselines ran)
 # start_servers() now passes RAY_ENABLE_UV_RUN_RUNTIME_ENV=0 (Gym copies os.environ into every server), so the
 # servers start as in the baselines however run_eval is launched. gym eval run --no-serve doesn't start Ray.
-.venv/bin/python -m pytest -q          # 207 passed; the new start_servers test fails on commit 65efc94
+.venv/bin/python -m pytest -q          # 207 passed
+# The new start_servers test against the committed code (65efc94), without the fix: 1 failed. Then the fix back.
+git stash push eval/run_eval.py && .venv/bin/python -m pytest -q tests/test_run_eval.py -k uv_hook; git stash pop
 mv runs/r1_helpdesk runs/r1_helpdesk_failed_uv_hook   # the failed run's folder, kept; frees the run id
 ```
 
@@ -968,4 +970,6 @@ mv runs/r1_helpdesk runs/r1_helpdesk_failed_uv_hook   # the failed run's folder,
   --run baseline_lightning_ops --output runs/practice_ladder_r1.md
 # PLAN.md's ladder table now has the r1 row. Smoke 20/20 for both adapters (above). Task 2.2's checks pass; the human
 # commits and tags fallback-v1.
+# The per-case, per-attempt and latency comparisons above came from short read-only Python over runs/<run>/config.json,
+# per_case.json, traces.jsonl and rollouts.jsonl (baseline_*_<api> against r1_<api>), not kept.
 ```

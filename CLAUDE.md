@@ -178,6 +178,7 @@ UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z .venv/bin/gym env start --resources-server
 # stops the Gym servers itself (port 11000 must be free). Results in runs/<run_id>/. Setups: gym_configs/;
 # r1 runs the API's own adapter (helpdesk_r1 for --api helpdesk), so the student server must be serving it.
 uv run python -m eval.run_eval --setup base_seatbelt --api helpdesk --split practice
+uv run python -m eval.run_eval --setup r1 --api ops --split practice --run-id r1_ops   # ops_r1 on the student server
 # Factory (task 2.1; settings in configs/factory.yaml; methodology in data/generated/README.md). Tasks: sampled
 # actions phrased by Lightning, ~20% written whole by Lightning (needs Lightning on 8000; about 45 min for round 1),
 # saved with their config and seed; then drop near-copies of practice. Commit first: the writer records the commit.
