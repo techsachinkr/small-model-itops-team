@@ -61,8 +61,22 @@ flowchart LR
     A -- "targeted tasks for round 2" --> T
 ```
 
-- **Tasks.** Most tasks are sampled by code: code picks a valid action and computes the gold calls, and a model only phrases the request. About 20% are written entirely by Lightning.
-- **Rollouts and filter.** Lightning solves each task inside NeMo Gym. A rollout becomes training data only if the verifier passes it and it contains no failed calls.
+- **Tasks.** Most tasks are sampled by code: code picks a valid action from the environment and computes the gold calls, and Lightning only phrases the request, in a style code picks. Code then checks the phrasing: the request must state what the action needs (a priority, a change ticket) and leave out what the assistant should look up or ask for. About 20% of tasks are written entirely by Lightning, and code checks that their gold calls run and that the request states every value they set. The kinds cover single actions in one or two steps, requests with missing information (the assistant should ask), and requests no tool should carry out.
+- **Decontamination.** Tasks that copy a practice case are dropped: a request worded like one, the same situation for a request that changes nothing, or the same changes as a practice case or part of one.
+- **Rollouts and filter.** Lightning solves each task inside NeMo Gym, with the same tools, seatbelt and limits as every eval setup. A rollout becomes training data only if the verifier passes it, no call failed, and the seatbelt never had to send Lightning back to work.
+
+How Lightning thinks at each step. It can reason before answering ("thinking"), which costs tokens and time:
+
+| Step | Thinking | Why |
+|---|---|---|
+| Phrasing a sampled task as a request | off | Code already chose the action; a sentence needs no reasoning, and code checks the result. |
+| Writing a whole task | on | The gold calls must match the environment exactly. In a trial, 4 of 8 tasks written without thinking contradicted it (for example, a colleague's ticket under the wrong name); with thinking, the facts held. |
+| Solving tasks (rollouts) | on | With thinking, the verifier passed 33/36 helpdesk and 30/36 ops practice attempts, against 27/36 and 21/36 without. |
+| The student's training text | off | The student is evaluated with thinking off, so it learns from Lightning's calls and answers with the reasoning removed. |
+
+**Rounds.** Round 1 is broad: about 1,300 helpdesk and 1,500 ops tasks spread over everything each API does (actions in one or two steps, requests that need a question back, requests to decline), aiming for about 1,000 verified examples per API. It trains the round 1 adapters. Round 2 is targeted: the failure analyst's clusters of round 1 mistakes on practice cases become about 300 new tasks per API. The task mix, files and methodology are in `data/generated/README.md`.
+
+**Pilot** (helpdesk, 50 tasks, before round 1): 6 dropped as too close to practice cases, and 40 of the remaining 44 Lightning rollouts kept as training data. A person read 10 kept examples; one taught the wrong thing (Lightning offered to look up a colleague's private phone number, which the state check can't catch), so that kind of task was removed.
 - **Training.** One LoRA adapter per API on the 4B student (rank 16, loss on assistant turns only). The data is rendered with the student's own chat template, so its tool calls parse correctly when served.
 - **Round 2.** A failure analyst (Lightning, with structured output) groups the round 1 adapter's mistakes on practice cases. The factory then writes targeted tasks for those weak spots.
 
@@ -101,7 +115,7 @@ Every setup runs under identical conditions: the same NeMo Gym eval configuratio
 
 We also report latency and cost per 1,000 requests (from GPU price and measured throughput), and for `team_escalate`, the share of steps the small models handled.
 
-**Held-out test set.** Humans write the test cases, and they stay locked. No code, model or training data touches them until the final run. The factory and the failure analyst only ever see results on the separate practice cases.
+**Held-out test set.** Developer write the test cases, and they stay locked. No code, model or training data touches them until the final run. The factory and the failure analyst only ever see results on the separate practice cases.
 
 ## Models
 
@@ -137,8 +151,9 @@ Every outside source is listed with its license in `data/open/DATA_SOURCES.md`.
 |---|---|
 | 0. Repo, serving (vLLM), model client | done |
 | 1.1 NeMo Gym environment and verifier | done |
-| 1.2 Seatbelt, tool loop, Gym agent, eval runner, practice cases, baseline | in progress: code built and tested; practice cases being made harder before human review; baseline not run yet |
-| 2. Factory, round 1 and round 2 training | not started |
+| 1.2 Seatbelt, tool loop, Gym agent, eval runner, practice cases, baseline | done: practice cases reviewed; baseline in `runs/practice_baseline.md` |
+| 2.1 Tasks and Lightning rollouts | in progress: pipeline built and tested, helpdesk pilot reviewed; round 1 tasks being generated |
+| 2.2–2.3 Round 1 and round 2 training | not started |
 | 3. Specialists, orchestrator, system baselines, escalation | not started |
 | 4. vLLM serving benchmarks | not started |
 | 5. Final test-set run, README and write-ups, demo and video | not started |

@@ -327,6 +327,8 @@ Notes for round 1 and later tasks:
 - Decontamination has three rules (text 0.7; same user, fixture and kind 0.25 for tasks that change nothing; the same changes as a practice case or part of one). It dropped 6 of 50 in the pilot; ops drops more (about 13% in calibration), because rollbacks on incident fixtures often land on a practice case's answer.
 - `text` uses ASCII hyphens and spaces in Lightning's answers (it writes IDs like "HD‑1041" with U+2011); `messages` keeps Lightning's own text.
 - The self-check sometimes says a tool call is needed when Lightning correctly asks the user; those rollouts are rejected (2 of 7 missing_info/no_tool tasks in the pilot).
+- Round 1 size: 1,300 helpdesk and 1,500 ops task slots (`--name round_1`), for about 1,000 kept each: the pilot kept 40 of 50 slots, and ops loses more to decontamination. If either API ends under about 1,000, add a top-up batch with another `--name` and seed. Collection run ids `round1_helpdesk` and `round1_ops`. Task mix, files and methodology: `data/generated/README.md`.
+- Writing round 1 (both APIs at once, writer concurrency 16 each), measured 21 minutes in: written tasks averaged about 5,700 completion tokens per call, 22% of those calls were retries, and Lightning generated about 1,450 tokens/s with its KV cache near 12%. So a higher `writer.concurrency` is safe.
 
 ### [ ] 2.2 Training and the round 1 evaluation
 

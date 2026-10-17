@@ -82,6 +82,8 @@ Training example (`data/generated/<api>/round_<n>.jsonl`):
 `{id, api, round, kind, origin: sampled|written, source: broad|targeted, cluster?, case_id, teacher, reward, messages, text}`
 `sampled` means code picked the action and computed `gold_calls`, and a model only phrased the request. `written` means a model wrote both. `messages` is Lightning's full trajectory including tool results. `text` is that trajectory rendered with the student base model's chat template.
 
+Each generated task file comes with `tasks_<name>.config.json` (settings, seed, git commit, each task's origin) and `tasks_<name>.decontaminate.json` (dropped tasks); each `round_<n>.jsonl` with `round_<n>.stats.json` (kept and rejected counts). Round 1 is broad (`data/generated/<api>/tasks_round_1.jsonl`), round 2 targeted; the pilot in `data/generated/helpdesk/pilot/` isn't training data. Methodology for publishing: `data/generated/README.md`.
+
 Trace (`runs/<run_id>/traces.jsonl`):
 `{run_id, setup, case_id, attempt, steps: [{agent, model, calls, seatbelt_events, escalated}], prompt_tokens, completion_tokens, latency_s, cost_usd, passed, failure_label?: routing|specialist}`
 where a call is `{turn, tool, args, status, output}` (status 0: blocked by the seatbelt, never run) and a seatbelt event is `{kind: invalid_call|tool_error|transient_retry|self_check|gave_up, turn, tool?, detail, complete?, retries_left?}`. A step with a `gave_up` event failed.

@@ -531,7 +531,7 @@ kill -INT -- -<pgid>
 Self-check prompt v3: the three cases spelled out (done / asked for missing information / declined), and
 `reason` before `complete` in the schema so the model names the case before deciding.
 
-### Practice cases (drafts, for human review)
+### Practice cases (drafts, for developer review)
 
 ```bash
 # 12 helpdesk + 12 ops cases in data/practice/. Checked: every case validates, gold calls all succeed, a gold
@@ -677,14 +677,14 @@ for setup in base_raw base_seatbelt lightning; do for api in helpdesk ops; do
 # Against the thinking-off test runs: pr-ops-11 and pr-ops-12 went 3/3 -> 0/3 for every setup (the evaluator fixes
 # now fail the wrong behaviour); base_raw helpdesk lost 4 attempts with no relevant change (sampling noise).
 # Self-check: 3 rescues (two read-only answers given without looking, one reset not yet done), no correct
-# question turned into a wrong action. The human reviewed the cases; base < 11/12 on both APIs. Task 1.2 done.
+# question turned into a wrong action. The developer reviewed the cases; base < 11/12 on both APIs. Task 1.2 done.
 ```
 
 ## 2026-10-17: task 2.1 Tasks and Lightning rollouts
 
 Decisions (with the user): each task's origin goes in the writer's `tasks_<name>.config.json`, not in `Case`;
 rollouts the self-check sent back to work are rejected, not edited; Claude runs the writer's Lightning calls,
-the human runs collection; the pilot lives in `data/generated/helpdesk/pilot/`, separate from round 1.
+the developer runs collection; the pilot lives in `data/generated/helpdesk/pilot/`, separate from round 1.
 
 ### Research: chat formats and Gym's offline-training tutorial
 
@@ -751,7 +751,7 @@ LLM_MODE=record .venv/bin/python -m factory.writer --api helpdesk --n 50 --name 
 ```
 
 ```bash
-# (human) Lightning rollouts on the 44 pilot tasks, from commit 57949f4
+# (developer) Lightning rollouts on the 44 pilot tasks, from commit 57949f4
 .venv/bin/python -m factory.collect --tasks data/generated/helpdesk/pilot/tasks_pilot.jsonl --run-id pilot_helpdesk
 # 44/44 rollouts in 12 s (gym_eval.log); the tracebacks in gym_env.log are the usual SIGINT shutdown
 .venv/bin/python -m factory.filter --run pilot_helpdesk --round 1 --output data/generated/helpdesk/pilot/round_1.jsonl --show 5
@@ -762,7 +762,7 @@ LLM_MODE=record .venv/bin/python -m factory.writer --api helpdesk --n 50 --name 
 # needed (the nudge is in the conversation, so they're rejected).
 ```
 
-The human read 10 kept examples (5 from `--show 5`, 5 more covering missing_info and no_tool): they look right,
+The developer read 10 kept examples (5 from `--show 5`, 5 more covering missing_info and no_tool): they look right,
 except hd-pilot-0038 (no_tool): asked for a colleague's mobile number, Lightning offered to look it up given her
 employee ID. Nothing changed, so the verifier passed it. Removed the `colleague_private_info` template (the
 right answer is a refusal, which the state match can't check). Tightened the delivery check so that naming email
@@ -771,3 +771,13 @@ as the problem ("can't access their email", hd-pilot-0017) no longer counts as a
 ```bash
 .venv/bin/python -m pytest -q          # 193 passed
 ```
+### Round 1 tasks (run both writers at once, in two terminals, from a clean commit)
+
+```bash
+LLM_MODE=record .venv/bin/python -m factory.writer --api helpdesk --n 1300 --name round_1
+LLM_MODE=record .venv/bin/python -m factory.writer --api ops --n 1500 --name round_1
+# Progress from runs/cache/ at 21 min: helpdesk 135/260 written tasks started, ops 115/300; written-task calls
+# average ~5,700 completion tokens, 22% retries; Lightning ~1,450 tokens/s at 32 running requests, KV cache ~12%.
+```
+Documented round 1 (what it contains, files, methodology) in `data/generated/README.md`, with pointers from
+CLAUDE.md "Data formats", PROJECT_OVERVIEW.md and PLAN.md task 2.1.
