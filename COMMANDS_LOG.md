@@ -422,3 +422,31 @@ UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z .venv/bin/gym env start --resources-server
 # Stop the Gym servers (Ctrl+C / kill the gym env start process), then Lightning; GPU back to 0 MiB
 scripts/stop_vllm.sh lightning
 ```
+
+### Category definitions in create_ticket's schema, and a rerun
+
+```bash
+# After adding one-line definitions per category to create_ticket's `category` argument: regenerate the
+# Gym rows (tool schemas are embedded in them) and test: 74 passed
+.venv/bin/python -m gym_env.tasks --cases resources_servers/itops/data/example_cases.jsonl \
+  --output resources_servers/itops/data/example.jsonl
+.venv/bin/python -m pytest -q
+# Rerun with Lightning, 3 rollouts per task: 19/21. ex-multi-001 2/3 (categories: incident, software,
+# incident; was software in the single earlier run). ex-ro-001 2/3: the failure answered
+# "Status: Open", and answer_must_contain "open" is a case-sensitive substring check, so a correct answer failed.
+scripts/serve_lightning.sh                          # ready after 45 s
+UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z .venv/bin/gym env start --resources-server itops --model-type vllm_model \
+  --model lightning --model-url http://localhost:8000/v1 --model-api-key EMPTY +uv_venv_dir=runs/gym_venvs \
+  > runs/gym_smoke/gym_env_2.log 2>&1 &
+.venv/bin/gym eval run --no-serve --agent itops_simple_agent --input resources_servers/itops/data/example.jsonl \
+  --output runs/gym_smoke/rollouts_categories.jsonl --num-repeats 3
+scripts/stop_vllm.sh lightning                      # after stopping the Gym servers; GPU back to 0 MiB
+```
+
+### Keep event_req/ out of the repo
+
+```bash
+# Commit a8316f1 added event_req/; untrack it (the PDF stays on disk) and gitignore the folder
+git rm -r --cached event_req/
+printf '\n# Event materials, kept locally only\nevent_req/\n' >> .gitignore
+```

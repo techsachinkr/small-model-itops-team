@@ -11,3 +11,6 @@ runs/*
 
 # Hydra run folders written by every gym command
 outputs/
+
+# Event materials, kept locally only
+event_req/
