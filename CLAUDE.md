@@ -18,7 +18,7 @@ Parts:
 ## Hard rules
 
 1. **All code must be written during the hackathon** (event rule). Outside code is allowed only if it has been open source for 2+ weeks, which covers normal libraries. Never paste in code written before the event.
-2. **Every generative model is ≤33B total parameters** (event rule), including any used for verification, critique, routing or speculative decoding. For MoE models, total parameters count, using the official number on the model card. Embedding and reranking models are excluded. Whether the limit is per model or combined is being confirmed with organizers (PLAN.md task 0.1). Until then, use only models listed in `configs/models.yaml`.
+2. **Every generative model is ≤33B total parameters** (event rule), including any used for verification, critique, routing or speculative decoding. For MoE models, total parameters count, using the official number on the model card. Embedding and reranking models are excluded. The limit is per model, not combined (organizers, 2026-10-17; PLAN.md task 0.1). Use only models listed in `configs/models.yaml`.
 3. **Open data** (event rule): every synthetic dataset is saved with its generation config and seed so it can be published with its methodology. Every outside data source is listed in `data/open/DATA_SOURCES.md` with its link and license.
 4. **`data/test/` is locked.** Never open, print, summarize, edit, or generate data from anything in it. Only `eval/run_eval.py --split test --final` and `eval/decontaminate.py --against test` may read it, and only when a human asks for that run. If a task seems to need test data, stop and ask.
 5. **The factory never sees test data.** The failure analyst reads only results on `data/practice/`.
