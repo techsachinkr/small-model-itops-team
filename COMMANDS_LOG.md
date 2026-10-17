@@ -205,3 +205,163 @@ curl -s -X POST https://concrete-panther-c83.notion.site/api/v3/loadCachedPageCh
 python3 -I scripts/tools/notion_page_text.py $SCRATCH/notion/checklist.json 9e5f567d-17cc-83c0-9dc7-0160ca887731
 python3 -I scripts/tools/notion_page_text.py $SCRATCH/notion/video.json 087f567d-17cc-8239-839b-011a10c5c0d3
 ```
+
+## 2026-10-17: task 0.2 Serving, the LLM client and replay mode
+
+### Checks before writing the serve scripts
+
+```bash
+# Every flag in Lightning's card recipe exists in the installed vLLM 0.27.1 (mamba backend, stochastic
+# rounding, philox rounds, async scheduling); --lora-modules takes name=path; --gpu-memory-utilization is
+# a per-instance share of the whole GPU, so two servers' shares add up.
+PATH=$PWD/.venv-vllm/bin:$PATH vllm serve --help=all > $SCRATCH/vllm_help.txt
+
+# Both chat templates default enable_thinking to true; Lightning's card validates 256K context on one
+# H100 (we use 32K); Nano 4B's card uses --mamba-ssm-cache-dtype float32 (as in the LoRA check).
+grep -n "enable_thinking" ~/.cache/huggingface/hub/models--nvidia--*/snapshots/*/chat_template.jinja
+grep -n -A22 "vllm serve" ~/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16/snapshots/*/README.md
+
+# vLLM returns reasoning in the message field `reasoning`, but both chat templates read
+# `reasoning_content` from history. For task 1.2: rename it when the tool loop sends history back.
+grep -n "class ChatMessage(" -A14 .venv-vllm/lib/python3.13/site-packages/vllm/entrypoints/openai/chat_completion/protocol.py
+```
+
+### Serve Lightning, write the client
+
+```bash
+# Start Lightning in the background (runs/vllm/lightning.{pid,log}); the script waits for /v1/models
+chmod +x scripts/serve_lightning.sh scripts/serve_student.sh scripts/stop_vllm.sh
+scripts/serve_lightning.sh
+
+# common/llm.py offline tests (stub client, no GPU): 17 passed (11 schema + 6 llm)
+.venv/bin/python -m pytest -q
+
+# Flags for the price benchmarks (step 5)
+PATH=$PWD/.venv-vllm/bin:$PATH vllm bench serve --help=all > $SCRATCH/bench_help.txt
+```
+
+Lightning ready after 135 s. From its log: weights 58.92 GiB, KV cache 14.98 GiB (513,440 tokens; 15.67x
+concurrency at the full 32K), CUDA graphs 0.43 GiB. `nvidia-smi`: 78,239 MiB used with Lightning alone.
+
+```bash
+# Start the student next to Lightning (background; runs/vllm/student.{pid,log})
+scripts/serve_student.sh
+
+# Smoke test, Lightning, live, thinking on (card sampling 1.0/0.95): 20/20 parsed, all 20 with reasoning,
+# unit passed through when asked. runs/smoke_toolcall/lightning_live_20261017-170439/
+.venv/bin/python scripts/smoke_toolcall.py --model lightning
+
+# Structured output through common/llm.py on Lightning, thinking on: the schema constrains only the
+# answer (finish "stop", reasoning field filled, content parses as {"complete": true, "reason": ...}).
+.venv/bin/python - <<'PY'  # llm.chat("lightning", msgs, json_schema={complete: bool, reason: str}, ...)
+PY
+```
+
+The first student launch failed: `ValueError: max_num_seqs (1024) exceeds available Mamba cache blocks (643)`.
+vLLM's default of 1,024 sequences needs one Mamba state block each, and the 0.15 share holds 643 (weights
+7.71 GiB, KV cache 9.58 GiB). Lightning was unaffected. Fix: `--max-num-seqs 256` in serve_student.sh.
+
+```bash
+# Find the root cause in the student log (the script's tail showed only the API server's traceback)
+grep -nE "Error|memory|KV cache|mamba" runs/vllm/student.log
+
+# Relaunch the student with --max-num-seqs 256
+scripts/serve_student.sh
+```
+
+Student ready after 40 s. Both servers on the GPU together (`nvidia-smi`): Lightning 78,230 MiB, student
+21,644 MiB, total 99,889 of 143,771 MiB. Student: weights 7.71 GiB, KV cache 11.36 GiB (624,230 tokens).
+From the logs: prefix caching on for Lightning, off for the student. Details in configs/gpu.md.
+
+```bash
+# Both servers loaded; per-process memory and served model names
+nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader
+curl -s localhost:8000/v1/models; curl -s localhost:8001/v1/models
+
+# Smoke test, student, live, thinking on (card sampling 0.6/0.95): 20/20 parsed, all 20 with reasoning.
+# runs/smoke_toolcall/student_live_20261017-170725/
+.venv/bin/python scripts/smoke_toolcall.py --model student
+
+# Structured output on the student, thinking on: finish "stop", content parses against the schema
+.venv/bin/python - <<'PY'  # llm.chat("student", msgs, json_schema={complete: bool, reason: str}, ...)
+PY
+```
+
+### Prices (configs/eval.yaml)
+
+GPU price: $6.53/hour (Brev H200, from the user). Throughput is measured with vLLM's own benchmark
+client against each server while the other is idle, with the same settings for both models.
+
+```bash
+# Per model: a prefill-dominated run (prompt price) and a decode-dominated run (completion price).
+# Random token prompts, 256 requests, concurrency 64, seed 0. The tokenizer comes from the pinned snapshot.
+PATH=$PWD/.venv-vllm/bin:$PATH HF_HUB_OFFLINE=1 vllm bench serve --backend vllm \
+  --base-url http://localhost:8000 --model lightning --tokenizer <lightning snapshot> \
+  --dataset-name random --random-input-len 2048 --random-output-len 1 \
+  --num-prompts 256 --max-concurrency 64 --ignore-eos --seed 0 \
+  --save-result --result-dir runs/prices --result-filename lightning_prefill.json
+# ... the same with --random-input-len 128 --random-output-len 512 -> lightning_decode.json,
+# and both again with --base-url http://localhost:8001 --model student -> student_{prefill,decode}.json
+
+# Prices from the saved result files: price_per_1m = 6.53 / (tok_per_s * 3600 / 1e6)
+.venv/bin/python -I - runs/prices <<'PY'  # prompt tok/s = total_input_tokens / duration (prefill run);
+PY                                        # completion tok/s = output_throughput (decode run)
+```
+
+| Model | Prompt tok/s | Completion tok/s | $/1M prompt | $/1M completion | Failed requests |
+|---|---|---|---|---|---|
+| lightning | 56,609 | 3,949 | 0.0320 | 0.4594 | 0/512 |
+| student | 77,991 | 9,430 | 0.0233 | 0.1924 | 0/512 |
+
+### Replay check (Done when)
+
+```bash
+# Record a smoke run for each model into runs/cache/ (40 entries): both 20/20
+LLM_MODE=record .venv/bin/python scripts/smoke_toolcall.py --model lightning
+LLM_MODE=record .venv/bin/python scripts/smoke_toolcall.py --model student
+
+# Stop both servers: printed "lightning: stopped", "student: stopped", "0 MiB, 143771 MiB";
+# no vllm processes left, nothing answers on 8000 or 8001
+scripts/stop_vllm.sh
+pgrep -af "vllm serve"; curl -s -m 2 localhost:8000/v1/models; curl -s -m 2 localhost:8001/v1/models
+
+# Replay with no server: both 20/20; 20/20 responses identical to the recording for each model
+# (message and token counts), all marked replayed; an unrecorded request raises ReplayMiss
+LLM_MODE=replay .venv/bin/python scripts/smoke_toolcall.py --model lightning
+LLM_MODE=replay .venv/bin/python scripts/smoke_toolcall.py --model student
+.venv/bin/python -I - runs/smoke_toolcall <<'PY'  # compare latest record vs replay results.jsonl
+PY
+
+# Final offline tests
+.venv/bin/python -m pytest -q
+```
+
+### Verify (the "Done when" check, run again from a clean start): passed
+
+```bash
+# Start both servers: Lightning ready after 45 s, student after 34 s (compile caches warm)
+scripts/serve_lightning.sh && scripts/serve_student.sh
+
+# (1) Both on the GPU together: Lightning 78,994 MiB, student 21,644 MiB, total 100,653 of 143,771 MiB
+nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader
+curl -s localhost:8000/v1/models; curl -s localhost:8001/v1/models
+
+# (2) Smoke test, live with recording: lightning 20/20, student 20/20 (identical to the first run:
+# seeded sampling)
+LLM_MODE=record .venv/bin/python scripts/smoke_toolcall.py --model lightning
+LLM_MODE=record .venv/bin/python scripts/smoke_toolcall.py --model student
+
+# (3) Stop vLLM (0 MiB used, no processes, nothing on 8000/8001), then replay: both 20/20, and 20/20
+# responses identical to the recording for each model
+scripts/stop_vllm.sh
+LLM_MODE=replay .venv/bin/python scripts/smoke_toolcall.py --model lightning
+LLM_MODE=replay .venv/bin/python scripts/smoke_toolcall.py --model student
+.venv/bin/python -I - runs/smoke_toolcall <<'PY'  # compare latest record vs replay results.jsonl
+PY
+```
+
+```bash
+# Wrap up: commit task 0.2 on main (event_req/ left out: untracked, not part of this task)
+git add CLAUDE.md COMMANDS_LOG.md PLAN.md common/llm.py configs/ scripts/ tests/test_llm.py
+git commit
+```

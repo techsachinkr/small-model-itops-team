@@ -92,7 +92,7 @@ Answers (2026-10-17):
 - (a) Drop Lightning and use a smaller Nemotron as teacher and orchestrator. This is safer but gives up the Lightning bounty.
 - (b) Make Lightning the only model, with specialists as LoRA adapters on Lightning itself. This is more Lightning-centric, but only viable if a quick test shows LoRA training and vLLM LoRA serving work for Lightning.
 
-### [ ] 0.2 Set up
+### [x] 0.2 Set up
 
 - [x] Open the event's Submission Checklist and Demo Video Instructions, and copy any requirements (video length, required links, repo visibility) into this file. See "Event requirements" near the top.
 - [x] Team captain redeems the Brev code (Billing → Redeem Code) and invites teammates (Team → Generate Invite Link). Share SSH access on the instance.
@@ -107,8 +107,10 @@ Answers (2026-10-17):
   - LoRA check on vLLM 0.27.1 (commands and results in `COMMANDS_LOG.md`): untrained PEFT adapters load, and vLLM reproduces HF+PEFT greedy output exactly (32/32 tokens) for attention + MLP and for Mamba `in_proj`; a zero-init adapter matches the base. PEFT refuses Mamba `out_proj` and `conv1d` on `nemotron_h`. A tool call parsed with thinking both on and off.
   - For 2.2: LoRA targets `q_proj k_proj v_proj o_proj up_proj down_proj in_proj`. The `mamba_ssm` and `causal_conv1d` kernels aren't installed, so HF training uses the slower plain-PyTorch Mamba path. Recommended temperature differs from Lightning's: 0.6, top_p 0.95 for tool calling.
   - For the serve scripts: put `.venv-vllm/bin` on PATH (FlashInfer runs `ninja` from PATH when it JIT-compiles at startup). vLLM leaves prefix caching off by default for this model (relevant to 4.1).
-- [ ] Decide whether `calendar` is in scope. The default is no: two specialists (helpdesk and ops), with calendar as a stretch goal.
-- [ ] Split roles (see Team split). Person C starts writing the test set immediately.
+- [x] Decide whether `calendar` is in scope. The default is no: two specialists (helpdesk and ops), with calendar as a stretch goal.
+  - Decided 2026-10-17: out of scope. Two specialists, helpdesk and ops; calendar stays a stretch goal.
+- [x] Split roles (see Team split). Person C starts writing the test set immediately.
+  - Solo, so there's nothing to split: follow the "Solo" line under Team split. The test set is still written by a human only (CLAUDE.md rule 4).
 
 ---
 
@@ -202,7 +204,7 @@ the tree.
 
 **Done when:** `uv run python -c "import common.schemas"` works and the tree matches CLAUDE.md.
 
-### [ ] 0.2 Serving, the LLM client and replay mode
+### [x] 0.2 Serving, the LLM client and replay mode
 
 ```
 Fill configs/models.yaml with Nemotron 3.5 Lightning and Nemotron 3 Nano 4B, including
@@ -221,6 +223,12 @@ many came back as parsed tool calls.
 ```
 
 **Done when:** both servers run on the GPU together, `smoke_toolcall` shows at least 18/20 parsed calls for each model, and a recorded call replays correctly with vLLM stopped.
+
+Notes for later tasks (from 0.2; details in `configs/gpu.md` and `COMMANDS_LOG.md`):
+- 1.2: `llm.chat()` returns tokens and latency but doesn't write a trace; `tool_loop.py` should add them into each `Step`/`Trace`.
+- 1.2: vLLM returns reasoning as `message["reasoning"]`, but both chat templates read `reasoning_content` from history. Rename the field (or drop it) when sending an assistant turn back.
+- 1.2: structured output works with thinking on for both models: the schema constrains only the answer, after the reasoning.
+- 4.1: the student's `--max-num-seqs` is 256 because its 0.15 memory share holds 643 Mamba cache blocks (one per running sequence). Prefix caching is on for Lightning and off for the student (vLLM's default for it).
 
 ## Stage 1: Environment and baseline (NeMo Gym)
 

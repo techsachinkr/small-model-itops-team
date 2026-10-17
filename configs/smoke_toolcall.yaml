@@ -1,0 +1,14 @@
+# scripts/smoke_toolcall.py settings.
+
+# Pass mark: task 0.2 needs 18/20 for each base model. CLAUDE.md needs 19/20 after every training
+# run, so check adapters with --min-parsed 19.
+min_parsed: 18
+
+# Thinking stays on (both chat templates' default), so leave room for reasoning before the call.
+max_tokens: 4096
+seed: 0  # prompt i uses seed + i
+
+# Each model card's recommended sampling. Adapters use the student's.
+sampling:
+  lightning: {temperature: 1.0, top_p: 0.95}
+  student: {temperature: 0.6, top_p: 0.95}

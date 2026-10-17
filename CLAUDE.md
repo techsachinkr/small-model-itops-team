@@ -148,10 +148,12 @@ uv sync                                     # Windows: core deps only. Linux: al
 uv sync --group train                       # Brev box: adds TRL, PEFT, transformers
 uv venv .venv-vllm --python 3.13            # Brev box: vLLM in its own venv
 uv pip install --python .venv-vllm/bin/python vllm==0.27.1 --exclude-newer 2026-10-03T00:00:00Z
-scripts/serve_lightning.sh
-scripts/serve_student.sh                    # base model + adapters
-scripts/stop_vllm.sh
-uv run python scripts/smoke_toolcall.py --model <name>
+scripts/serve_lightning.sh                  # background, port 8000; log and PID in runs/vllm/
+scripts/serve_student.sh                    # base model + every adapter in adapters/, port 8001
+scripts/stop_vllm.sh [lightning|student]    # no name: stop both
+uv run python scripts/smoke_toolcall.py --model <name>   # adapters: add --min-parsed 19
+LLM_MODE=record <command>                   # also save every common/llm.py response to runs/cache/
+LLM_MODE=replay <command>                   # answer from runs/cache/ with no server (never for evals)
 uv run python -m eval.run_eval --setup base_seatbelt --api helpdesk --split practice
 uv run python -m factory.run_round --api ops --round 1
 uv run python -m eval.run_eval --setup team_trained --split practice
