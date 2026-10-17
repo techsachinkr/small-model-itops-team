@@ -155,3 +155,10 @@ def test_main_refuses_the_test_folder(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "argv", ["writer", "--api", "ops", "--n", "1", "--name", "t", "--out-dir", "data/test/x"])
     with pytest.raises(SystemExit, match="locked"):
         writer.main()
+
+
+def test_naming_email_as_the_problem_is_not_asking_for_email_delivery() -> None:
+    # Pilot hd-pilot-0017: Lightning (rightly) asked how to send it, and the rollout failed the state match.
+    problems, _ = written("Hi, I need to reset the password for employee E1003. They're locked out and can't access their email.",
+                          ("reset_password", {"employee_id": "E1003", "delivery": "email"}))
+    assert any("delivery method email" in p for p in problems)

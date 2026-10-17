@@ -108,3 +108,22 @@ def test_task_problems_catches_bad_tasks() -> None:
     assert "no gold call returns" in task_problems(case(kind="read_only", gold_calls=read_only, answer_must_contain=["iPad"]))[0]
     leaked = case(kind="read_only", request="Is my X1 Carbon listed?", gold_calls=read_only, answer_must_contain=["X1 Carbon"])
     assert "already in the request" in task_problems(leaked)[0]
+
+
+@pytest.mark.parametrize(("delivery", "text", "asks"), [
+    ("email", "Send the temporary one to my email.", True),
+    ("email", "Reset it and email it to her.", True),
+    ("email", "shoot the temporary one over to my email", True),
+    ("email", "Reset E1003's password. They can't access their email.", False),  # pilot hd-pilot-0017
+    ("email", "I'm locked out of my email, reset my password.", False),
+    ("sms", "Send it by text message.", True),
+    ("sms", "text me the new one", True),
+    ("sms", "send it to my phone", True),
+    ("sms", "My phone is fine, reset my password.", False),
+])
+def test_delivery_mentions_need_a_delivery_phrase(delivery: str, text: str, asks: bool) -> None:
+    assert bool(re.search(sampler.DELIVERY[delivery].pattern, text, re.I)) == asks
+
+
+def test_no_template_asks_for_private_details_the_verifier_cant_judge() -> None:
+    assert "colleague_private_info" not in {t.name for t in sampler.TEMPLATES}

@@ -118,9 +118,13 @@ def version(tag: str) -> str:
 
 NAMESPACE = {"prod": r"\bprod(uction)?\b", "staging": r"\bstag(e|ing)\b"}
 NAMESPACE_TEXT = {"prod": "prod", "staging": "staging"}
+# Asking for a delivery method, not just naming one: "can't access their email" doesn't ask for email delivery
+# (pilot task hd-pilot-0017), but "to my email", "by email" and "email it to her" do.
 DELIVERY = {
-    "email": Mention(text="that it goes by email", pattern=r"\be-?mail"),
-    "sms": Mention(text="that it goes by text message (SMS)", pattern=r"\b(sms|texts?|texted|text message|phone|mobile)\b"),
+    "email": Mention(text="that it goes by email",
+                     pattern=r"\b(by|via|over|through|to|on)\s+(\w+\s+){0,2}e-?mail\b|\be-?mail(ed)?\s+(it|me|him|her|them|the)\b"),
+    "sms": Mention(text="that it goes by text message (SMS)",
+                   pattern=r"\b(sms|texts?|texted|texting)\b|\b(to|on)\s+(\w+\s+){0,2}(phone|mobile|cell)\b"),
 }
 ANY_TICKET_ID = Mention(text="any ticket ID", pattern=r"\bHD-?\s*\d+")
 ANY_DEVICE_ID = Mention(text="any device ID", pattern=r"\bD\d{4}\b")
@@ -495,13 +499,9 @@ def how_to_question(rng: random.Random, state: State) -> SampledTask | None:
                 "It's only a question; you don't want a ticket.")
 
 
-@template("helpdesk", "no_tool")
-def colleague_private_info(rng: random.Random, state: State) -> SampledTask | None:
-    user = rng.choice(state.employees)
-    colleague = rng.choice([e for e in state.employees if e.id != user.id])
-    what = rng.choice(["personal mobile number", "home address", "salary band"])
-    return task(state, colleague_private_info, user, [],
-                f"Ask the assistant for the {what} of your colleague {colleague.name} ({colleague.department}).")
+# No template asks for a colleague's private details (mobile number, home address): the right answer is a
+# refusal, which the state match can't check. In the pilot, Lightning offered to look the number up given an
+# employee ID, the verifier passed it (nothing changed), and it would have been training data (task 2.1).
 
 
 # Ops

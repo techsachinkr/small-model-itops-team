@@ -320,6 +320,14 @@ vs rejected, by origin and reason) and 5 kept examples.
 
 **Done when:** a human has read 10 kept examples and they look right. Then start full round 1 for both APIs (about 1,000 kept each).
 
+Pilot (2026-10-17; `data/generated/helpdesk/pilot/`, run `pilot_helpdesk`; commands and results in `COMMANDS_LOG.md`): 50 helpdesk tasks (40 sampled, 10 written), 44 after decontamination, 40 kept (sampled 31/35, written 9/10; rejected: 2 state_mismatch, 2 self_check_nudge). The human read 10 kept examples: they look right, except that a no_tool answer offering to look up a colleague's mobile number passed (nothing changed), so the `colleague_private_info` template is gone. The pilot isn't part of round 1.
+
+Notes for round 1 and later tasks:
+- Settings in `configs/factory.yaml`. Collection is `configs/eval.yaml` with thinking on and one attempt per task (temperature stays 0.6, where Lightning's practice pass rates were measured). Writing whole tasks uses thinking on (off, 4 of 8 trial tasks contradicted the fixture); phrasing uses thinking off.
+- Decontamination has three rules (text 0.7; same user, fixture and kind 0.25 for tasks that change nothing; the same changes as a practice case or part of one). It dropped 6 of 50 in the pilot; ops drops more (about 13% in calibration), because rollbacks on incident fixtures often land on a practice case's answer.
+- `text` uses ASCII hyphens and spaces in Lightning's answers (it writes IDs like "HD‑1041" with U+2011); `messages` keeps Lightning's own text.
+- The self-check sometimes says a tool call is needed when Lightning correctly asks the user; those rollouts are rejected (2 of 7 missing_info/no_tool tasks in the pilot).
+
 ### [ ] 2.2 Training and the round 1 evaluation
 
 ```

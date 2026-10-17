@@ -749,3 +749,25 @@ LLM_MODE=record .venv/bin/python -m factory.writer --api helpdesk --n 50 --name 
 # first run at same_user 0.35 kept 45/50 and missed hd-pilot-0016 (E1004, pr-hd-10's situation, score 0.32);
 # restored the task file and reran at 0.25: kept 44/50 (4 changes, 2 same_user)
 ```
+
+```bash
+# (human) Lightning rollouts on the 44 pilot tasks, from commit 57949f4
+.venv/bin/python -m factory.collect --tasks data/generated/helpdesk/pilot/tasks_pilot.jsonl --run-id pilot_helpdesk
+# 44/44 rollouts in 12 s (gym_eval.log); the tracebacks in gym_env.log are the usual SIGINT shutdown
+.venv/bin/python -m factory.filter --run pilot_helpdesk --round 1 --output data/generated/helpdesk/pilot/round_1.jsonl --show 5
+# 40 kept of 44 (sampled 31/35, written 9/10); of the 50 slots: 6 decontaminated, 2 state_mismatch, 2 self_check_nudge.
+# Rejections: hd-pilot-0017 (written) never states the delivery method ("can't access their email" passed the
+# writer's check), so Lightning asked; hd-pilot-0039 Lightning took "screen flickering" to mean the monitor instead
+# of asking which device; hd-pilot-0002 and 0037 asked correctly, but the self-check first said a tool call was
+# needed (the nudge is in the conversation, so they're rejected).
+```
+
+The human read 10 kept examples (5 from `--show 5`, 5 more covering missing_info and no_tool): they look right,
+except hd-pilot-0038 (no_tool): asked for a colleague's mobile number, Lightning offered to look it up given her
+employee ID. Nothing changed, so the verifier passed it. Removed the `colleague_private_info` template (the
+right answer is a refusal, which the state match can't check). Tightened the delivery check so that naming email
+as the problem ("can't access their email", hd-pilot-0017) no longer counts as asking for email delivery.
+
+```bash
+.venv/bin/python -m pytest -q          # 193 passed
+```

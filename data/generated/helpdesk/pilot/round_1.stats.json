@@ -1,0 +1,88 @@
+{
+ "run": "pilot_helpdesk",
+ "tasks": "data/generated/helpdesk/pilot/tasks_pilot.jsonl",
+ "round": 1,
+ "rollouts": 44,
+ "kept": 40,
+ "by_origin": {
+  "sampled": {
+   "decontaminated_changes": 4,
+   "decontaminated_same_user": 2,
+   "kept": 31,
+   "self_check_nudge": 2,
+   "state_mismatch": 1
+  },
+  "written": {
+   "kept": 9,
+   "state_mismatch": 1
+  }
+ },
+ "total": {
+  "decontaminated_changes": 4,
+  "decontaminated_same_user": 2,
+  "kept": 40,
+  "self_check_nudge": 2,
+  "state_mismatch": 2
+ },
+ "by_kind": {
+  "missing_info": {
+   "kept": 3,
+   "self_check_nudge": 1,
+   "state_mismatch": 1
+  },
+  "no_tool": {
+   "self_check_nudge": 1,
+   "kept": 1
+  },
+  "single": {
+   "kept": 36,
+   "state_mismatch": 1
+  }
+ },
+ "by_template": {
+  "colleague_by_name": {
+   "self_check_nudge": 1,
+   "kept": 1
+  },
+  "colleague_private_info": {
+   "kept": 1
+  },
+  "hardware_ticket_lookup_device": {
+   "kept": 10
+  },
+  "hardware_ticket_with_device_id": {
+   "kept": 2
+  },
+  "no_ticket_to_update": {
+   "kept": 2
+  },
+  "reset_password": {
+   "kept": 1
+  },
+  "reveal_password": {
+   "self_check_nudge": 1
+  },
+  "ticket_without_device": {
+   "kept": 3
+  },
+  "update_ticket_by_id": {
+   "kept": 4
+  },
+  "update_ticket_by_topic": {
+   "kept": 7
+  },
+  "which_device": {
+   "state_mismatch": 1
+  },
+  "written:create_ticket": {
+   "kept": 3
+  },
+  "written:reset_password": {
+   "kept": 3,
+   "state_mismatch": 1
+  },
+  "written:update_ticket": {
+   "kept": 3
+  }
+ }
+}
