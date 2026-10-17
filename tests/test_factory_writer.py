@@ -138,14 +138,18 @@ def test_main_writes_the_tasks_and_their_config(monkeypatch: pytest.MonkeyPatch,
         return writer.Outcome(slot, slot.sampled.case(slot.case_id, "a request"), {"origin": "sampled", "tries": 1},
                               prompt_tokens=7, completion_tokens=3)
 
-    monkeypatch.setattr(writer, "produce", produce)
+    order: list[str] = []
+    monkeypatch.setattr(writer, "produce", lambda *a: order.append("produce") or produce(*a))
+    monkeypatch.setattr(writer, "git_commit", lambda d: order.append("git") or {"git_commit": "abc", "git_dirty": False})
     monkeypatch.setattr(sys, "argv", ["writer", "--api", "ops", "--n", "10", "--name", "t", "--out-dir", str(tmp_path)])
     writer.main()
+    assert order[0] == "git" and order.count("git") == 1  # the commit when the run started
     tasks = [json.loads(line) for line in (tmp_path / "tasks_t.jsonl").read_text().splitlines()]
     config = json.loads((tmp_path / "tasks_t.config.json").read_text())
     assert len(tasks) == 8 and set(config["tasks"]) == {t["id"] for t in tasks}
     assert config["counts"]["kept"] == {"sampled": 8} and config["counts"]["dropped"] == {"written": 2}
-    assert config["seed"] == TASKS["seed"] and config["factory_config"] == CONFIG and "git_commit" in config
+    assert config["seed"] == TASKS["seed"] and config["factory_config"] == CONFIG and config["git_commit"] == "abc"
+    assert config["started_at"] <= config["created_at"]
     assert [d["problems"] for d in config["dropped"]] == [["the gold calls change nothing"]] * 2
     with pytest.raises(SystemExit, match="exists"):
         writer.main()

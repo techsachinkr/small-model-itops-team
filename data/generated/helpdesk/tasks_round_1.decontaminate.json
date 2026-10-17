@@ -1,0 +1,2971 @@
+{
+ "script": "eval/decontaminate.py",
+ "created_at": "2026-10-17T21:03:54.930493+00:00",
+ "against": "practice",
+ "thresholds": {
+  "text_threshold": 0.7,
+  "same_user_threshold": 0.25
+ },
+ "references": [
+  "pr-hd-01",
+  "pr-hd-02",
+  "pr-hd-03",
+  "pr-hd-04",
+  "pr-hd-05",
+  "pr-hd-06",
+  "pr-hd-07",
+  "pr-hd-08",
+  "pr-hd-09",
+  "pr-hd-10",
+  "pr-hd-11",
+  "pr-hd-12",
+  "pr-ops-01",
+  "pr-ops-02",
+  "pr-ops-03",
+  "pr-ops-04",
+  "pr-ops-05",
+  "pr-ops-06",
+  "pr-ops-07",
+  "pr-ops-08",
+  "pr-ops-09",
+  "pr-ops-10",
+  "pr-ops-11",
+  "pr-ops-12"
+ ],
+ "tasks": 1289,
+ "kept": 1198,
+ "dropped_by_reason": {
+  "changes": 75,
+  "same_user": 16
+ },
+ "score_quantiles": {
+  "0.5": 0.279,
+  "0.9": 0.401,
+  "0.99": 0.558
+ },
+ "dropped": [
+  {
+   "id": "hd-round_1-0010",
+   "reason": "changes",
+   "score": 0.524,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0010",
+    "request": "Reopen the ticket about Excel crashing when opening large pivot tables and add a note that it happened again this week.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "Happened again this week"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0013",
+   "reason": "changes",
+   "score": 0.491,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-04"
+   ],
+   "task": {
+    "id": "hd-round_1-0013",
+    "request": "Can you reset my password and send the temp one via text message? I'm locked out after too many tries.",
+    "user_id": "E1007",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "reset_password",
+      "args": {
+       "employee_id": "E1007",
+       "delivery": "sms"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0016",
+   "reason": "same_user",
+   "score": 0.27,
+   "nearest": "pr-hd-10",
+   "same_user_score": 0.27,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0016",
+    "request": "Hi there! Hope you're having a good week. I just restarted my laptop after getting an error, but it's still acting up. Do you mind adding a note to my open ticket saying it didn't help? Thanks!",
+    "user_id": "E1004",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0026",
+   "reason": "changes",
+   "score": 0.308,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0026",
+    "request": "Hey, could you update ticket HD-1034 for my colleague E1002, Marcus Chen? His dock is still not detecting the second monitor after the scheduled firmware update. Could we bump the priority to P2 and add a note saying \"Dock still not detecting external monitor; awaiting replacement dock shipment.\"? Thanks!",
+    "user_id": "E1008",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2",
+       "note": "Dock still not detecting external monitor; awaiting replacement dock shipment."
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0067",
+   "reason": "same_user",
+   "score": 0.697,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.697,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0067",
+    "request": "can you open a p2 hardware ticket my device stopped charging",
+    "user_id": "E1002",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0125",
+   "reason": "changes",
+   "score": 0.284,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0125",
+    "request": "can we close ticket hd-1040? the laptop fan issue resolved after a restart.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Fixed: it started working again after a restart"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0134",
+   "reason": "changes",
+   "score": 0.477,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0134",
+    "request": "reopen the Excel crashes when opening large pivot tables ticket and add a note that the problem is back",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "The problem is back"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0138",
+   "reason": "changes",
+   "score": 0.297,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0138",
+    "request": "Hi, I need to open a hardware ticket for my laptop with asset tag D2010, a MacBook Air 13, because it won't wake from sleep without a hard reset. Could you please log this as a P3 priority issue?",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop won't wake from sleep",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0151",
+   "reason": "changes",
+   "score": 0.408,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0151",
+    "request": "Hey there! I'm reaching out about my colleague Sofia Alvarez's ticket HD-1032 regarding those Excel crashes with large pivot tables. It's showing as resolved, but unfortunately the issue happened again this week. Could you please reopen that ticket and add a note about it? Thanks so much!",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "Happened again this week"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0153",
+   "reason": "same_user",
+   "score": 0.273,
+   "nearest": "pr-hd-10",
+   "same_user_score": 0.273,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0153",
+    "request": "Can you check if I have an open ticket and add a note saying I'm available for a call after 2pm today? I'm getting a bit frustrated trying to track this down myself.",
+    "user_id": "E1004",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0155",
+   "reason": "same_user",
+   "score": 0.473,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.473,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0155",
+    "request": "Hey can I get a P3 ticket opened for my device the USB ports stopped working",
+    "user_id": "E1002",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0172",
+   "reason": "changes",
+   "score": 0.321,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0172",
+    "request": "Hey there! Quick question for you \u2014 I know you\u2019ve been looking into Sofia Alvarez\u2019s (she\u2019s employee ID E1003) ticket about Excel crashing when opening large pivot tables. The ticket shows as resolved now, but the issue is back, so could you reopen it and add a note saying the problem\u2019s happening again? Appreciate it!",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "The problem is back"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0176",
+   "reason": "changes",
+   "score": 0.266,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0176",
+    "request": "can you close the ticket for priya raman employee ID E1001 about the laptop fan being loud under light load? it started working again after a restart. thanks.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Fixed: it started working again after a restart"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0178",
+   "reason": "changes",
+   "score": 0.317,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-0178",
+    "request": "Hi, could you please open a P2 ticket for my laptop? None of the USB-C ports are working, and since I use it for daily client calls and presentations, I'd really like to get this sorted out quickly.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop USB-C ports not working",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0192",
+   "reason": "changes",
+   "score": 0.253,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0192",
+    "request": "Hey, can you create a hardware ticket for E1005 with priority P3? Their MacBook Air fan is making a grinding noise and it's been getting worse. Thanks.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "MacBook Air fan making grinding noise",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0216",
+   "reason": "same_user",
+   "score": 0.269,
+   "nearest": "pr-hd-09",
+   "same_user_score": 0.269,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0216",
+    "request": "hey can you reset oliver grant's password from finance and email it to him thanks",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0244",
+   "reason": "changes",
+   "score": 0.288,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0244",
+    "request": "Hi there, it's Priya. I'm having an issue with my laptop \u2013 the keyboard is sticking on the 'e' key and characters keep repeating. It's been getting worse and makes typing difficult. Could we please create a helpdesk ticket for this? I'd consider it a medium priority (P3) since it's not critical but really hinders work.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1001",
+       "category": "hardware",
+       "summary": "Laptop keyboard sticking on 'e' key and repeating characters",
+       "priority": "P3",
+       "device_id": "D2005"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0245",
+   "reason": "same_user",
+   "score": 0.324,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.324,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0245",
+    "request": "Good afternoon, I would like to request the opening of a P3 priority hardware ticket regarding a device that has stopped charging. I appreciate your assistance with this matter.",
+    "user_id": "E1002",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0264",
+   "reason": "changes",
+   "score": 0.341,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-0264",
+    "request": "I need to open a priority P2 ticket for my laptop, as the webcam is not being detected in any application.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop webcam not detected",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0273",
+   "reason": "changes",
+   "score": 0.362,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0273",
+    "request": "Can I open a P3 ticket for my laptop? The screen flickers every few minutes.",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop screen flickers",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0275",
+   "reason": "changes",
+   "score": 0.428,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0275",
+    "request": "hey, can you reopen ticket hd-1032 and add a note that the pivot table issue is back?",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "The problem is back"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0282",
+   "reason": "changes",
+   "score": 0.313,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0282",
+    "request": "Hi, I'm following up on the 'Laptop fan is very loud under light load' ticket. The issue cleared up after the most recent update, so I'd like to close this out now. Thanks.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Fixed: the problem went away after the latest update"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0287",
+   "reason": "changes",
+   "score": 0.271,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0287",
+    "request": "Hi, the laptop fan noise issue is now resolved after I ran the diagnostics - could we please update the ticket status to resolved? Thanks!",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Diagnostics completed; fan noise resolved per user confirmation."
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0298",
+   "reason": "changes",
+   "score": 0.322,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0298",
+    "request": "I am writing to request the closure of the ticket regarding the laptop fan being very loud under light load. The issue has already been resolved as a colleague took care of it, so I would like the ticket to be closed with a note explaining that the problem has been sorted out.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Fixed: a colleague sorted it out"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0327",
+   "reason": "same_user",
+   "score": 0.327,
+   "nearest": "pr-hd-10",
+   "same_user_score": 0.327,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0327",
+    "request": "Hey, can you add a note to my open ticket saying it's getting worse and now happens several times a day? I'm trying to make sure it's properly logged since the issue is becoming more frequent.",
+    "user_id": "E1004",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0330",
+   "reason": "changes",
+   "score": 0.297,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0330",
+    "request": "Please open a P3 priority ticket for colleague Hannah Weber, employee ID E1005, regarding the need for read-only access to the payroll reports.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "access",
+       "summary": "Needs read access to the payroll reports",
+       "priority": "P3"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0338",
+   "reason": "same_user",
+   "score": 0.336,
+   "nearest": "pr-hd-09",
+   "same_user_score": 0.336,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0338",
+    "request": "Please reset the password for Fatima Haddad from Legal and send the new password to her email address. Thank you.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0359",
+   "reason": "changes",
+   "score": 0.329,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0359",
+    "request": "Hey, could you please update ticket HD-1034 for my colleague Marcus Chen (E1002)? He's still waiting on the dock repair. If possible, could we raise the priority to P2 and add a note that the second monitor is needed for a critical demo tomorrow?",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2",
+       "note": "Urgent: second monitor needed for critical demo tomorrow"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0364",
+   "reason": "changes",
+   "score": 0.241,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0364",
+    "request": "Can you close my ticket about a laptop fan being very loud under light load? It's started working again after a restart so I don't need the follow\u2011up.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Fixed: it started working again after a restart"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0406",
+   "reason": "changes",
+   "score": 0.133,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0406",
+    "request": "Hey, can you close HD-1040? The issue went away after the latest update.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Fixed: the problem went away after the latest update"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0415",
+   "reason": "changes",
+   "score": 0.267,
+   "nearest": "pr-hd-02",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0415",
+    "request": "Hi there, I need to request access to the Finance team's shared drive. A quick explanation: I'm working on the new hiring packet and need to pull some salary benchmarking data to finalize the offer letter. Could you please open a P3 ticket for this? Thank you!",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "access",
+       "summary": "Needs access to the Finance shared drive",
+       "priority": "P3"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0425",
+   "reason": "changes",
+   "score": 0.159,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0425",
+    "request": "Can you bump HD-1034 to priority P2? It's now blocking my work.",
+    "user_id": "E1002",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0444",
+   "reason": "same_user",
+   "score": 0.309,
+   "nearest": "pr-hd-09",
+   "same_user_score": 0.309,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0444",
+    "request": "Hey, can you reset Kenji Tanaka's password and email it to them?",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0447",
+   "reason": "changes",
+   "score": 0.26,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0447",
+    "request": "Hey there! Hope you're having a good day. I'm having a bit of trouble with my Lenovo ThinkPad X1 Carbon - it's refusing to wake up from sleep mode and I'm forced to do a hard reset every time. Could you help me out and open a P3 hardware ticket for my laptop with asset tag D2005? Really appreciate it!",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1001",
+       "category": "hardware",
+       "summary": "Laptop won't wake from sleep",
+       "priority": "P3",
+       "device_id": "D2005"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0451",
+   "reason": "changes",
+   "score": 0.35,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0451",
+    "request": "Hey, can you reopen ticket HD-1032 for Sofia Alvarez? The issue with Excel crashing on large pivot tables is back, and I need that documented.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "The problem is back"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0453",
+   "reason": "changes",
+   "score": 0.368,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0453",
+    "request": "Hi, I need to make two updates to my ticket HD-1034: could you please raise the priority to P2 since the dock issue is now blocking a critical client demo, and add a note that the firmware update has been postponed to next week? Thanks!",
+    "user_id": "E1002",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2",
+       "note": "Firmware update postponed to next week due to scheduling."
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0485",
+   "reason": "same_user",
+   "score": 0.277,
+   "nearest": "pr-hd-09",
+   "same_user_score": 0.277,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0485",
+    "request": "I'm really struggling with this password reset situation for Priya Raman from Finance. Could you just reset their password and email it to me? I've been going back and forth trying to get this sorted.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0503",
+   "reason": "changes",
+   "score": 0.264,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0503",
+    "request": "Hey, quick question! My name's Priya from Finance and I'm having a bit of a frustrating issue with my laptop\u2014several of the keys are sticking and not typing properly. Could you open a P3 ticket for me to get this sorted out? Thanks!",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1001",
+       "category": "hardware",
+       "summary": "Laptop keyboard keys stick",
+       "priority": "P3",
+       "device_id": "D2005"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0511",
+   "reason": "changes",
+   "score": 0.342,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-0511",
+    "request": "Hey, can you open a P2 ticket for Sofia Alvarez's laptop because a few keys are sticking? Her employee ID is E1003.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop keyboard keys stick",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0522",
+   "reason": "changes",
+   "score": 0.262,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0522",
+    "request": "Hello, I need to open a priority P3 ticket regarding my laptop that gets very hot and shuts itself down. Please process this request for the device I am currently using.",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop overheats and shuts down",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0533",
+   "reason": "changes",
+   "score": 0.331,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0533",
+    "request": "HD-1032 is still crashing, please reopen the ticket.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0534",
+   "reason": "changes",
+   "score": 0.411,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0534",
+    "request": "Hi, I need to update ticket HD-1034 for Marcus Chen (E1002) about his dock not detecting the second monitor. We've confirmed the dock firmware needs an update and want to raise the priority to P2 and add a note about the scheduled replacement.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2",
+       "note": "Root cause confirmed: dock firmware update scheduled; replacing dock with known-working unit to resolve second monitor detection issue."
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0544",
+   "reason": "same_user",
+   "score": 0.281,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.281,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0544",
+    "request": "Hi, I'm Marcus from Engineering. I'm running into an issue where the USB ports on my machine have completely stopped responding, which is blocking some critical workflow steps. Could you please open a P4 priority hardware ticket to get this resolved?",
+    "user_id": "E1002",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0554",
+   "reason": "changes",
+   "score": 0.195,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0554",
+    "request": "Need a P3 ticket for Hannah Weber (ID E1005) laptop - won't wake from sleep, needs hard reset each time.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop won't wake from sleep",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0568",
+   "reason": "changes",
+   "score": 0.359,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-04"
+   ],
+   "task": {
+    "id": "hd-round_1-0568",
+    "request": "Hey! Just wondering if you could help me out here\u2014I\u2019m totally locked out of my account after a few too many tries, and a buddy of mine Amara Nwosu (ID: E1007) mentioned you guys might be able to reset his password and send the temporary one straight to my phone via SMS. Would be super appreciated!",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "reset_password",
+      "args": {
+       "employee_id": "E1007",
+       "delivery": "sms"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0611",
+   "reason": "changes",
+   "score": 0.396,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0611",
+    "request": "Hey, can you reopen ticket HD-1032 and add a note that it happened again this week?",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "Happened again this week"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0613",
+   "reason": "changes",
+   "score": 0.215,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0613",
+    "request": "Hi there, I'm writing to ask you to open a P3 ticket for my colleague Priya Raman (employee ID E1001) because her laptop won't wake from sleep without a hard reset. It's important we get this fixed so she can stay productive.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1001",
+       "category": "hardware",
+       "summary": "Laptop won't wake from sleep",
+       "priority": "P3",
+       "device_id": "D2005"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0614",
+   "reason": "changes",
+   "score": 0.321,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-04"
+   ],
+   "task": {
+    "id": "hd-round_1-0614",
+    "request": "Please reset the password for colleague Amara Nwosu with employee ID E1007 and send the temporary password by text message.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "reset_password",
+      "args": {
+       "employee_id": "E1007",
+       "delivery": "sms"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0627",
+   "reason": "changes",
+   "score": 0.32,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0627",
+    "request": "Hey, can you reopen Sofia Alvarez's ticket about Excel crashing when opening large pivot tables? It was marked as resolved, but she\u2019s had the same issue again this week. Her employee ID is E1003.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "Happened again this week"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0648",
+   "reason": "changes",
+   "score": 0.245,
+   "nearest": "pr-ops-02",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0648",
+    "request": "Hi, could you please update ticket HD-1034 for my colleague E1002 (Marcus Chen)? I'd like to change the priority to P2.",
+    "user_id": "E1009",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0663",
+   "reason": "same_user",
+   "score": 0.308,
+   "nearest": "pr-hd-09",
+   "same_user_score": 0.308,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0663",
+    "request": "reset the password for amara nwosu from marketing and email it to me",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0675",
+   "reason": "changes",
+   "score": 0.243,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-04"
+   ],
+   "task": {
+    "id": "hd-round_1-0675",
+    "request": "Hey, can you reset Amara Nwosu's password using employee ID E1007 and send the new one via text message? Thanks.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "reset_password",
+      "args": {
+       "employee_id": "E1007",
+       "delivery": "sms"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0679",
+   "reason": "changes",
+   "score": 0.318,
+   "nearest": "pr-hd-02",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0679",
+    "request": "I'm really frustrated with how long these access requests are taking. Can you please open a P3 ticket for me to get access to the Salesforce reporting workspace? I need this for the quarterly review.",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "access",
+       "summary": "Needs access to the Salesforce reporting workspace",
+       "priority": "P3"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0687",
+   "reason": "changes",
+   "score": 0.192,
+   "nearest": "pr-ops-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0687",
+    "request": "Hi, could you update ticket HD-1034 to priority P2 if it's still P3 and in_progress? Daniel's dock issue is still ongoing and needs escalation.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "get_ticket",
+      "args": {
+       "ticket_id": "HD-1034"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0704",
+   "reason": "changes",
+   "score": 0.238,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0704",
+    "request": "Hi, I'm having an issue with my laptop where the USB-C ports aren't responding at all, which is really impacting my ability to connect external drives and monitors for client meetings. Could you please open a P3 hardware ticket for my MacBook Air 13 with asset tag D2010 so we can get this fixed?",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop USB-C ports not working",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0706",
+   "reason": "changes",
+   "score": 0.485,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-04"
+   ],
+   "task": {
+    "id": "hd-round_1-0706",
+    "request": "hi, can you reset my password and send the temporary one by text message? thanks.",
+    "user_id": "E1007",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "reset_password",
+      "args": {
+       "employee_id": "E1007",
+       "delivery": "sms"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0726",
+   "reason": "changes",
+   "score": 0.333,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0726",
+    "request": "Hey can I open a P3 ticket for my laptop asset tag D2010? it stopped charging even with a different charger.",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop won't charge",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0733",
+   "reason": "changes",
+   "score": 0.269,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0733",
+    "request": "Hey assistant, can you open a P3 ticket for Hannah Weber's laptop (E1005) since none of the USB-C ports work?",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop USB-C ports not working",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0743",
+   "reason": "changes",
+   "score": 0.26,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-0743",
+    "request": "Hi, I need to open a P2 ticket because my laptop won't wake from sleep without a hard reset, which is really slowing down my workday.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop won't wake from sleep",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0750",
+   "reason": "changes",
+   "score": 0.225,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-0750",
+    "request": "Hey, I need you to close ticket HD-1040 about the laptop fan being loud under light load. A colleague actually sorted it out for me, so no need to keep it open.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Fixed: a colleague sorted it out"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0758",
+   "reason": "changes",
+   "score": 0.339,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0758",
+    "request": "Please open a P3 ticket for my colleague Hannah Weber's laptop, employee ID E1005, where the webcam is not detected in any application.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop webcam not detected",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0793",
+   "reason": "same_user",
+   "score": 0.369,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.369,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0793",
+    "request": "I need to open a P4 hardware ticket because my device stopped charging. I've been dealing with this issue and it's really frustrating, but I need someone to look into it right away.",
+    "user_id": "E1002",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0796",
+   "reason": "changes",
+   "score": 0.226,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-0796",
+    "request": "Hi, the Excel pivot table issue is still happening. Can we reopen HD-1032?",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0804",
+   "reason": "changes",
+   "score": 0.347,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-0804",
+    "request": "Can you please open a P2 hardware ticket for my laptop with asset tag D2012? The webcam isn't being detected in any app and I need it resolved as soon as possible.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop webcam not detected",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0810",
+   "reason": "changes",
+   "score": 0.253,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0810",
+    "request": "Hi there, I'm reaching out to open a P3 ticket for my colleague Hannah Weber's (employee ID E1005) laptop that's running very hot and shutting itself down. It's been happening more frequently lately, so we'd really appreciate it if you could get this looked at soon so she can stay productive.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop overheats and shuts down",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0814",
+   "reason": "changes",
+   "score": 0.3,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-0814",
+    "request": "I need to request a P2 ticket for my colleague Sofia Alvarez, employee ID E1003. The ticket should be regarding her laptop, which has speakers that crackle at any volume.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop speakers crackle",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0860",
+   "reason": "same_user",
+   "score": 0.278,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.274,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0860",
+    "request": "Please reset the password for Amara Nwosu from Marketing and send the new password by text message.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0882",
+   "reason": "changes",
+   "score": 0.344,
+   "nearest": "pr-hd-07",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-07"
+   ],
+   "task": {
+    "id": "hd-round_1-0882",
+    "request": "I need you to open a P1 ticket right now because the company wiki has been down for everyone since about 8:30. This is critical - we can't access any internal docs and I've already checked the status page with no update.",
+    "user_id": "E1012",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1012",
+       "category": "incident",
+       "summary": "Company wiki down for everyone",
+       "priority": "P1"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0894",
+   "reason": "changes",
+   "score": 0.303,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-04"
+   ],
+   "task": {
+    "id": "hd-round_1-0894",
+    "request": "Hi, I'm locked out of my account this morning and need a password reset. Could you send a temporary password via SMS please? Also, just following up on ticket HD-1033 \u2013 do I still have permanent access to the marketing analytics dashboard, or is there a follow\u2011up I need to do?",
+    "user_id": "E1007",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "reset_password",
+      "args": {
+       "employee_id": "E1007",
+       "delivery": "sms"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "get_ticket",
+      "args": {
+       "ticket_id": "HD-1033"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0907",
+   "reason": "changes",
+   "score": 0.241,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0907",
+    "request": "Hi, could you please update ticket HD-1034 for my colleague E1002 (Marcus Chen)? Change the priority to P2 since the dock issue is now impacting his daily work. Thanks!",
+    "user_id": "E1009",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0919",
+   "reason": "changes",
+   "score": 0.446,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-04"
+   ],
+   "task": {
+    "id": "hd-round_1-0919",
+    "request": "I need you to reset my password and send the temporary one via SMS. I'm getting frustrated with this whole process and just want it done quickly.",
+    "user_id": "E1007",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "reset_password",
+      "args": {
+       "employee_id": "E1007",
+       "delivery": "sms"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0927",
+   "reason": "same_user",
+   "score": 0.275,
+   "nearest": "pr-hd-09",
+   "same_user_score": 0.275,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-0927",
+    "request": "Please reset the password for Fatima Haddad from Legal and send the new password via text message.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-0936",
+   "reason": "changes",
+   "score": 0.227,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0936",
+    "request": "Hi, I noticed the ticket about my docking station not detecting the second monitor is currently marked as P3, but since it's actively blocking my work today, could you update the priority to P2? I'm trying to finish up a few things before a call, so having this resolved quickly would really help.",
+    "user_id": "E1002",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1002"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0938",
+   "reason": "changes",
+   "score": 0.246,
+   "nearest": "pr-ops-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-0938",
+    "request": "Hi, can you update ticket HD-1034 to P2 priority? Only do this if the ticket status is currently in_progress, as we discussed the dock monitor issue with Marcus Chen. Thanks.",
+    "user_id": "E1012",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "get_ticket",
+      "args": {
+       "ticket_id": "HD-1034"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0963",
+   "reason": "changes",
+   "score": 0.391,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0963",
+    "request": "hi, can you open a p3 hardware ticket for my laptop macbook air 13? keyboard sticks on a few keys. device id D2010",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop keyboard keys stick",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-0993",
+   "reason": "changes",
+   "score": 0.289,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-0993",
+    "request": "Hi assistant, can you open a P3 ticket for Hannah Weber's laptop? It stopped charging even with a different charger, and I know her employee ID is E1005, so that should help you find the right device. I'm asking because she needs it for a client meeting tomorrow and can't afford downtime.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop won't charge",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1002",
+   "reason": "changes",
+   "score": 0.25,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-1002",
+    "request": "Hi, I'm Priya from Finance. I'm writing to ask you to open a P3 hardware ticket for my laptop, the Lenovo ThinkPad X1 Carbon with device ID D2005, since the speakers crackle at any volume. This is really impacting my calls and daily work, so I'd appreciate your help getting this resolved quickly.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1001",
+       "category": "hardware",
+       "summary": "Laptop speakers crackle",
+       "priority": "P3",
+       "device_id": "D2005"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1005",
+   "reason": "same_user",
+   "score": 0.313,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.295,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-round_1-1005",
+    "request": "Hi, I was hoping you could help me reset Hannah Weber's password from HR so I can access my account again. It's kind of urgent since I have a big deadline coming up tomorrow and I'm completely locked out right now.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-round_1-1013",
+   "reason": "changes",
+   "score": 0.26,
+   "nearest": "pr-ops-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-1013",
+    "request": "Hi, could you please update ticket HD-1032 and change its status to open? Only do this if the ticket is currently resolved, since I need to reopen it to add some details. Thanks!",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "get_ticket",
+      "args": {
+       "ticket_id": "HD-1032"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "Reopened at employee request."
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1047",
+   "reason": "changes",
+   "score": 0.323,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-1047",
+    "request": "I need the assistant to open a P3 ticket about my laptop that won't wake from sleep without a hard reset. I've been dealing with this and it's really frustrating.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1001"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1001",
+       "category": "hardware",
+       "summary": "Laptop won't wake from sleep",
+       "priority": "P3",
+       "device_id": "D2005"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1064",
+   "reason": "changes",
+   "score": 0.261,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-1064",
+    "request": "I would like to open a P2 ticket regarding my laptop, as several keys on the keyboard are sticking.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop keyboard keys stick",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1074",
+   "reason": "changes",
+   "score": 0.422,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-1074",
+    "request": "hi, i need to open a p2 hardware ticket for sofia alvarez's laptop. it stopped charging even with a different charger. device id d2012, employee id e1003. thanks.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop won't charge",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1093",
+   "reason": "changes",
+   "score": 0.351,
+   "nearest": "pr-hd-05",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-1093",
+    "request": "I'm fed up with this; can you open a P3 hardware ticket for Priya Raman's laptop? Her employee ID is E1001 and the device ID is D2005, a Lenovo ThinkPad X1 Carbon. The issue is that none of the USB-C ports work.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1001",
+       "category": "hardware",
+       "summary": "Laptop USB-C ports not working",
+       "priority": "P3",
+       "device_id": "D2005"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1119",
+   "reason": "changes",
+   "score": 0.283,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-1119",
+    "request": "Open a P3 hardware ticket for Hannah Weber's laptop, asset tag D2010, employee ID E1005. The laptop speakers crackle at any volume.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop speakers crackle",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1145",
+   "reason": "changes",
+   "score": 0.281,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-1145",
+    "request": "hey, can you bump up marcus chen's ticket E1002 about the dock not detecting the second monitor to priority P2? it's now blocking my work.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1002"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1212",
+   "reason": "changes",
+   "score": 0.129,
+   "nearest": "pr-hd-01",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-01"
+   ],
+   "task": {
+    "id": "hd-round_1-1212",
+    "request": "hd-1040 close done. fan quiet after latest update.",
+    "user_id": "E1001",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1040",
+       "status": "resolved",
+       "note": "Fixed: the problem went away after the latest update"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1223",
+   "reason": "changes",
+   "score": 0.401,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-round_1-1223",
+    "request": "Hi, I'm Lucas from Engineering. Could you update the priority and add a note to Marcus Chen's (E1002) ticket about the dock not detecting the second monitor? Set priority to P2 and add a note that the firmware update is still pending.",
+    "user_id": "E1008",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1002"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2",
+       "note": "Firmware update is still pending."
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1233",
+   "reason": "changes",
+   "score": 0.156,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-round_1-1233",
+    "request": "Can we reopen HD-1032? The Excel issue is still happening.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1258",
+   "reason": "changes",
+   "score": 0.405,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-05"
+   ],
+   "task": {
+    "id": "hd-round_1-1258",
+    "request": "I need a P2 hardware ticket for my laptop with device ID D2012. The laptop stopped charging even with a different charger.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1003",
+       "category": "hardware",
+       "summary": "Laptop won't charge",
+       "priority": "P2",
+       "device_id": "D2012"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1265",
+   "reason": "changes",
+   "score": 0.246,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-1265",
+    "request": "Hi there, I need to open a P3 ticket because my laptop won't wake from sleep and requires a hard reset to get going again. It's really impacting my workflow since I'm constantly restarting it, so I'd appreciate some help getting this sorted out.",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_devices",
+      "args": {
+       "employee_id": "E1005"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop won't wake from sleep",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-round_1-1287",
+   "reason": "changes",
+   "score": 0.313,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-round_1-1287",
+    "request": "Open a P3 hardware ticket for this laptop with ID D2010 MacBook Air 13 webcam not detected in any app",
+    "user_id": "E1005",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop webcam not detected",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  }
+ ]
+}

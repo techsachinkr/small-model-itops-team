@@ -781,3 +781,17 @@ LLM_MODE=record .venv/bin/python -m factory.writer --api ops --n 1500 --name rou
 ```
 Documented round 1 (what it contains, files, methodology) in `data/generated/README.md`, with pointers from
 CLAUDE.md "Data formats", PROJECT_OVERVIEW.md and PLAN.md task 2.1.
+
+```bash
+# helpdesk: kept 1289/1300 in 2664 s (11 written dropped); ops: kept 1472/1500 in 2864 s (24 written, 4 sampled dropped)
+# Of the written-task calls, 63/355 ops and 16/386 helpdesk stopped at max_tokens_write (12,288) still thinking
+# (finish_reason length, empty content): most "the answer isn't a JSON object" drops.
+# Both configs record commit 365ae42, dirty, with an empty git_diff.patch: the writer read git at the end. The runs
+# started at 8e036d4; `git diff --stat 8e036d4 365ae42` touches only docs. Fixed: the writer reads git at the start.
+.venv/bin/python -m pytest -q tests/test_factory_writer.py      # 15 passed
+.venv/bin/python -m eval.decontaminate --tasks data/generated/helpdesk/tasks_round_1.jsonl --against practice
+# kept 1198/1289: 75 changes (58 sampled, 17 written), 16 same_user, 0 text (0.99 quantile 0.558)
+.venv/bin/python -m eval.decontaminate --tasks data/generated/ops/tasks_round_1.jsonl --against practice
+# kept 1149/1472: 295 changes (173 sampled, 122 written), 24 text, 4 same_user; most hit pr-ops-05 (86),
+# pr-ops-03 (59), pr-ops-06 (51), pr-ops-02 (47), pr-ops-01 (39), pr-ops-04 (36)
+```

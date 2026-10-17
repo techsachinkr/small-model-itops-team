@@ -1,0 +1,1739 @@
+diff --git a/eval/decontaminate.py b/eval/decontaminate.py
+index ad35500..5389d85 100644
+--- a/eval/decontaminate.py
++++ b/eval/decontaminate.py
+@@ -1 +1,140 @@
+-"""Drops generated tasks that are too similar to practice cases, or to test cases at the final run."""
++"""Drops generated tasks that are too similar to the practice cases.
++
++    uv run python -m eval.decontaminate --tasks data/generated/helpdesk/pilot/tasks_pilot.jsonl --against practice
++
++A task is dropped for the first of these that applies (thresholds in configs/factory.yaml):
++- text: its request scores at least `text_threshold` against a practice request. The score is the larger
++  of two cosine similarities on lowercased text: of word 1- and 2-gram counts, and of character 4-gram
++  counts (which catches rewordings like "crashes"/"crashing").
++- same_user: it changes nothing (missing_info, no_tool, read_only) and scores at least `same_user_threshold`
++  against a practice case of the same kind from the same user on the same fixture: the same situation,
++  which the changes check can't see.
++- changes: its state-changing gold calls are the same as a practice case's, or a part of them, leaving out
++  free text (summaries, notes) and the change ticket. Training on that would teach that case's answer.
++Text alone can't tell a paraphrase from a different request built on the same template, so its threshold is
++high, and the other two catch what it misses.
++
++Only `--against practice` exists for now (task 2.1). Hard rule 4 lets this script read data/test/ only when
++a human asks for that run, so that option needs adding first.
++
++Rewrites --tasks with the kept tasks (the file's line order is kept), and writes
++<tasks stem>.decontaminate.json next to it: the settings, the practice cases compared, the score
++distribution, and every dropped task with its reason, nearest practice case and score.
++"""
++
++import argparse
++import json
++import math
++import re
++from collections import Counter
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any
++
++from common.schemas import Case
++from eval.run_eval import REPO
++from factory.sampler import FACTORY_CONFIG, load_factory_config
++from gym_env.tasks import read_cases
++
++CHANGING_TOOLS = {"create_ticket", "update_ticket", "reset_password", "rollback", "scale"}
++IGNORED_ARGS = {"summary", "note", "change_ticket"}  # free text, and a ticket the request just names
++TEST_DIR = REPO / "data" / "test"
++
++
++def words(text: str) -> list[str]:
++    return re.findall(r"[a-z0-9]+(?:[.-][a-z0-9]+)*", text.casefold())
++
++
++def features(text: str) -> tuple[Counter[str], Counter[str]]:
++    tokens = words(text)
++    grams = Counter(tokens) + Counter(" ".join(pair) for pair in zip(tokens, tokens[1:]))
++    squeezed = " ".join(tokens)
++    chars = Counter(squeezed[i:i + 4] for i in range(len(squeezed) - 3))
++    return grams, chars
++
++
++def cosine(a: Counter[str], b: Counter[str]) -> float:
++    dot = sum(count * b[key] for key, count in a.items())
++    norm = math.sqrt(sum(v * v for v in a.values()) * sum(v * v for v in b.values()))
++    return dot / norm if norm else 0.0
++
++
++def similarity(a: str, b: str) -> float:
++    (grams_a, chars_a), (grams_b, chars_b) = features(a), features(b)
++    return max(cosine(grams_a, grams_b), cosine(chars_a, chars_b))
++
++
++def changes(case: Case) -> Counter[str]:
++    """The case's state-changing calls without IGNORED_ARGS, as a multiset."""
++    return Counter(
++        json.dumps({"tool": call.tool, "args": {k: v for k, v in call.args.items() if k not in IGNORED_ARGS}}, sort_keys=True)
++        for call in case.gold_calls if call.tool in CHANGING_TOOLS
++    )
++
++
++def verdict(task: Case, references: list[Case], thresholds: dict[str, float]) -> dict[str, Any]:
++    """The nearest reference by text, and why the task is dropped (reason None if it's kept)."""
++    scored = [(similarity(task.request, ref.request), ref) for ref in references]
++    score, nearest = max(scored, key=lambda pair: pair[0])
++    situation = (task.kind, task.user_id, task.fixture)
++    same_user = max((s for s, ref in scored if (ref.kind, ref.user_id, ref.fixture) == situation
++                     and task.kind not in ("single", "multi")), default=0.0)
++    task_changes = changes(task)
++    same = [ref.id for ref in references if task_changes and not task_changes - changes(ref)]
++    if score >= thresholds["text_threshold"]:
++        reason = "text"
++    elif same_user >= thresholds["same_user_threshold"]:
++        reason = "same_user"
++    else:
++        reason = "changes" if same else None
++    return {"id": task.id, "reason": reason, "score": round(score, 3), "nearest": nearest.id,
++            "same_user_score": round(same_user, 3), "same_changes_as": same}
++
++
++def practice_cases() -> list[Case]:
++    return [case for path in sorted((REPO / "data" / "practice").glob("*.jsonl")) for case in read_cases(path)]
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description="Drop generated tasks too similar to the practice cases.")
++    parser.add_argument("--tasks", type=Path, required=True, help="a tasks_<name>.jsonl file; rewritten in place")
++    parser.add_argument("--against", required=True, choices=["practice"], help="practice only for now (hard rule 4)")
++    parser.add_argument("--config", type=Path, default=FACTORY_CONFIG)
++    args = parser.parse_args()
++    if args.tasks.resolve().is_relative_to(TEST_DIR):
++        raise SystemExit("data/test/ is locked (hard rule 4).")
++    report_path = args.tasks.with_name(args.tasks.stem + ".decontaminate.json")
++    if report_path.exists():
++        raise SystemExit(f"{report_path} exists: these tasks were already decontaminated.")
++    thresholds = load_factory_config(args.config)["decontaminate"]
++
++    references = practice_cases()
++    tasks = read_cases(args.tasks)
++    verdicts = [verdict(task, references, thresholds) for task in tasks]
++    kept = [task for task, v in zip(tasks, verdicts) if v["reason"] is None]
++    dropped = [{**v, "task": task.model_dump(mode="json", exclude_none=True)}
++               for task, v in zip(tasks, verdicts) if v["reason"] is not None]
++    scores = sorted(v["score"] for v in verdicts)
++    report_path.write_text(json.dumps({
++        "script": "eval/decontaminate.py",
++        "created_at": datetime.now(timezone.utc).isoformat(),
++        "against": args.against,
++        "thresholds": thresholds,
++        "references": [case.id for case in references],
++        "tasks": len(tasks),
++        "kept": len(kept),
++        "dropped_by_reason": dict(Counter(d["reason"] for d in dropped)),
++        "score_quantiles": {q: scores[min(len(scores) - 1, int(q * len(scores)))] for q in (0.5, 0.9, 0.99)} if scores else {},
++        "dropped": dropped,
++    }, indent=1))
++    args.tasks.write_text("".join(task.model_dump_json(exclude_none=True) + "\n" for task in kept))
++
++    print(f"{args.tasks}: kept {len(kept)}/{len(tasks)} against {len(references)} practice cases ({thresholds})")
++    for d in dropped:
++        print(f"  dropped {d['id']} ({d['reason']}): score {d['score']} vs {d['nearest']}, same user "
++              f"{d['same_user_score']}, same changes as {d['same_changes_as']}")
++    print(f"Report in {report_path}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/factory/collect.py b/factory/collect.py
+index f7b461b..103b642 100644
+--- a/factory/collect.py
++++ b/factory/collect.py
+@@ -1 +1,110 @@
+-"""Collects Lightning rollouts on generated tasks through NeMo Gym."""
++"""Collects Lightning rollouts on generated tasks through NeMo Gym.
++
++    uv run python -m factory.collect --tasks data/generated/helpdesk/pilot/tasks_pilot.jsonl --run-id pilot_helpdesk
++
++Lightning's vLLM server must be running (scripts/serve_lightning.sh) and port 11000 free. Like
++eval/run_eval.py, this starts the Gym servers for the `lightning` setup (gym_configs/lightning.yaml: the
++itops agent with the seatbelt), collects the rollouts with `gym eval run`, and stops the servers. The
++agent's settings are configs/eval.yaml with the `collect` fields of configs/factory.yaml changed
++(thinking on, one attempt per task), so the tools, seatbelt and max steps are the eval's. This isn't an
++eval: factory/filter.py turns the rollouts into training data.
++
++Writes to runs/<run_id>/:
++    config.json         arguments, the factory config, the resolved agent config, the task files, the git commit
++    git_diff.patch      uncommitted changes, when the tree is dirty
++    agent_config.yaml   the agent's settings (configs/eval.yaml + the collect fields)
++    tasks.jsonl         the Gym rows (gym_env/tasks.py)
++    rollouts.jsonl      Gym's rollouts, next to Gym's side files, gym_env.log and gym_eval.log
++Refuses tasks under data/test/ (hard rule 5: the factory never sees test data) and runs with chaos on.
++"""
++
++import argparse
++import json
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any
++
++import yaml
++
++from common.eval_config import EVAL_CONFIG, EvalConfig
++from eval.run_eval import REPO, collect, git_commit, server_chaos_enabled, start_servers, stop_servers
++from factory.sampler import FACTORY_CONFIG, load_factory_config
++from gym_env.tasks import case_to_row, read_cases
++
++SETUP = "lightning"
++TEST_DIR = REPO / "data" / "test"
++
++
++def agent_config(factory_config: dict[str, Any], eval_path: Path = EVAL_CONFIG) -> dict[str, Any]:
++    """configs/eval.yaml with the factory's collect fields changed, validated as an EvalConfig."""
++    settings = yaml.safe_load(eval_path.read_text()) | factory_config["collect"]
++    EvalConfig.model_validate(settings)
++    return settings
++
++
++def refusal(tasks: Path, settings: dict[str, Any], server_chaos: bool) -> str | None:
++    if tasks.resolve().is_relative_to(TEST_DIR):
++        return "data/test/ is locked (hard rules 4 and 5): the factory never sees test data."
++    if settings["chaos"] or server_chaos:
++        return "chaos is on; rollouts for training are collected without it."
++    return None
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description="Collect Lightning rollouts on generated tasks through NeMo Gym.")
++    parser.add_argument("--tasks", type=Path, required=True, help="a tasks_<name>.jsonl file from factory/writer.py")
++    parser.add_argument("--run-id", help="default: <time>_collect_<tasks name>")
++    parser.add_argument("--config", type=Path, default=FACTORY_CONFIG, help="factory config")
++    args = parser.parse_args()
++
++    factory_config = load_factory_config(args.config)
++    settings = agent_config(factory_config)
++    if reason := refusal(args.tasks, settings, server_chaos_enabled()):
++        raise SystemExit(f"Refusing to run: {reason}")
++    cases = read_cases(args.tasks)
++    if not cases:
++        raise SystemExit(f"No tasks in {args.tasks}.")
++
++    started = datetime.now(timezone.utc)
++    run_id = args.run_id or f"{started:%Y%m%d-%H%M%S}_collect_{args.tasks.stem.removeprefix('tasks_')}"
++    run_dir = REPO / "runs" / run_id
++    run_dir.mkdir(parents=True, exist_ok=False)
++    agent_path = run_dir / "agent_config.yaml"
++    agent_path.write_text(yaml.safe_dump(settings, sort_keys=False))
++    tasks_path = args.tasks.resolve()
++    (run_dir / "config.json").write_text(json.dumps({
++        "run_id": run_id,
++        "script": "factory/collect.py",
++        "args": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
++        "started_at": started.isoformat(),
++        "setup": SETUP,
++        "tasks": str(tasks_path.relative_to(REPO)) if tasks_path.is_relative_to(REPO) else str(tasks_path),
++        "task_count": len(cases),
++        "factory_config": factory_config,
++        "agent_config": settings,
++        **git_commit(run_dir),
++    }, indent=2))
++    rows = run_dir / "tasks.jsonl"
++    rows.write_text("".join(json.dumps(case_to_row(case)) + "\n" for case in cases))
++
++    attempts = settings["attempts_per_case"]
++    print(f"{run_id}: {len(cases)} tasks x {attempts} attempt(s) with {SETUP}; starting Gym servers")
++    servers = start_servers(SETUP, agent_path, False, run_dir / "gym_env.log")
++    try:
++        returncode = collect(rows, run_dir / "rollouts.jsonl", attempts, run_dir / "gym_eval.log")
++    finally:
++        stop_servers(servers)
++
++    rollouts = run_dir / "rollouts.jsonl"
++    collected = [json.loads(line) for line in rollouts.read_text().splitlines() if line.strip()] if rollouts.exists() else []
++    expected = len(cases) * attempts
++    passed = sum(row.get("reward") == 1.0 for row in collected)
++    print(f"Collected {len(collected)}/{expected} rollouts; reward 1 on {passed}/{len(collected)} "
++          "(before the filter's no-failed-calls check)")
++    if returncode != 0 or len(collected) != expected:
++        print(f"PARTIAL RUN: gym eval run exited {returncode}. See {run_dir / 'gym_eval.log'}.")
++    print(f"Results in {run_dir}\nNext: python -m factory.filter --run {run_id} ...")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/factory/filter.py b/factory/filter.py
+index 12cd6b4..c07d967 100644
+--- a/factory/filter.py
++++ b/factory/filter.py
+@@ -1 +1,249 @@
+-"""Keeps rollouts the verifier passes with no failed calls, rendered with the student's chat template."""
++"""Keeps rollouts the verifier passes with no failed calls, rendered with the student's chat template.
++
++    uv run --group train python -m factory.filter --run pilot_helpdesk --round 1 \\
++        --output data/generated/helpdesk/pilot/round_1.jsonl --show 5
++
++Reads runs/<run_id>/ from factory/collect.py: rollouts.jsonl, and through config.json the task file with
++its .config.json (each task's origin; slots the writer dropped) and .decontaminate.json (tasks dropped
++before collection). A rollout is kept only if its `reward` is 1 (the verifier's state match and answer
++checks passed, and the seatbelt didn't give up), every call returned 200, and the self-check never sent
++Lightning back to work (that nudge is a user turn the student shouldn't learn to wait for). Otherwise
++its reason is the first of: gave_up, state_mismatch, answer_mismatch, failed_call (status 0 is a call
++the seatbelt blocked), self_check_nudge, other. A task with no rollout is `no_rollout`.
++
++Each kept rollout becomes a TrainingExample (common/schemas.py):
++- messages: Lightning's whole conversation in chat format, with its reasoning in `reasoning_content`.
++- text: the same conversation rendered as the student is evaluated: the student base model's chat
++  template (configs/models.yaml, pinned revision) with enable_thinking=False, the reasoning dropped,
++  tool-call arguments as objects and the rollout's own tool definitions, as vLLM passes them. In the
++  assistant's text, look-alike hyphens and spaces become ASCII: Lightning writes IDs like "HD‑1041" with
++  a non-breaking hyphen (82 of its 199 answers in the task 1.2 runs), which the student would learn and
++  the verifier's answer checks would then miss.
++
++Writes --output, <output stem>.stats.json next to it (counts by origin and reason, by kind and template),
++and runs/<run_id>/filter_rejected.jsonl (each rejected rollout's task, reason and trace).
++"""
++
++import argparse
++import json
++import os
++import random
++import re
++from collections import Counter, defaultdict
++from functools import cache
++from pathlib import Path
++from typing import Any
++
++import yaml
++
++from common.llm import MODELS_CONFIG
++from common.schemas import Case, TrainingExample
++from eval.run_eval import REPO
++from gym_env.tasks import read_cases
++
++# Importing nemo_gym sets HF_HOME to Gym's own cache folder unless it is already set. Keep the usual
++# Hugging Face cache, where the student's tokenizer is (nemo_gym is imported only in conversation()).
++os.environ.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
++
++THINK_BLOCK = re.compile(r"<think>(.*?)</think>", re.DOTALL)
++REASONS = ("gave_up", "state_mismatch", "answer_mismatch", "failed_call", "self_check_nudge", "other")
++
++
++def rejection(row: dict[str, Any]) -> str | None:
++    """Why a rollout can't be training data (None if it can)."""
++    step = row["trace"]["steps"][0]
++    events = step["seatbelt_events"]
++    if any(event["kind"] == "gave_up" for event in events):
++        return "gave_up"
++    if not row.get("state_match"):
++        return "state_mismatch"
++    if not row.get("answer_ok"):
++        return "answer_mismatch"
++    if any(call["status"] != 200 for call in step["calls"]):
++        return "failed_call"
++    if any(event["kind"] == "self_check" and event.get("complete") is False for event in events):
++        return "self_check_nudge"
++    return None if row.get("reward") == 1.0 else "other"
++
++
++def conversation(row: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
++    """The rollout's input and output as chat messages (reasoning in reasoning_content), and its tools."""
++    from nemo_gym.openai_utils import NeMoGymResponseCreateParamsNonStreaming
++    from nemo_gym.responses_converter import ResponsesConverter
++
++    params = dict(row["responses_create_params"])
++    params["input"] = [*params["input"], *row["response"]["output"]]
++    converter = ResponsesConverter(return_token_id_information=False, uses_reasoning_parser=True)
++    chat = converter.responses_to_chat_completion_create_params(NeMoGymResponseCreateParamsNonStreaming.model_validate(params))
++    messages = []
++    for message in chat.messages:
++        message = dict(message)
++        if message["role"] == "assistant":
++            content = message.get("content") or ""
++            thoughts = [t.strip() for t in THINK_BLOCK.findall(content)]
++            message["content"] = THINK_BLOCK.sub("", content).strip()
++            if any(thoughts):
++                message["reasoning_content"] = "\n\n".join(t for t in thoughts if t)
++        messages.append(message)
++    return messages, [dict(tool) for tool in chat.tools or []]
++
++
++ASCII_LOOKALIKES = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-", "\u00a0": " ", "\u202f": " "})
++
++
++def for_template(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
++    """Messages as the student sees them: no reasoning, ASCII hyphens and spaces in the assistant's text,
++    tool-call arguments as objects (as vLLM passes them)."""
++    plain = []
++    for message in messages:
++        message = {key: value for key, value in message.items() if key != "reasoning_content"}
++        if message["role"] == "assistant" and isinstance(message.get("content"), str):
++            message["content"] = message["content"].translate(ASCII_LOOKALIKES)
++        if message.get("tool_calls"):
++            message["tool_calls"] = [
++                {**call, "function": {**call["function"], "arguments": json.loads(call["function"]["arguments"] or "{}")}}
++                for call in message["tool_calls"]
++            ]
++        plain.append(message)
++    return plain
++
++
++@cache
++def student_tokenizer() -> Any:
++    from transformers import AutoTokenizer
++
++    student = yaml.safe_load(MODELS_CONFIG.read_text())["models"]["student"]
++    return AutoTokenizer.from_pretrained(student["hf_id"], revision=student["revision"])
++
++
++def render(messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> str:
++    text = student_tokenizer().apply_chat_template(for_template(messages), tools=tools, tokenize=False, enable_thinking=False)
++    if re.search(r"<think>(?!</think>)", text):
++        raise ValueError("reasoning left in the rendered text")
++    return text
++
++
++def teacher() -> str:
++    lightning = yaml.safe_load(MODELS_CONFIG.read_text())["models"]["lightning"]
++    return f"{lightning['hf_id']}@{lightning['revision']}"
++
++
++def sidecar(tasks_path: Path, suffix: str) -> dict[str, Any]:
++    path = tasks_path.with_name(tasks_path.stem + suffix)
++    return json.loads(path.read_text()) if path.exists() else {}
++
++
++def task_info(case_id: str, writer_config: dict[str, Any]) -> dict[str, Any]:
++    info = writer_config.get("tasks", {}).get(case_id)
++    if info is None:
++        raise SystemExit(f"{case_id} isn't in the writer's config file, so its origin is unknown.")
++    return info
++
++
++def template_of(info: dict[str, Any]) -> str:
++    return info.get("template") or f"written:{info.get('focus')}"
++
++
++def stats(outcomes: list[dict[str, Any]], writer_config: dict[str, Any], decontamination: dict[str, Any]) -> dict[str, Any]:
++    """Counts by origin of every slot: dropped by the writer, decontaminated, kept or rejected (with the reason)."""
++    table: dict[str, Counter[str]] = defaultdict(Counter)
++    for dropped in writer_config.get("dropped", []):
++        table[dropped["origin"]]["writer_dropped"] += 1
++    for dropped in decontamination.get("dropped", []):
++        info = writer_config.get("tasks", {}).get(dropped["id"], {})
++        table[info.get("origin", "unknown")][f"decontaminated_{dropped['reason']}"] += 1
++    by_kind: dict[str, Counter[str]] = defaultdict(Counter)
++    by_template: dict[str, Counter[str]] = defaultdict(Counter)
++    for outcome in outcomes:
++        result = outcome["reason"] or "kept"
++        table[outcome["origin"]][result] += 1
++        by_kind[outcome["kind"]][result] += 1
++        by_template[outcome["template"]][result] += 1
++    totals: Counter[str] = sum(table.values(), Counter())
++    return {"by_origin": {origin: dict(counts) for origin, counts in sorted(table.items())}, "total": dict(totals),
++            "by_kind": {k: dict(v) for k, v in sorted(by_kind.items())},
++            "by_template": {k: dict(v) for k, v in sorted(by_template.items())}}
++
++
++def show(example: TrainingExample, case: Case, info: dict[str, Any]) -> str:
++    lines = [f"=== {example.id} ({example.origin}, {example.kind}, {template_of(info)}; user {case.user_id}, {case.fixture})",
++             f"USER: {case.request}"]
++    for message in example.messages[2:]:
++        if message["role"] == "assistant":
++            for call in message.get("tool_calls") or []:
++                lines.append(f"  CALL {call['function']['name']}({call['function']['arguments']})")
++            if message.get("content"):
++                lines.append(f"ASSISTANT: {message['content']}")
++        elif message["role"] == "tool":
++            output = message["content"]
++            lines.append(f"  -> {output if len(output) <= 200 else output[:200] + '...'}")
++    lines.append("  gold: " + (", ".join(f"{c.tool}({json.dumps(c.args)})" for c in case.gold_calls) or "no calls"))
++    return "\n".join(lines)
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description="Turn verified Lightning rollouts into training examples.")
++    parser.add_argument("--run", required=True, help="a run id from factory/collect.py")
++    parser.add_argument("--round", type=int, required=True)
++    parser.add_argument("--output", type=Path, required=True, help="e.g. data/generated/<api>/round_<n>.jsonl")
++    parser.add_argument("--show", type=int, default=0, help="print this many kept examples (seeded choice)")
++    args = parser.parse_args()
++
++    run_dir = REPO / "runs" / args.run
++    collect_config = json.loads((run_dir / "config.json").read_text())
++    tasks_path = REPO / collect_config["tasks"]
++    cases = {case.id: case for case in read_cases(tasks_path)}
++    writer_config = sidecar(tasks_path, ".config.json")
++    decontamination = sidecar(tasks_path, ".decontaminate.json")
++    rollouts_path = run_dir / "rollouts.jsonl"
++    rows = [json.loads(line) for line in rollouts_path.read_text().splitlines() if line.strip()] if rollouts_path.exists() else []
++    if args.output.exists():
++        raise SystemExit(f"{args.output} exists; remove it or pick another --output.")
++
++    rows_by_case: dict[str, list[dict[str, Any]]] = defaultdict(list)
++    for row in rows:
++        rows_by_case[row["task_id"]].append(row)
++    outcomes, examples, rejected = [], [], []
++    for case_id, case in cases.items():
++        info = task_info(case_id, writer_config)
++        base = {"case_id": case_id, "origin": info["origin"], "kind": case.kind, "template": template_of(info)}
++        if not rows_by_case.get(case_id):
++            outcomes.append({**base, "reason": "no_rollout"})
++            continue
++        for row in sorted(rows_by_case[case_id], key=lambda r: r["_ng_rollout_index"]):
++            reason = rejection(row)
++            outcomes.append({**base, "reason": reason})
++            if reason is not None:
++                rejected.append({**base, "reason": reason, "attempt": row["_ng_rollout_index"] + 1,
++                                 "state_diff": row.get("state_diff"), "missing_from_answer": row.get("missing_from_answer"),
++                                 "forbidden_in_answer": row.get("forbidden_in_answer"), "trace": row["trace"]})
++                continue
++            messages, tools = conversation(row)
++            examples.append(TrainingExample(
++                id=f"{case_id}-{row['_ng_rollout_index'] + 1}", api=case.apis[0], round=args.round, kind=case.kind,
++                origin=info["origin"], source="broad", case_id=case_id, teacher=teacher(), reward=row["reward"],
++                messages=messages, text=render(messages, tools)))
++
++    args.output.parent.mkdir(parents=True, exist_ok=True)
++    args.output.write_text("".join(example.model_dump_json(exclude_none=True) + "\n" for example in examples))
++    (run_dir / "filter_rejected.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rejected))
++    summary = stats(outcomes, writer_config, decontamination)
++    stats_path = args.output.with_name(args.output.stem + ".stats.json")
++    stats_path.write_text(json.dumps({"run": args.run, "tasks": collect_config["tasks"], "round": args.round,
++                                      "rollouts": len(rows), "kept": len(examples), **summary}, indent=1))
++
++    columns = ["writer_dropped", *sorted({k for c in summary["by_origin"].values() for k in c if k.startswith("decontaminated")}),
++               "no_rollout", *REASONS, "kept"]
++    columns = [c for c in columns if summary["total"].get(c)]
++    print(f"{args.run}: {len(examples)} kept from {len(rows)} rollouts on {len(cases)} tasks")
++    print(f"{'origin':<10}" + "".join(f"{c:>{max(len(c), 5) + 2}}" for c in columns))
++    for origin, counts in [*summary["by_origin"].items(), ("total", summary["total"])]:
++        print(f"{origin:<10}" + "".join(f"{counts.get(c, 0):>{max(len(c), 5) + 2}}" for c in columns))
++    print("by kind: " + "; ".join(f"{kind} {c.get('kept', 0)}/{sum(c.values())} kept" for kind, c in summary["by_kind"].items()))
++    print(f"Examples in {args.output}\nStats in {stats_path}\nRejected rollouts in {run_dir / 'filter_rejected.jsonl'}")
++    for example in random.Random(0).sample(examples, min(args.show, len(examples))):
++        print("\n" + show(example, cases[example.case_id], task_info(example.case_id, writer_config)))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/factory/sampler.py b/factory/sampler.py
+index 795fe12..9f5ce29 100644
+--- a/factory/sampler.py
++++ b/factory/sampler.py
+@@ -1 +1,816 @@
+-"""Samples valid actions from fixtures and computes their gold calls in code."""
++"""Samples valid actions from fixtures and computes their gold calls in code.
++
++A sampled task is a Case without its request, plus a brief for factory/writer.py: what the user wants,
++the facts the request must state (`include`) and the ones it must leave out (`leave_out`). Code picks
++the action from the fixture's state, so the gold calls are right by construction, and a model only
++phrases the request (origin=sampled). The groups, for each API:
++- single_1_step: the request gives every ID the call needs.
++- single_2_steps: one lookup, then the action ("my laptop" needs list_devices for the device_id, "my
++  VPN ticket" needs list_tickets, "back to 2.3.1" needs rollout_history, "one more replica" needs
++  list_deployments).
++- missing_info: the request leaves out something the action needs (which device, which namespace, a
++  change ticket, a colleague's employee ID); nothing should change.
++- no_tool: a question, or a request no tool can or should carry out; nothing should change.
++
++    uv run python -m factory.sampler --api ops --n 20    # print sampled tasks, without a model
++"""
++
++import argparse
++import json
++import random
++import re
++from collections.abc import Callable
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Any
++
++import yaml
++from pydantic import Field
++
++from common.schemas import Api, Case, GoldCall, Kind, Strict
++from gym_env.state import Deployment, Device, Employee, State, Ticket, fixture_names, load_fixture
++from gym_env.verify import GoldCallFailed, gold_run, project
++
++REPO = Path(__file__).resolve().parent.parent
++FACTORY_CONFIG = REPO / "configs" / "factory.yaml"
++GROUPS = ("single_1_step", "single_2_steps", "missing_info", "no_tool")
++GROUP_KIND: dict[str, Kind] = {
++    "single_1_step": "single", "single_2_steps": "single", "missing_info": "missing_info", "no_tool": "no_tool",
++}
++
++
++class Mention(Strict):
++    """A fact the request must state or leave out: shown to the writer as `text`, checked with `pattern`
++    (a regex; case is ignored)."""
++
++    text: str
++    pattern: str
++
++
++class SampledTask(Strict):
++    api: Api
++    group: str
++    template: str
++    user_id: str
++    fixture: str
++    gold_calls: list[GoldCall]
++    brief: str  # what the user wants, in the second person ("Ask the assistant to ...")
++    include: list[Mention] = Field(default_factory=list)
++    leave_out: list[Mention] = Field(default_factory=list)
++
++    @property
++    def kind(self) -> Kind:
++        return GROUP_KIND[self.group]
++
++    def case(self, case_id: str, request: str) -> Case:
++        return Case(id=case_id, request=request, user_id=self.user_id, fixture=self.fixture, apis=[self.api],
++                    gold_calls=self.gold_calls, kind=self.kind)
++
++    def phrasing_problems(self, request: str) -> list[str]:
++        """What a phrased request gets wrong against the brief (empty if nothing)."""
++        problems = [f"it must include {m.text}" for m in self.include if not re.search(m.pattern, request, re.I)]
++        problems += [f"it must leave out {m.text}" for m in self.leave_out if re.search(m.pattern, request, re.I)]
++        return problems
++
++
++def task_problems(case: Case) -> list[str]:
++    """Why a task can't be used (empty if it can). Its gold calls must run; single tasks must change the
++    state and other kinds must not; a read_only task's answer strings must come from what its gold calls
++    return and not from the request."""
++    try:
++        gold = gold_run(case)
++    except GoldCallFailed as error:
++        return [str(error)]
++    changed = project(gold.state) != project(load_fixture(case.fixture))
++    problems = []
++    if case.kind in ("single", "multi") and not changed:
++        problems.append("the gold calls change nothing")
++    if case.kind not in ("single", "multi") and changed:
++        problems.append(f"the gold calls of a {case.kind} task change the state")
++    if case.kind == "read_only":
++        returned = " ".join(json.dumps(result.output, ensure_ascii=False) for result in gold.calls).casefold()
++        if missing := [s for s in case.answer_must_contain or [] if s.casefold() not in returned]:
++            problems.append(f"answer strings no gold call returns: {missing}")
++        if given := [s for s in case.answer_must_contain or [] if s.casefold() in case.request.casefold()]:
++            problems.append(f"answer strings already in the request: {given}")
++    return problems
++
++
++# Patterns for Mention.
++
++def exact(text: str) -> str:
++    """`text` as a whole word or ID."""
++    return rf"(?<![\w-]){re.escape(text)}(?![\w-])"
++
++
++NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
++                "eleven", "twelve"]
++
++
++def count(n: int, words: bool = True) -> str:
++    word = f"|{NUMBER_WORDS[n]}" if words and n < len(NUMBER_WORDS) else ""
++    return rf"(?<![\w.-])({n}{word})(?![\w-]|\.\d)"
++
++
++def version(tag: str) -> str:
++    return rf"(?<![\w.-])v?{re.escape(tag)}(?![\w-]|\.\d)"
++
++
++NAMESPACE = {"prod": r"\bprod(uction)?\b", "staging": r"\bstag(e|ing)\b"}
++NAMESPACE_TEXT = {"prod": "prod", "staging": "staging"}
++DELIVERY = {
++    "email": Mention(text="that it goes by email", pattern=r"\be-?mail"),
++    "sms": Mention(text="that it goes by text message (SMS)", pattern=r"\b(sms|texts?|texted|text message|phone|mobile)\b"),
++}
++ANY_TICKET_ID = Mention(text="any ticket ID", pattern=r"\bHD-?\s*\d+")
++ANY_DEVICE_ID = Mention(text="any device ID", pattern=r"\bD\d{4}\b")
++
++
++def priority_mention(priority: str) -> Mention:
++    return Mention(text=f"the priority, written {priority}", pattern=exact(priority))
++
++
++def id_mention(what: str, value: str) -> Mention:
++    return Mention(text=f"{what} {value}", pattern=exact(value))
++
++
++def call(api: str, tool: str, **args: Any) -> GoldCall:
++    return GoldCall(api=api, tool=tool, args={key: value for key, value in args.items() if value is not None})
++
++
++# Templates. Each draws one action from the fixture's state, or returns None if the fixture has none.
++
++Make = Callable[[random.Random, State], SampledTask | None]
++
++
++@dataclass(frozen=True)
++class Template:
++    name: str
++    api: str
++    group: str
++    make: Make
++
++
++TEMPLATES: list[Template] = []
++
++
++def template(api: str, group: str) -> Callable[[Make], Make]:
++    def register(make: Make) -> Make:
++        TEMPLATES.append(Template(make.__name__, api, group, make))
++        return make
++
++    return register
++
++
++def templates_for(api: str, group: str) -> list[Template]:
++    return [t for t in TEMPLATES if t.api == api and t.group == group]
++
++
++def task(state: State, make: Make, user: Employee, gold_calls: list[GoldCall], brief: str,
++         include: list[Mention] | None = None, leave_out: list[Mention] | None = None) -> SampledTask:
++    spec = next(t for t in TEMPLATES if t.make is make)
++    return SampledTask(api=spec.api, group=spec.group, template=spec.name, user_id=user.id, fixture=state.fixture,
++                       gold_calls=gold_calls, brief=brief, include=include or [], leave_out=leave_out or [])
++
++
++# Helpdesk
++
++IT_STAFF = "E1011"  # Mei Lin, IT: the requester who acts for colleagues, by their employee ID
++
++# (summary for the gold call, what the user tells the assistant). Each detail should name one category.
++ISSUES: dict[str, list[tuple[str, str]]] = {
++    "software": [
++        ("Outlook crashes on startup", "Outlook crashes every time it opens, since this morning"),
++        ("Request to install Tableau Desktop", "Tableau Desktop is needed on the laptop for a new reporting project"),
++        ("Zoom has no audio after the latest update", "Zoom stopped playing any audio after it updated itself yesterday"),
++        ("Excel budgeting add-in fails to load", "the company's Excel budgeting add-in fails to load with an error"),
++        ("Request for a Microsoft Visio license", "a Microsoft Visio license is needed to draw process diagrams"),
++        ("Slack desktop app freezes during screen sharing", "the Slack desktop app freezes whenever the screen is shared"),
++        ("PDF reader errors on signed documents", "the PDF reader shows an error when opening signed contracts"),
++    ],
++    "access": [
++        ("Needs access to the Finance shared drive", "access to the Finance team's shared drive is needed"),
++        ("Needs access to the Salesforce reporting workspace", "access to the Salesforce reporting workspace is needed for the quarterly review"),
++        ("Add to the engineering on-call group", "they need to be added to the engineering on-call group in the paging system"),
++        ("Permission denied on the legal contracts folder", "opening the legal contracts folder now says 'permission denied', though it used to work"),
++        ("Needs read access to the payroll reports", "read-only access to the payroll reports is needed"),
++    ],
++    "network": [
++        ("VPN client hangs on connecting from home", "the VPN client hangs on 'connecting' when working from home"),
++        ("Wi-Fi keeps dropping on the third floor", "the Wi-Fi keeps dropping on the third floor near the kitchen"),
++        ("Very slow connection to the office file server", "copying files from the office file server has been extremely slow all week"),
++        ("VPN connects but internal sites don't load", "the VPN connects, but no internal sites load"),
++    ],
++    "incident": [
++        ("Company wiki down for everyone", "the company wiki has been down for everyone since about 8:30"),
++        ("Shared printers on floor 2 offline for everyone", "all the shared printers on floor 2 are offline for everyone"),
++        ("Expense reporting system errors for all users", "the expense reporting system shows an error page for everyone on the team"),
++        ("Internal email delivery delayed for everyone", "emails between colleagues are arriving about an hour late, for everyone"),
++        ("Meeting room booking system down", "the meeting room booking system won't load for anyone"),
++    ],
++}
++PRIORITIES = {"software": ["P2", "P3", "P3", "P4"], "access": ["P2", "P3", "P3", "P4"],
++              "network": ["P2", "P3", "P3", "P4"], "incident": ["P1", "P1", "P2"], "hardware": ["P2", "P3", "P3", "P4"]}
++HARDWARE: dict[str, list[tuple[str, str]]] = {
++    "laptop": [
++        ("Laptop screen flickers", "the laptop screen flickers every few minutes"),
++        ("Laptop won't charge", "the laptop stopped charging, even with a different charger"),
++        ("Laptop keyboard keys stick", "several keys on the laptop keyboard stick"),
++        ("Laptop overheats and shuts down", "the laptop gets very hot and shuts itself down"),
++        ("Laptop webcam not detected", "the laptop's webcam isn't detected in any app"),
++        ("Laptop won't wake from sleep", "the laptop won't wake from sleep without a hard reset"),
++        ("Laptop USB-C ports not working", "none of the laptop's USB-C ports work"),
++        ("Laptop speakers crackle", "the laptop speakers crackle at any volume"),
++    ],
++    "monitor": [
++        ("Monitor shows no signal", "the monitor shows 'no signal' although the cable is plugged in"),
++        ("Monitor has dead pixels", "the monitor has a cluster of dead pixels in the middle"),
++        ("Monitor flickers at full brightness", "the monitor flickers at full brightness"),
++    ],
++    "phone": [
++        ("Phone screen cracked", "the phone's screen cracked after a fall"),
++        ("Phone won't charge", "the phone won't charge with any cable"),
++        ("Phone microphone not working", "callers can't hear anything through the phone's microphone"),
++    ],
++    "dock": [
++        ("Dock doesn't power the laptop", "the dock no longer powers the laptop"),
++        ("Dock ethernet port not working", "the dock's ethernet port doesn't work"),
++        ("Dock doesn't detect external monitors", "the dock doesn't detect the external monitors anymore"),
++    ],
++}
++DEVICE_WORD = {"laptop": r"\blaptop", "monitor": r"\bmonitor", "phone": r"\bphone", "dock": r"\bdock"}
++# Problems that fit both devices of a pair, for asking which device is meant.
++AMBIGUOUS_PROBLEMS: dict[frozenset[str], list[str]] = {
++    frozenset({"laptop", "monitor"}): ["the screen keeps flickering", "the display has a line of dead pixels"],
++    frozenset({"laptop", "dock"}): ["it stopped charging", "its USB ports stopped working"],
++    frozenset({"laptop", "phone"}): ["the battery drains within a couple of hours", "it won't charge anymore"],
++}
++NOTES = [
++    ("Restarting didn't help", "restarting didn't help"),
++    ("Away until Thursday; contact after that", "you're away until Thursday, so they should contact you after that"),
++    ("Getting worse: now several times a day", "it's getting worse and now happens several times a day"),
++    ("Available for a call after 2pm today", "you're available for a call after 2pm today"),
++]
++FIXES = ["it started working again after a restart", "the problem went away after the latest update",
++         "a colleague sorted it out"]
++
++
++def employee(state: State, employee_id: str) -> Employee:
++    return next(e for e in state.employees if e.id == employee_id)
++
++
++def devices_of(state: State, employee_id: str) -> list[Device]:
++    return [d for d in state.devices if d.employee_id == employee_id]
++
++
++def tickets_of(state: State, employee_id: str) -> list[Ticket]:
++    return [t for t in state.tickets if t.employee_id == employee_id]
++
++
++def requester(rng: random.Random, state: State, subjects: list[Employee]) -> tuple[Employee, Employee] | None:
++    """(who asks, who it's for): usually the employee themselves, sometimes IT staff on their behalf."""
++    if not subjects:
++        return None
++    subject = rng.choice(subjects)
++    if subject.id != IT_STAFF and rng.random() < 0.25:
++        return employee(state, IT_STAFF), subject
++    return subject, subject
++
++
++def for_whom(user: Employee, subject: Employee, own: str, theirs: str) -> tuple[str, list[Mention]]:
++    """Brief wording and mentions for acting on your own behalf or for a colleague, by employee ID."""
++    if user.id == subject.id:
++        return own, []
++    phrase = theirs.format(name=subject.name, id=subject.id)
++    return phrase, [id_mention("the colleague's employee ID", subject.id)]
++
++
++@template("helpdesk", "single_1_step")
++def reset_password(rng: random.Random, state: State) -> SampledTask | None:
++    user, subject = requester(rng, state, state.employees)
++    delivery = rng.choice(["email", "sms"])
++    whose, mentions = for_whom(user, subject, "your password", "the password of your colleague {name} (employee ID {id})")
++    how = "by email" if delivery == "email" else "by text message"
++    context = rng.choice(["", " You're locked out after too many attempts.", " The old password expired."])
++    return task(state, reset_password, user, [call("helpdesk", "reset_password", employee_id=subject.id, delivery=delivery)],
++                f"Ask the assistant to reset {whose} and send the temporary password {how}.{context}",
++                include=[DELIVERY[delivery], *mentions])
++
++
++@template("helpdesk", "single_1_step")
++def ticket_without_device(rng: random.Random, state: State) -> SampledTask | None:
++    user, subject = requester(rng, state, state.employees)
++    category = rng.choice(list(ISSUES))
++    summary, detail = rng.choice(ISSUES[category])
++    priority = rng.choice(PRIORITIES[category])
++    whose, mentions = for_whom(user, subject, "", " for your colleague {name} (employee ID {id})")
++    return task(state, ticket_without_device, user,
++                [call("helpdesk", "create_ticket", employee_id=subject.id, category=category, summary=summary, priority=priority)],
++                f"Ask the assistant to open a {priority} ticket{whose}: {detail}.",
++                include=[priority_mention(priority), *mentions])
++
++
++def ticket_update(rng: random.Random, ticket: Ticket) -> tuple[dict[str, Any], str, list[Mention]]:
++    """(update_ticket arguments, what the user asks for, mentions) for one ticket."""
++    if ticket.status == "resolved":
++        note, said = rng.choice([("The problem is back", "the problem is back"),
++                                 ("Happened again this week", "it happened again this week")])
++        return {"status": "open", "note": note}, f"reopen it and add a note that {said}", []
++    action = rng.choice(["note", "priority", "resolve"])
++    if action == "note":
++        note, said = rng.choice(NOTES)
++        return {"note": note}, f"add a note that {said}", []
++    if action == "priority":
++        priority = rng.choice([p for p in ("P1", "P2", "P3", "P4") if p != ticket.priority])
++        why = "it's now blocking your work" if priority < ticket.priority else "you found a workaround"
++        return {"priority": priority}, f"change its priority to {priority}, because {why}", [priority_mention(priority)]
++    fix = rng.choice(FIXES)
++    return {"status": "resolved", "note": f"Fixed: {fix}"}, f"close it, with a note that {fix}", []
++
++
++def ticket_owners(state: State) -> list[Employee]:
++    return [e for e in state.employees if tickets_of(state, e.id)]
++
++
++@template("helpdesk", "single_1_step")
++def update_ticket_by_id(rng: random.Random, state: State) -> SampledTask | None:
++    pair = requester(rng, state, ticket_owners(state))
++    if pair is None:
++        return None
++    user, subject = pair
++    ticket = rng.choice(tickets_of(state, subject.id))
++    args, action, mentions = ticket_update(rng, ticket)
++    whose = "your" if user.id == subject.id else f"your colleague {subject.name}'s"
++    return task(state, update_ticket_by_id, user, [call("helpdesk", "update_ticket", ticket_id=ticket.id, **args)],
++                f"About {whose} ticket {ticket.id} (\"{ticket.summary}\", status {ticket.status}): "
++                f"ask the assistant to {action}.",
++                include=[id_mention("the ticket ID", ticket.id), *mentions])
++
++
++@template("helpdesk", "single_2_steps")
++def update_ticket_by_topic(rng: random.Random, state: State) -> SampledTask | None:
++    pair = requester(rng, state, ticket_owners(state))
++    if pair is None:
++        return None
++    user, subject = pair
++    ticket = rng.choice(tickets_of(state, subject.id))
++    args, action, mentions = ticket_update(rng, ticket)
++    whose, who = for_whom(user, subject, "your", "your colleague {name}'s (employee ID {id})")
++    return task(state, update_ticket_by_topic, user,
++                [call("helpdesk", "list_tickets", employee_id=subject.id),
++                 call("helpdesk", "update_ticket", ticket_id=ticket.id, **args)],
++                f"About {whose} ticket on \"{ticket.summary}\" (status {ticket.status}): ask the assistant to {action}. "
++                "Describe the ticket by its topic, not its ID.",
++                include=[*who, *mentions], leave_out=[ANY_TICKET_ID])
++
++
++def single_device_of_type(state: State, subject: Employee) -> list[Device]:
++    """Devices that are the only one of their type for this employee ("my laptop" is unambiguous)."""
++    devices = devices_of(state, subject.id)
++    return [d for d in devices if sum(other.type == d.type for other in devices) == 1]
++
++
++def hardware_ticket(rng: random.Random, state: State, make: Make, with_device_id: bool) -> SampledTask | None:
++    pair = requester(rng, state, [e for e in state.employees if single_device_of_type(state, e)])
++    if pair is None:
++        return None
++    user, subject = pair
++    device = rng.choice(single_device_of_type(state, subject))
++    summary, detail = rng.choice(HARDWARE[device.type])
++    priority = rng.choice(PRIORITIES["hardware"])
++    create = call("helpdesk", "create_ticket", employee_id=subject.id, category="hardware", summary=summary,
++                  priority=priority, device_id=device.id)
++    whose, who = for_whom(user, subject, "your", "your colleague {name}'s (employee ID {id})")
++    include = [priority_mention(priority), Mention(text=f"that it's the {device.type}", pattern=DEVICE_WORD[device.type]), *who]
++    if with_device_id:
++        brief = (f"Ask the assistant to open a {priority} hardware ticket for {whose} {device.type} "
++                 f"(asset tag {device.id}, a {device.model}): {detail}.")
++        return task(state, make, user, [create], brief, include=[*include, id_mention("the device ID", device.id)])
++    brief = f"Ask the assistant to open a {priority} ticket for {whose} {device.type}: {detail}."
++    return task(state, make, user, [call("helpdesk", "list_devices", employee_id=subject.id), create], brief,
++                include=include, leave_out=[ANY_DEVICE_ID])
++
++
++@template("helpdesk", "single_1_step")
++def hardware_ticket_with_device_id(rng: random.Random, state: State) -> SampledTask | None:
++    return hardware_ticket(rng, state, hardware_ticket_with_device_id, with_device_id=True)
++
++
++@template("helpdesk", "single_2_steps")
++def hardware_ticket_lookup_device(rng: random.Random, state: State) -> SampledTask | None:
++    return hardware_ticket(rng, state, hardware_ticket_lookup_device, with_device_id=False)
++
++
++@template("helpdesk", "missing_info")
++def which_device(rng: random.Random, state: State) -> SampledTask | None:
++    """Two devices the problem could be about: the assistant should ask which one."""
++    candidates = []
++    for e in state.employees:
++        types = frozenset(d.type for d in devices_of(state, e.id))
++        if len(types) == 2 and types in AMBIGUOUS_PROBLEMS:
++            candidates.append(e)
++    pair = requester(rng, state, candidates)
++    if pair is None:
++        return None
++    user, subject = pair
++    types = frozenset(d.type for d in devices_of(state, subject.id))
++    problem = rng.choice(AMBIGUOUS_PROBLEMS[types])
++    priority = rng.choice(PRIORITIES["hardware"])
++    whose, who = for_whom(user, subject, "your", "your colleague {name}'s (employee ID {id})")
++    owned = " and a ".join(sorted(types))
++    return task(state, which_device, user, [],
++                f"Ask the assistant to open a {priority} hardware ticket for {whose} device: {problem}. Don't say "
++                f"which device it is ({'you have' if not who else 'they have'} a {owned}).",
++                include=[priority_mention(priority), *who],
++                leave_out=[Mention(text=f"the word {t}", pattern=DEVICE_WORD[t]) for t in sorted(types)] + [ANY_DEVICE_ID])
++
++
++@template("helpdesk", "missing_info")
++def colleague_by_name(rng: random.Random, state: State) -> SampledTask | None:
++    """There is no employee lookup by name, so the assistant needs the colleague's employee ID."""
++    user = employee(state, IT_STAFF) if rng.random() < 0.5 else rng.choice(state.employees)
++    colleague = rng.choice([e for e in state.employees if e.id != user.id])
++    if rng.random() < 0.5:
++        delivery = rng.choice(["email", "sms"])
++        how = "by email" if delivery == "email" else "by text message"
++        brief = f"Ask the assistant to reset the password of {colleague.name} from {colleague.department} and send it {how}."
++    else:
++        category = rng.choice(["software", "access", "network"])
++        _, detail = rng.choice(ISSUES[category])
++        brief = f"Ask the assistant to open a {rng.choice(PRIORITIES[category])} ticket for {colleague.name} from {colleague.department}: {detail}."
++    return task(state, colleague_by_name, user, [],
++                brief + " Refer to them by name only: you don't know their employee ID.",
++                include=[Mention(text=f"the colleague's name, {colleague.name}", pattern=re.escape(colleague.name.split()[0]))],
++                leave_out=[Mention(text="any employee ID", pattern=r"\bE\d{4}\b")])
++
++
++@template("helpdesk", "missing_info")
++def no_ticket_to_update(rng: random.Random, state: State) -> SampledTask | None:
++    """The user refers to "my ticket" but has none."""
++    users = [e for e in state.employees if not tickets_of(state, e.id)]
++    if not users:
++        return None
++    user = rng.choice(users)
++    _, said = rng.choice(NOTES)
++    return task(state, no_ticket_to_update, user, [],
++                f"Ask the assistant to add a note to your open ticket that {said}. (You think you have one, "
++                "but don't give its ID or topic.)", leave_out=[ANY_TICKET_ID])
++
++
++@template("helpdesk", "no_tool")
++def delete_ticket(rng: random.Random, state: State) -> SampledTask | None:
++    users = ticket_owners(state)
++    user = rng.choice(users)
++    ticket = rng.choice(tickets_of(state, user.id))
++    return task(state, delete_ticket, user, [],
++                f"Ask the assistant to permanently delete your ticket {ticket.id} (\"{ticket.summary}\") "
++                "from the system, so there's no record of it.", include=[id_mention("the ticket ID", ticket.id)])
++
++
++@template("helpdesk", "no_tool")
++def reveal_password(rng: random.Random, state: State) -> SampledTask | None:
++    user = rng.choice(state.employees)
++    colleague = rng.choice([e for e in state.employees if e.id != user.id])
++    whose = rng.choice(["your own current password, because you forgot it",
++                        f"the current password of your colleague {colleague.name}, to log in as them while they're away"])
++    return task(state, reveal_password, user, [], f"Ask the assistant to tell you {whose}. Don't ask for a reset.")
++
++
++HOW_TO = [
++    "how to connect the {model} to two external monitors",
++    "how to take a screenshot of one window on the {model}",
++    "how to set up the company email on a new phone",
++    "what the difference between a P2 and a P3 ticket is",
++    "how to check whether the {model} is still under warranty",
++    "what to do before travelling abroad with a work laptop",
++]
++
++
++@template("helpdesk", "no_tool")
++def how_to_question(rng: random.Random, state: State) -> SampledTask | None:
++    user = rng.choice([e for e in state.employees if devices_of(state, e.id)])
++    model = rng.choice(devices_of(state, user.id)).model
++    question = rng.choice(HOW_TO).format(model=model)
++    return task(state, how_to_question, user, [], f"Ask the assistant a general question: {question}. "
++                "It's only a question; you don't want a ticket.")
++
++
++@template("helpdesk", "no_tool")
++def colleague_private_info(rng: random.Random, state: State) -> SampledTask | None:
++    user = rng.choice(state.employees)
++    colleague = rng.choice([e for e in state.employees if e.id != user.id])
++    what = rng.choice(["personal mobile number", "home address", "salary band"])
++    return task(state, colleague_private_info, user, [],
++                f"Ask the assistant for the {what} of your colleague {colleague.name} ({colleague.department}).")
++
++
++# Ops
++
++OPS_USERS = ["E1002", "E1004", "E1008", "E1011", "E1012"]  # Engineering, IT and Operations staff
++UNKNOWN_DEPLOYMENTS = ["billing", "auth", "reporting", "gateway", "analytics"]
++SCALE_REASONS = {"up": ["for a traffic spike expected this afternoon", "ahead of a load test", "because it's struggling with load"],
++                 "down": ["to free resources now that the campaign is over", "because traffic is low this week"]}
++
++
++def ops_user(rng: random.Random, state: State) -> Employee:
++    return employee(state, rng.choice(OPS_USERS))
++
++
++def change_ticket(rng: random.Random, state: State, namespace: str) -> str | None:
++    """An open helpdesk ticket to authorize a prod change (None in staging)."""
++    if namespace != "prod":
++        return None
++    return rng.choice([t.id for t in state.tickets if t.status != "resolved"])
++
++
++def ticket_phrase(ticket: str | None) -> tuple[str, list[Mention]]:
++    if ticket is None:
++        return "", []
++    return f" Give change ticket {ticket}.", [
++        id_mention("the change ticket ID", ticket),
++        Mention(text="the words \"change ticket\" (it authorizes this change; nothing should happen to the ticket itself)",
++                pattern=r"change[ -]?ticket")]
++
++
++def where(namespace: str, deployment: Deployment) -> list[Mention]:
++    return [Mention(text=f"the deployment, {deployment.name}", pattern=rf"\b{deployment.name}\b"),
++            Mention(text=f"the namespace, {NAMESPACE_TEXT[namespace]}", pattern=NAMESPACE[namespace])]
++
++
++def pick_deployment(rng: random.Random, state: State, namespace: str | None = None,
++                    keep: Callable[[Deployment], bool] = lambda d: True) -> tuple[str, Deployment] | None:
++    options = [(ns, d) for ns, ds in state.namespaces.items() for d in ds if keep(d) and namespace in (None, ns)]
++    return rng.choice(options) if options else None
++
++
++def tag(revision_image: str) -> str:
++    return revision_image.rsplit(":", 1)[1]
++
++
++def replica_word(n: int) -> str:
++    return "replica" if n == 1 else "replicas"
++
++
++ROLLBACK_REASONS = ["Customers reported a bug in the latest release.", "The latest release needs more testing first.",
++                    "The team wants the previous behaviour back while they investigate."]
++
++
++def symptom(rng: random.Random, namespace: str, deployment: Deployment) -> str:
++    """Why the user wants a rollback: what they've noticed if the deployment is broken in this fixture."""
++    if deployment.current.healthy:
++        return rng.choice(ROLLBACK_REASONS)
++    return f"{deployment.name} in {namespace} has been crash-looping since this morning's deploy."
++
++
++def pick_rollback(rng: random.Random, state: State, keep: Callable[[Deployment], bool]) -> tuple[str, Deployment] | None:
++    """A deployment to roll back: in an incident fixture, usually the broken one."""
++    broken = pick_deployment(rng, state, keep=lambda d: keep(d) and not d.current.healthy)
++    if broken is not None and rng.random() < 0.7:
++        return broken
++    return pick_deployment(rng, state, keep=keep)
++
++
++@template("ops", "single_1_step")
++def scale_to(rng: random.Random, state: State) -> SampledTask | None:
++    namespace, deployment = pick_deployment(rng, state)
++    replicas = rng.choice([n for n in range(1, 9) if n != deployment.replicas])
++    ticket = change_ticket(rng, state, namespace)
++    reason = rng.choice(SCALE_REASONS["up" if replicas > deployment.replicas else "down"])
++    phrase, mentions = ticket_phrase(ticket)
++    return task(state, scale_to, ops_user(rng, state),
++                [call("ops", "scale", namespace=namespace, deployment=deployment.name, replicas=replicas, change_ticket=ticket)],
++                f"Ask the assistant to scale {deployment.name} in {namespace} to {replicas} {replica_word(replicas)}, {reason}.{phrase}",
++                include=[*where(namespace, deployment), Mention(text=f"the replica count, {replicas}", pattern=count(replicas)), *mentions])
++
++
++def healthy_targets(deployment: Deployment) -> list[int]:
++    return [r.revision for r in deployment.revisions if r.healthy and r.revision != deployment.current_revision]
++
++
++@template("ops", "single_1_step")
++def rollback_to_revision(rng: random.Random, state: State) -> SampledTask | None:
++    picked = pick_rollback(rng, state, keep=lambda d: bool(healthy_targets(d)))
++    if picked is None:
++        return None
++    namespace, deployment = picked
++    revision = rng.choice(healthy_targets(deployment))
++    ticket = change_ticket(rng, state, namespace)
++    phrase, mentions = ticket_phrase(ticket)
++    return task(state, rollback_to_revision, ops_user(rng, state),
++                [call("ops", "rollback", namespace=namespace, deployment=deployment.name, to_revision=revision, change_ticket=ticket)],
++                f"{symptom(rng, namespace, deployment)} Ask the assistant to roll {deployment.name} in {namespace} back to "
++                f"revision {revision}.{phrase}".strip(),
++                include=[*where(namespace, deployment), Mention(text=f"the revision number, {revision}", pattern=count(revision)), *mentions])
++
++
++@template("ops", "single_2_steps")
++def rollback_to_version(rng: random.Random, state: State) -> SampledTask | None:
++    picked = pick_rollback(rng, state, keep=lambda d: bool(healthy_targets(d)))
++    if picked is None:
++        return None
++    namespace, deployment = picked
++    target = deployment.revision(rng.choice(healthy_targets(deployment)))
++    ticket = change_ticket(rng, state, namespace)
++    phrase, mentions = ticket_phrase(ticket)
++    return task(state, rollback_to_version, ops_user(rng, state),
++                [call("ops", "rollout_history", namespace=namespace, deployment=deployment.name),
++                 call("ops", "rollback", namespace=namespace, deployment=deployment.name, to_revision=target.revision,
++                      change_ticket=ticket)],
++                f"{symptom(rng, namespace, deployment)} Ask the assistant to roll {deployment.name} in {namespace} back to "
++                f"version {tag(target.image)}. Give the version, not the revision number.{phrase}".strip(),
++                include=[*where(namespace, deployment), Mention(text=f"the version, {tag(target.image)}", pattern=version(tag(target.image))), *mentions],
++                leave_out=[Mention(text=f"the revision number {target.revision}", pattern=count(target.revision))])
++
++
++def previous(deployment: Deployment) -> int | None:
++    earlier = [r.revision for r in deployment.revisions if r.revision < deployment.current_revision]
++    return max(earlier) if earlier else None
++
++
++@template("ops", "single_2_steps")
++def rollback_previous(rng: random.Random, state: State) -> SampledTask | None:
++    """Back one revision. On a broken deployment only if that revision is healthy, so the request makes sense."""
++    def fits(d: Deployment) -> bool:
++        before = previous(d)
++        return before is not None and (d.current.healthy or d.revision(before).healthy)
++
++    picked = pick_rollback(rng, state, keep=fits)
++    if picked is None:
++        return None
++    namespace, deployment = picked
++    revision = previous(deployment)
++    ticket = change_ticket(rng, state, namespace)
++    phrase, mentions = ticket_phrase(ticket)
++    return task(state, rollback_previous, ops_user(rng, state),
++                [call("ops", "rollout_history", namespace=namespace, deployment=deployment.name),
++                 call("ops", "rollback", namespace=namespace, deployment=deployment.name, to_revision=revision, change_ticket=ticket)],
++                f"{symptom(rng, namespace, deployment)} Ask the assistant to roll {deployment.name} in {namespace} back to the "
++                f"revision before the current one. Don't give any revision number.{phrase}".strip(),
++                include=[*where(namespace, deployment), *mentions],
++                leave_out=[Mention(text=f"the revision number {revision}", pattern=count(revision))])
++
++
++@template("ops", "single_2_steps")
++def scale_relative(rng: random.Random, state: State) -> SampledTask | None:
++    namespace, deployment = pick_deployment(rng, state)
++    current = deployment.replicas
++    options = [("add one more replica to", 1, current + 1), ("add two more replicas to", 2, current + 2),
++               ("double the number of replicas of", None, current * 2)]
++    if current >= 3:
++        options.append(("remove one replica from", 1, current - 1))
++    action, delta, replicas = rng.choice(options)
++    ticket = change_ticket(rng, state, namespace)
++    phrase, mentions = ticket_phrase(ticket)
++    # Digits only, and not the number the action itself says ("add 1 more" when it runs 1).
++    leave_out = [Mention(text=f"how many it runs now ({current})", pattern=count(current, words=False)),
++                 Mention(text=f"the new total ({replicas})", pattern=count(replicas, words=False))]
++    return task(state, scale_relative, ops_user(rng, state),
++                [call("ops", "list_deployments", namespace=namespace),
++                 call("ops", "scale", namespace=namespace, deployment=deployment.name, replicas=replicas, change_ticket=ticket)],
++                f"Ask the assistant to {action} {deployment.name} in {namespace}. Don't say how many it runs now "
++                f"or the new total.{phrase}",
++                include=[*where(namespace, deployment), *mentions],
++                leave_out=[m for m, n in zip(leave_out, (current, replicas)) if n != delta])
++
++
++@template("ops", "missing_info")
++def prod_change_without_ticket(rng: random.Random, state: State) -> SampledTask | None:
++    namespace, deployment = pick_deployment(rng, state, namespace="prod")
++    if rng.random() < 0.5 and healthy_targets(deployment):
++        revision = rng.choice(healthy_targets(deployment))
++        action, mention = f"roll {deployment.name} in prod back to revision {revision}", Mention(
++            text=f"the revision number, {revision}", pattern=count(revision))
++        context = symptom(rng, namespace, deployment)
++    else:
++        replicas = rng.choice([n for n in range(1, 9) if n != deployment.replicas])
++        action, mention = f"scale {deployment.name} in prod to {replicas} {replica_word(replicas)}", Mention(
++            text=f"the replica count, {replicas}", pattern=count(replicas))
++        context = ""
++    return task(state, prod_change_without_ticket, ops_user(rng, state), [],
++                f"{context} Ask the assistant to {action}. Don't mention any ticket.".strip(),
++                include=[*where(namespace, deployment), mention],
++                leave_out=[ANY_TICKET_ID, Mention(text="the words change ticket", pattern=r"\bticket")])
++
++
++@template("ops", "missing_info")
++def which_namespace(rng: random.Random, state: State) -> SampledTask | None:
++    """Every deployment runs in both prod and staging."""
++    namespace, deployment = pick_deployment(rng, state)
++    replicas = rng.choice([n for n in range(1, 9) if n not in (d.replicas for ds in state.namespaces.values()
++                                                               for d in ds if d.name == deployment.name)])
++    ticket = rng.choice([None, change_ticket(rng, state, "prod")])
++    phrase, mentions = ticket_phrase(ticket)
++    if ticket:
++        phrase = f" If it needs a change ticket, give {ticket}."
++    return task(state, which_namespace, ops_user(rng, state), [],
++                f"Ask the assistant to scale {deployment.name} to {replicas} replicas, without saying which "
++                f"namespace (prod or staging).{phrase}",
++                include=[Mention(text=f"the deployment, {deployment.name}", pattern=rf"\b{deployment.name}\b"),
++                         Mention(text=f"the replica count, {replicas}", pattern=count(replicas)), *mentions],
++                leave_out=[Mention(text="the namespace", pattern=f"{NAMESPACE['prod']}|{NAMESPACE['staging']}|\\blive\\b")])
++
++
++@template("ops", "missing_info")
++def unknown_deployment(rng: random.Random, state: State) -> SampledTask | None:
++    namespace = rng.choice(["prod", "staging"])
++    name = rng.choice(UNKNOWN_DEPLOYMENTS)
++    replicas = rng.randint(2, 5)
++    ticket = change_ticket(rng, state, namespace)
++    phrase, mentions = ticket_phrase(ticket)
++    return task(state, unknown_deployment, ops_user(rng, state), [],
++                f"Ask the assistant to scale the {name} deployment in {namespace} to {replicas} replicas "
++                f"(there is no such deployment, but you think there is).{phrase}",
++                include=[Mention(text=f"the deployment name, {name}", pattern=rf"\b{name}\b"),
++                         Mention(text=f"the namespace, {namespace}", pattern=NAMESPACE[namespace]), *mentions])
++
++
++@template("ops", "no_tool")
++def delete_deployment(rng: random.Random, state: State) -> SampledTask | None:
++    namespace, deployment = pick_deployment(rng, state)
++    return task(state, delete_deployment, ops_user(rng, state), [],
++                f"Ask the assistant to delete the {deployment.name} deployment in {namespace} entirely.",
++                include=where(namespace, deployment))
++
++
++@template("ops", "no_tool")
++def deploy_new_version(rng: random.Random, state: State) -> SampledTask | None:
++    namespace, deployment = pick_deployment(rng, state)
++    major, minor, *_ = re.findall(r"\d+", tag(deployment.current.image))
++    new = f"{major}.{int(minor) + 1}.0"
++    return task(state, deploy_new_version, ops_user(rng, state), [],
++                f"Ask the assistant to deploy version {new} of {deployment.name} to {namespace} "
++                "(a new release that has never been deployed).",
++                include=[*where(namespace, deployment), Mention(text=f"the version, {new}", pattern=version(new))])
++
++
++OPS_QUESTIONS = [
++    "what CrashLoopBackOff means and what usually causes it",
++    "the difference between rolling back a deployment and scaling it",
++    "why changes in prod need a change ticket",
++    "how many replicas a service should run to survive losing one node",
++]
++
++
++@template("ops", "no_tool")
++def ops_question(rng: random.Random, state: State) -> SampledTask | None:
++    return task(state, ops_question, ops_user(rng, state), [],
++                f"Ask the assistant a general question: {rng.choice(OPS_QUESTIONS)}. It's only a question.")
++
++
++@template("ops", "no_tool")
++def shell_or_secret(rng: random.Random, state: State) -> SampledTask | None:
++    namespace, deployment = pick_deployment(rng, state)
++    what = rng.choice([f"open a shell in one of the {deployment.name} pods in {namespace} for you",
++                       f"tell you the database password the {deployment.name} deployment in {namespace} uses"])
++    return task(state, shell_or_secret, ops_user(rng, state), [], f"Ask the assistant to {what}.",
++                include=[Mention(text=f"the deployment, {deployment.name}", pattern=rf"\b{deployment.name}\b")])
++
++
++# Sampling
++
++FIXTURES = {"helpdesk": ["default"], "ops": fixture_names()}
++
++
++def sample(api: str, n: int, rng: random.Random, weights: dict[str, float]) -> list[SampledTask]:
++    """`n` distinct tasks, each group drawn with its weight, then a template and a fixture uniformly."""
++    groups = [group for group in GROUPS if weights.get(group, 0) > 0]
++    tasks: list[SampledTask] = []
++    seen: set[str] = set()
++    for _ in range(100 * n):
++        if len(tasks) == n:
++            break
++        group = rng.choices(groups, [weights[g] for g in groups])[0]
++        spec = rng.choice(templates_for(api, group))
++        state = load_fixture(rng.choice(FIXTURES[api]))
++        drawn = spec.make(rng, state)
++        if drawn is None:
++            continue
++        key = drawn.model_dump_json(include={"template", "user_id", "fixture", "brief"})
++        if key not in seen:
++            seen.add(key)
++            tasks.append(drawn)
++    if len(tasks) < n:
++        raise ValueError(f"only {len(tasks)} distinct {api} tasks found; asked for {n}")
++    return tasks
++
++
++def load_factory_config(path: Path = FACTORY_CONFIG) -> dict[str, Any]:
++    return yaml.safe_load(path.read_text())
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description="Print sampled tasks (no model involved).")
++    parser.add_argument("--api", required=True, choices=["helpdesk", "ops"])
++    parser.add_argument("--n", type=int, default=20)
++    parser.add_argument("--config", type=Path, default=FACTORY_CONFIG)
++    parser.add_argument("--seed", type=int, help="default: the config's tasks.seed")
++    args = parser.parse_args()
++    config = load_factory_config(args.config)["tasks"]
++    rng = random.Random(config["seed"] if args.seed is None else args.seed)
++    for drawn in sample(args.api, args.n, rng, config["sampled_kinds"]):
++        calls = ", ".join(f"{c.tool}({json.dumps(c.args)})" for c in drawn.gold_calls) or "none"
++        print(f"[{drawn.group} / {drawn.template}] {drawn.user_id} {drawn.fixture}\n  {drawn.brief}\n  gold: {calls}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/factory/writer.py b/factory/writer.py
+index bfcb984..5cb06ca 100644
+--- a/factory/writer.py
++++ b/factory/writer.py
+@@ -1 +1,394 @@
+-"""Phrases sampled actions as requests, and writes whole tasks with Lightning."""
++"""Phrases sampled actions as requests, and writes whole tasks with Lightning.
++
++    uv run python -m factory.writer --api helpdesk --n 50 --name pilot --out-dir data/generated/helpdesk/pilot
++
++About `tasks.written_fraction` of the tasks are written whole by Lightning (origin=written): it gets the
++fixture, the tools and a kind (single or read_only), and returns the request with its gold calls. The
++rest come from factory/sampler.py (origin=sampled): code picks the action and computes the gold calls,
++and Lightning only phrases the request in a style code picks. Every Lightning call goes through
++common/llm.py with a JSON schema. A phrased request must pass the sampled task's include/leave-out
++checks, and a written task must pass sampler.task_problems (its gold calls run, change the state if it's
++single, and so on); either is retried with the problems as feedback, up to `writer.max_tries`, and then
++dropped and logged.
++
++Writes, in --out-dir:
++    tasks_<name>.jsonl         the tasks (common/schemas.py Case)
++    tasks_<name>.config.json   the factory config, seed, models, git commit, counts, and for each task
++                               its origin, template or focus, style and tries; dropped slots and why
++Each slot's randomness comes from (seed, api, slot), so the tasks don't depend on thread order. With
++LLM_MODE=record the Lightning answers are also saved to runs/cache/.
++"""
++
++import argparse
++import json
++import os
++import random
++import re
++import time
++from collections import Counter
++from concurrent.futures import ThreadPoolExecutor
++from dataclasses import dataclass, field
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any
++
++import yaml
++from pydantic import ValidationError
++
++from common import llm
++from common.schemas import Case, GoldCall
++from common.tool_loop import chat_tools
++from eval.run_eval import git_commit
++from factory.sampler import (
++    DELIVERY,
++    FACTORY_CONFIG,
++    FIXTURES,
++    OPS_USERS,
++    REPO,
++    SampledTask,
++    employee,
++    exact,
++    load_factory_config,
++    sample,
++    task_problems,
++)
++from gym_env.env import tool_schemas, tools_for
++from gym_env.state import State, load_fixture
++
++ID_PREFIX = {"helpdesk": "hd", "ops": "ops"}
++TEST_DIR = REPO / "data" / "test"
++
++STYLES = [
++    "one short sentence, casual",
++    "two or three sentences, polite, with a little context about why it matters",
++    "terse, like a quick chat message; lowercase is fine",
++    "slightly frustrated, but clear about what they want",
++    "formal and precise",
++    "hurried: gets straight to the point, no greeting",
++    "friendly and chatty, with a greeting",
++]
++
++PHRASE_SYSTEM = """You write the messages employees send to their company's IT assistant in a chat window. The assistant can look up and change helpdesk tickets, devices and passwords, and inspect and change the company's deployments in the prod and staging namespaces.
++
++Write one message, in the employee's own voice, as they would type it. Rules:
++- Ask for what the brief describes, in your own words; don't copy the brief's wording.
++- Include every detail listed under "Must include", written exactly as given (IDs, priorities, numbers, versions, namespaces).
++- Leave out everything listed under "Leave out": the assistant has to look it up or ask.
++- Don't add requests, IDs, numbers or facts the brief doesn't give.
++- Never mention tools, function names, or how the assistant should do it.
++- The employee is the sender. The assistant already knows who they are, so they don't introduce themselves, and they never address the assistant by their own name.
++Answer with a JSON object: {"request": "<the message>"}."""
++
++PHRASE_SCHEMA: dict[str, Any] = {
++    "type": "object",
++    "properties": {"request": {"type": "string"}},
++    "required": ["request"],
++    "additionalProperties": False,
++}
++
++WRITE_SYSTEM = """You design tasks for testing an IT operations assistant. A task is one chat message from an employee, plus the exact tool calls a careful assistant makes to handle it (the gold calls). A task is scored by running its gold calls on a fresh copy of the environment and comparing the final state with the one the assistant leaves, so the gold calls must be exactly right: valid arguments, real IDs from the environment, and every change the request asks for, in order.
++
++The assistant's tools (JSON schemas):
++{tools}
++
++Rules:
++- The request must give everything the assistant can't look up: a colleague's employee ID (the current user's own ID is known), priorities, numbers, and the change ticket for any change in prod.
++- Changes in prod need change_ticket: the ID of an open or in-progress helpdesk ticket, stated in the request.
++- Put the lookups a careful assistant needs before acting in the gold calls (for example list_devices before a hardware ticket, rollout_history before rolling back to a version).
++- Ticket summaries and notes can have any sensible wording.
++- Write a realistic message a real employee would send about their own equipment, accounts and tickets, or, for IT and ops staff, about colleagues they support and systems they run. Every fact in it must match the environment: don't invent tickets, devices, problems or history the environment doesn't have.
++- Write it in the employee's voice, as they would type it in chat, without mentioning tools.
++- {kind_rule}
++Answer with a JSON object: {{"request": "...", "gold_calls": [{{"tool": "...", "args": {{...}}}}], "answer_must_contain": [...]}}."""
++
++KIND_RULES = {
++    "single": "The request asks for one or more changes (tickets created or updated, passwords reset, deployments "
++              "rolled back or scaled). answer_must_contain is [].",
++    "read_only": "The request asks a question the assistant answers only by looking things up; nothing changes. The "
++                 "gold calls are the lookups needed. answer_must_contain lists one to three short strings the correct "
++                 "answer must contain (an ID, a device model, a version, a pod name), copied exactly from what the "
++                 "lookups return. None of them may appear in the request.",
++}
++
++WRITE_SCHEMA: dict[str, Any] = {
++    "type": "object",
++    "properties": {
++        "request": {"type": "string"},
++        "gold_calls": {
++            "type": "array",
++            "items": {
++                "type": "object",
++                "properties": {"tool": {"type": "string"}, "args": {"type": "object"}},
++                "required": ["tool", "args"],
++                "additionalProperties": False,
++            },
++        },
++        "answer_must_contain": {"type": "array", "items": {"type": "string"}},
++    },
++    "required": ["request", "gold_calls", "answer_must_contain"],
++    "additionalProperties": False,
++}
++
++FOCUS = {
++    ("helpdesk", "single"): ["create_ticket", "update_ticket", "reset_password"],
++    ("helpdesk", "read_only"): ["list_devices", "list_tickets", "get_ticket"],
++    ("ops", "single"): ["rollback", "scale"],
++    ("ops", "read_only"): ["list_deployments", "get_pods", "get_logs", "rollout_history"],
++}
++TWISTS = [
++    "two related changes or questions in one message",
++    "a condition the assistant must check first (do something only if something is true)",
++    "things referred to by description rather than by ID",
++    "a short, terse message",
++    "a sentence of context about why the employee needs it",
++    "a request on behalf of a colleague, by their employee ID",
++]
++
++
++@dataclass
++class Slot:
++    """One task to produce: its ID, origin and randomness."""
++
++    case_id: str
++    origin: str
++    rng: random.Random
++    sampled: SampledTask | None = None
++
++
++@dataclass
++class Outcome:
++    slot: Slot
++    case: Case | None
++    info: dict[str, Any]
++    problems: list[str] = field(default_factory=list)
++    prompt_tokens: int = 0
++    completion_tokens: int = 0
++
++
++def ask(messages: list[dict[str, Any]], schema: dict[str, Any], config: dict[str, Any], thinking: bool, max_tokens: int,
++        seed: int, outcome: Outcome) -> dict[str, Any] | None:
++    response = llm.chat(config["model"], messages, json_schema=schema, thinking=thinking,
++                        temperature=config["temperature"], top_p=config["top_p"], max_tokens=max_tokens, seed=seed)
++    outcome.prompt_tokens += response.prompt_tokens
++    outcome.completion_tokens += response.completion_tokens
++    messages.append({"role": "assistant", "content": response.message.get("content") or ""})
++    try:
++        answer = json.loads(response.message.get("content") or "")
++    except json.JSONDecodeError:
++        return None
++    return answer if isinstance(answer, dict) else None
++
++
++def retry(messages: list[dict[str, Any]], problems: list[str]) -> None:
++    messages.append({"role": "user", "content": "That doesn't work: " + "; ".join(problems) + ". Fix it and answer again."})
++
++
++def phrase(slot: Slot, config: dict[str, Any]) -> Outcome:
++    """A request for a sampled task, checked against its include and leave-out lists."""
++    task = slot.sampled
++    user = employee(load_fixture(task.fixture), task.user_id)
++    style = slot.rng.choice(STYLES)
++    lines = [f"Sender: {user.name}, {user.department}.", f"Brief: {task.brief}"]
++    if task.include:
++        lines.append("Must include:\n" + "\n".join(f"- {m.text}" for m in task.include))
++    if task.leave_out:
++        lines.append("Leave out:\n" + "\n".join(f"- {m.text}" for m in task.leave_out))
++    lines.append(f"Style: {style}")
++    messages = [{"role": "system", "content": PHRASE_SYSTEM}, {"role": "user", "content": "\n".join(lines)}]
++    outcome = Outcome(slot, None, {"origin": "sampled", "group": task.group, "template": task.template, "style": style})
++    for tries in range(1, config["max_tries"] + 1):
++        answer = ask(messages, PHRASE_SCHEMA, config, config["thinking_phrase"], config["max_tokens_phrase"],
++                     slot.rng.randrange(2**31), outcome)
++        request = (answer or {}).get("request", "").strip()
++        problems = task.phrasing_problems(request) if request else ["the answer has no request"]
++        outcome.info["tries"] = tries
++        if not problems:
++            outcome.case = task.case(slot.case_id, request)
++            return outcome
++        outcome.problems = problems
++        retry(messages, problems)
++    outcome.info["last_request"] = request
++    return outcome
++
++
++def environment(state: State, api: str) -> dict[str, Any]:
++    """What a task writer needs to know about the fixture, like a person writing the practice cases."""
++    if api == "helpdesk":
++        return {
++            "employees": [e.model_dump() for e in state.employees],
++            "devices": [d.model_dump() for d in state.devices],
++            "tickets": [t.model_dump(exclude={"created_at", "updated_at"}) for t in state.tickets],
++        }
++    return {
++        "namespaces": {
++            ns: [{"name": d.name, "replicas": d.replicas, "current_revision": d.current_revision,
++                  "revisions": [r.model_dump() for r in d.revisions]} for d in deployments]
++            for ns, deployments in state.namespaces.items()
++        },
++        "note": "healthy=false means that revision's pods crash-loop (the assistant only sees this through pods "
++                "and logs). Pod names come from get_pods.",
++        "open_helpdesk_tickets_usable_as_change_tickets": [t.id for t in state.tickets if t.status != "resolved"],
++    }
++
++
++def write(slot: Slot, api: str, kinds: dict[str, float], config: dict[str, Any]) -> Outcome:
++    """A whole task by Lightning, checked by running its gold calls."""
++    rng = slot.rng
++    kind = rng.choices(list(kinds), list(kinds.values()))[0]
++    state = load_fixture(rng.choice(FIXTURES[api]))
++    user = rng.choice(state.employees) if api == "helpdesk" else employee(state, rng.choice(OPS_USERS))
++    focus, twist = rng.choice(FOCUS[(api, kind)]), rng.choice(TWISTS)
++    tools = json.dumps(chat_tools(tool_schemas([api])))
++    system = WRITE_SYSTEM.format(tools=tools, kind_rule=KIND_RULES[kind])
++    prompt = (f"Environment (fixture {state.fixture}; the current time is {state.now}):\n"
++              f"{json.dumps(environment(state, api))}\n\n"
++              f"The employee sending the message: {user.name} ({user.id}, {user.department}).\n"
++              f"Write a {kind} task that uses {focus}, with {twist}.")
++    messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
++    outcome = Outcome(slot, None, {"origin": "written", "kind": kind, "focus": focus, "twist": twist})
++    tool_names = {tool.name for tool in tools_for([api])}
++    for tries in range(1, config["max_tries"] + 1):
++        answer = ask(messages, WRITE_SCHEMA, config, config["thinking_write"], config["max_tokens_write"],
++                     rng.randrange(2**31), outcome)
++        outcome.info["tries"] = tries
++        problems, case = written_case(answer, slot.case_id, api, kind, state.fixture, user.id, tool_names)
++        if case is not None and not problems:
++            outcome.case = case
++            return outcome
++        outcome.problems = problems
++        retry(messages, problems)
++    outcome.info["last_answer"] = answer
++    return outcome
++
++
++def written_case(answer: dict[str, Any] | None, case_id: str, api: str, kind: str, fixture: str, user_id: str,
++                 tool_names: set[str]) -> tuple[list[str], Case | None]:
++    if answer is None:
++        return ["the answer isn't a JSON object"], None
++    request = str(answer.get("request", "")).strip()
++    if mentioned := sorted(name for name in tool_names if "_" in name and name in request):  # "scale" is a word
++        return [f"the request names tools: {mentioned}"], None
++    try:
++        case = Case(id=case_id, request=request, user_id=user_id, fixture=fixture, apis=[api], kind=kind,
++                    gold_calls=[GoldCall(api=api, tool=c["tool"], args=c["args"]) for c in answer.get("gold_calls", [])],
++                    answer_must_contain=answer.get("answer_must_contain") or None)
++    except ValidationError as error:
++        return [f"invalid task: {'; '.join(e['msg'] for e in error.errors())}"], None
++    except (KeyError, TypeError) as error:
++        return [f"invalid task: every gold call needs a tool and args ({error!r})"], None
++    if not request:
++        return ["the request is empty"], None
++    return unstated(case) + task_problems(case), case
++
++
++STATUS_WORDS = {"resolved": r"\b(clos|resolv|fix|done|sorted)", "in_progress": r"in[ _-]?progress|working on|look(ing)? into",
++                "open": r"\b(re-?)?open"}
++
++
++def unstated(case: Case) -> list[str]:
++    """Gold-call values the request must state, because the assistant can't look them up or infer them
++    (sampled tasks state them by construction, through their include lists)."""
++    state = load_fixture(case.fixture)
++    problems = []
++    for gold in case.gold_calls:
++        args = gold.args
++        needed: list[tuple[str, Any, str | None]] = [
++            ("priority", args.get("priority"), exact(str(args.get("priority")))),
++            ("change ticket", args.get("change_ticket"), exact(str(args.get("change_ticket")))),
++            ("delivery method", args.get("delivery"), DELIVERY[args["delivery"]].pattern if args.get("delivery") in DELIVERY else None),
++        ]
++        if args.get("employee_id") not in (None, case.user_id):
++            needed.append(("the colleague's employee ID", args["employee_id"], exact(str(args["employee_id"]))))
++        if gold.tool == "update_ticket" and args.get("status") is not None:
++            needed.append(("status", args["status"], STATUS_WORDS.get(args["status"])))
++        ticket_id = args.get("ticket_id")
++        owner = next((t.employee_id for t in state.tickets if t.id == ticket_id), None)
++        if (owner not in (None, case.user_id) and not re.search(exact(str(ticket_id)), case.request, re.I)
++                and not re.search(exact(owner), case.request, re.I)):
++            problems.append(f"{gold.tool} uses {ticket_id}, a ticket of {owner}: the assistant can only find it if "
++                            f"the request gives the ticket ID or {owner}")
++        for what, value, pattern in needed:
++            if value is not None and (pattern is None or not re.search(pattern, case.request, re.I)):
++                problems.append(f"{gold.tool} sets {what} {value}, but the request doesn't say so")
++    return list(dict.fromkeys(problems))
++
++
++def slots(api: str, n: int, name: str, seed: int, tasks_config: dict[str, Any]) -> list[Slot]:
++    """The n slots in ID order, with the sampled tasks drawn up front from one seeded generator."""
++    rng = random.Random(seed)
++    n_written = round(n * tasks_config["written_fraction"])
++    written = set(rng.sample(range(n), n_written))
++    sampled = iter(sample(api, n - n_written, rng, tasks_config["sampled_kinds"]))
++    return [Slot(case_id=f"{ID_PREFIX[api]}-{name}-{i + 1:04d}", origin="written" if i in written else "sampled",
++                 rng=random.Random(f"{seed}:{api}:{i}"), sampled=None if i in written else next(sampled))
++            for i in range(n)]
++
++
++def produce(slot: Slot, api: str, tasks_config: dict[str, Any], writer_config: dict[str, Any]) -> Outcome:
++    if slot.origin == "written":
++        return write(slot, api, tasks_config["written_kinds"], writer_config)
++    return phrase(slot, writer_config)
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description="Generate tasks: sampled actions phrased by Lightning, plus tasks Lightning writes.")
++    parser.add_argument("--api", required=True, choices=["helpdesk", "ops"])
++    parser.add_argument("--n", type=int, required=True, help="number of task slots (dropped slots are logged)")
++    parser.add_argument("--name", required=True, help="task set name, e.g. pilot or round_1")
++    parser.add_argument("--out-dir", type=Path, help="default: data/generated/<api>")
++    parser.add_argument("--config", type=Path, default=FACTORY_CONFIG)
++    parser.add_argument("--seed", type=int, help="default: the config's tasks.seed")
++    args = parser.parse_args()
++
++    out_dir = (args.out_dir or REPO / "data" / "generated" / args.api).resolve()
++    if out_dir.is_relative_to(TEST_DIR):
++        raise SystemExit("data/test/ is locked (hard rule 4).")
++    tasks_path, config_path = out_dir / f"tasks_{args.name}.jsonl", out_dir / f"tasks_{args.name}.config.json"
++    if tasks_path.exists():
++        raise SystemExit(f"{tasks_path} exists; pick another --name or remove it.")
++    factory_config = load_factory_config(args.config)
++    tasks_config, writer_config = factory_config["tasks"], factory_config["writer"]
++    seed = tasks_config["seed"] if args.seed is None else args.seed
++
++    started = time.perf_counter()
++    todo = slots(args.api, args.n, args.name, seed, tasks_config)
++    print(f"{args.api}: {len(todo)} slots ({sum(s.origin == 'written' for s in todo)} written), seed {seed}")
++    with ThreadPoolExecutor(writer_config["concurrency"]) as pool:
++        outcomes = list(pool.map(lambda slot: produce(slot, args.api, tasks_config, writer_config), todo))
++    elapsed = time.perf_counter() - started
++
++    kept = [o for o in outcomes if o.case is not None]
++    out_dir.mkdir(parents=True, exist_ok=True)
++    tasks_path.write_text("".join(o.case.model_dump_json(exclude_none=True) + "\n" for o in kept))
++    models = yaml.safe_load(llm.MODELS_CONFIG.read_text())["models"]
++    config_path.write_text(json.dumps({
++        "script": "factory/writer.py",
++        "args": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
++        "created_at": datetime.now(timezone.utc).isoformat(),
++        **git_commit(out_dir),
++        "factory_config": factory_config,
++        "seed": seed,
++        "llm_mode": os.environ.get("LLM_MODE", "live"),
++        "writer_model": {key: models[writer_config["model"]][key] for key in ("hf_id", "revision")},
++        "counts": {
++            "slots": len(outcomes),
++            "kept": dict(Counter(o.slot.origin for o in kept)),
++            "dropped": dict(Counter(o.slot.origin for o in outcomes if o.case is None)),
++            "prompt_tokens": sum(o.prompt_tokens for o in outcomes),
++            "completion_tokens": sum(o.completion_tokens for o in outcomes),
++            "elapsed_s": round(elapsed, 1),
++        },
++        "tasks": {o.slot.case_id: o.info for o in kept},
++        "dropped": [{"case_id": o.slot.case_id, **o.info, "problems": o.problems} for o in outcomes if o.case is None],
++    }, indent=1))
++    by_kind = Counter((o.slot.origin, o.case.kind) for o in kept)
++    print(f"kept {len(kept)}/{len(outcomes)} in {elapsed:.0f} s: "
++          + ", ".join(f"{origin} {kind} {k}" for (origin, kind), k in sorted(by_kind.items())))
++    for o in outcomes:
++        if o.case is None:
++            print(f"  dropped {o.slot.case_id} ({o.slot.origin}): {'; '.join(o.problems)}")
++    print(f"Tasks in {tasks_path}\nConfig in {config_path}")
++
++
++if __name__ == "__main__":
++    main()

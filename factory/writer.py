@@ -350,6 +350,11 @@ def main() -> None:
     tasks_config, writer_config = factory_config["tasks"], factory_config["writer"]
     seed = tasks_config["seed"] if args.seed is None else args.seed
 
+    # The code that runs is the code at the start: a run takes most of an hour, and commits made meanwhile
+    # (round 1 recorded the end-of-run commit, which differed from the start only in docs) don't count.
+    out_dir.mkdir(parents=True, exist_ok=True)
+    provenance = git_commit(out_dir)
+    started_at = datetime.now(timezone.utc).isoformat()
     started = time.perf_counter()
     todo = slots(args.api, args.n, args.name, seed, tasks_config)
     print(f"{args.api}: {len(todo)} slots ({sum(s.origin == 'written' for s in todo)} written), seed {seed}")
@@ -358,14 +363,14 @@ def main() -> None:
     elapsed = time.perf_counter() - started
 
     kept = [o for o in outcomes if o.case is not None]
-    out_dir.mkdir(parents=True, exist_ok=True)
     tasks_path.write_text("".join(o.case.model_dump_json(exclude_none=True) + "\n" for o in kept))
     models = yaml.safe_load(llm.MODELS_CONFIG.read_text())["models"]
     config_path.write_text(json.dumps({
         "script": "factory/writer.py",
         "args": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
+        "started_at": started_at,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        **git_commit(out_dir),
+        **provenance,  # at the start
         "factory_config": factory_config,
         "seed": seed,
         "llm_mode": os.environ.get("LLM_MODE", "live"),
