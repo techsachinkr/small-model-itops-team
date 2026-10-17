@@ -1,0 +1,141 @@
+{
+ "run": "round1_ops",
+ "tasks": "data/generated/ops/tasks_round_1.jsonl",
+ "round": 1,
+ "rollouts": 1149,
+ "kept": 1016,
+ "by_origin": {
+  "sampled": {
+   "writer_dropped": 4,
+   "decontaminated_changes": 173,
+   "decontaminated_text": 24,
+   "decontaminated_same_user": 2,
+   "kept": 871,
+   "failed_call": 47,
+   "self_check_nudge": 32,
+   "gave_up": 17,
+   "state_mismatch": 30
+  },
+  "written": {
+   "writer_dropped": 24,
+   "decontaminated_changes": 122,
+   "decontaminated_same_user": 2,
+   "kept": 145,
+   "state_mismatch": 3,
+   "answer_mismatch": 3,
+   "failed_call": 1
+  }
+ },
+ "total": {
+  "writer_dropped": 28,
+  "decontaminated_changes": 295,
+  "decontaminated_same_user": 4,
+  "kept": 1016,
+  "state_mismatch": 33,
+  "answer_mismatch": 3,
+  "failed_call": 48,
+  "decontaminated_text": 24,
+  "self_check_nudge": 32,
+  "gave_up": 17
+ },
+ "by_kind": {
+  "missing_info": {
+   "failed_call": 46,
+   "self_check_nudge": 21,
+   "kept": 121,
+   "gave_up": 8,
+   "state_mismatch": 15
+  },
+  "no_tool": {
+   "kept": 169,
+   "self_check_nudge": 11,
+   "state_mismatch": 7,
+   "gave_up": 9
+  },
+  "read_only": {
+   "kept": 30,
+   "answer_mismatch": 3
+  },
+  "single": {
+   "kept": 696,
+   "state_mismatch": 11,
+   "failed_call": 2
+  }
+ },
+ "by_template": {
+  "delete_deployment": {
+   "kept": 35,
+   "state_mismatch": 7,
+   "gave_up": 8,
+   "self_check_nudge": 4
+  },
+  "deploy_new_version": {
+   "kept": 44,
+   "self_check_nudge": 4,
+   "gave_up": 1
+  },
+  "ops_question": {
+   "kept": 42
+  },
+  "prod_change_without_ticket": {
+   "self_check_nudge": 14,
+   "kept": 59,
+   "gave_up": 4
+  },
+  "rollback_previous": {
+   "kept": 112,
+   "state_mismatch": 1
+  },
+  "rollback_to_revision": {
+   "kept": 111,
+   "state_mismatch": 2,
+   "failed_call": 1
+  },
+  "rollback_to_version": {
+   "kept": 89
+  },
+  "scale_relative": {
+   "kept": 108,
+   "state_mismatch": 5
+  },
+  "scale_to": {
+   "kept": 161
+  },
+  "shell_or_secret": {
+   "kept": 48,
+   "self_check_nudge": 3
+  },
+  "unknown_deployment": {
+   "failed_call": 46,
+   "kept": 10,
+   "self_check_nudge": 2,
+   "gave_up": 1
+  },
+  "which_namespace": {
+   "self_check_nudge": 5,
+   "gave_up": 3,
+   "kept": 52,
+   "state_mismatch": 15
+  },
+  "written:get_pods": {
+   "answer_mismatch": 1
+  },
+  "written:list_deployments": {
+   "answer_mismatch": 1,
+   "kept": 12
+  },
+  "written:rollback": {
+   "kept": 12,
+   "state_mismatch": 1
+  },
+  "written:rollout_history": {
+   "kept": 18,
+   "answer_mismatch": 1
+  },
+  "written:scale": {
+   "kept": 103,
+   "state_mismatch": 2,
+   "failed_call": 1
+  }
+ }
+}

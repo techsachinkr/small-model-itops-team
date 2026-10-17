@@ -302,7 +302,7 @@ Notes for later tasks (from 1.2; commands and results in `COMMANDS_LOG.md`):
 
 This stage completes the fallback project: a NeMo Gym bounty entry plus a Fine-Tuned result.
 
-### [ ] 2.1 Tasks and Lightning rollouts
+### [x] 2.1 Tasks and Lightning rollouts
 
 ```
 Implement factory/sampler.py and factory/writer.py per CLAUDE.md: the sampler
@@ -328,6 +328,8 @@ Notes for round 1 and later tasks:
 - `text` uses ASCII hyphens and spaces in Lightning's answers (it writes IDs like "HD‑1041" with U+2011); `messages` keeps Lightning's own text.
 - The self-check sometimes says a tool call is needed when Lightning correctly asks the user; those rollouts are rejected (2 of 7 missing_info/no_tool tasks in the pilot).
 - Round 1 size: 1,300 helpdesk and 1,500 ops task slots (`--name round_1`), for about 1,000 kept each: the pilot kept 40 of 50 slots, and ops loses more to decontamination. If either API ends under about 1,000, add a top-up batch with another `--name` and seed. Collection run ids `round1_helpdesk` and `round1_ops`. Task mix, files and methodology: `data/generated/README.md`.
+- Round 1 training data (2026-10-17; runs `round1_helpdesk` and `round1_ops`, commit `49a5232`; `data/generated/<api>/round_1.jsonl` and `.stats.json`): **helpdesk 1,062** kept of 1,198 rollouts (sampled 876, written 186; single 855, no_tool 101, missing_info 80, read_only 26), **ops 1,016** of 1,149 (sampled 871, written 145; single 696, no_tool 169, missing_info 121, read_only 30). Both reach the ~1,000 target, so no top-up. Main rejections: helpdesk 64 state_mismatch (Lightning guessed a device in which_device, or a different update), 31 self_check_nudge, 29 answer_mismatch; ops 48 failed_call (46 in unknown_deployment: Lightning tries the call, gets the 404, then asks), 33 state_mismatch (15 guessed a namespace in which_namespace), 32 self_check_nudge.
+- 23 of helpdesk's 29 answer_mismatch rejections were right answers that the verifier's substring check missed because Lightning wrote look-alike characters ("HD‑1034" with U+2011, "in progress" with U+202F); they were mostly the written read_only tasks (26 of 55 kept). In the task 1.2 practice baselines (thinking off) this cost one attempt (Lightning, pr-ops-08). Whether `gym_env/verify.py` should map look-alike hyphens and spaces to ASCII before its answer checks is open (a scoring change for every setup).
 - Round 1 tasks: helpdesk 1,289/1,300 written in 2,664 s, 1,198 after decontamination; ops 1,472/1,500 in 2,864 s, 1,149 after decontamination (22% dropped, mostly the changes rule: pr-ops-05, 03, 06). If the ops filter keeps under about 1,000, top up with another batch (`--name round_1b`, another seed). Both configs record commit `365ae42` (read at the end); the code that ran is `8e036d4` (only docs differ); the writer now reads git at the start.
 - Written tasks that hit `max_tokens_write` (12,288) while still thinking come back empty ("the answer isn't a JSON object"): 63 of 355 ops calls and 16 of 386 helpdesk calls in round 1. For later rounds, raise it (the context is 32k; prompts are about 6-8k tokens) or accept the retries.
 - Writing round 1 (both APIs at once, writer concurrency 16 each), measured 21 minutes in: written tasks averaged about 5,700 completion tokens per call, 22% of those calls were retries, and Lightning generated about 1,450 tokens/s with its KV cache near 12%. So a higher `writer.concurrency` is safe.

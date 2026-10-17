@@ -1,0 +1,148 @@
+{
+ "run": "round1_helpdesk",
+ "tasks": "data/generated/helpdesk/tasks_round_1.jsonl",
+ "round": 1,
+ "rollouts": 1198,
+ "kept": 1062,
+ "by_origin": {
+  "sampled": {
+   "decontaminated_changes": 58,
+   "decontaminated_same_user": 16,
+   "kept": 876,
+   "self_check_nudge": 30,
+   "state_mismatch": 48,
+   "gave_up": 4,
+   "failed_call": 8
+  },
+  "written": {
+   "writer_dropped": 11,
+   "decontaminated_changes": 17,
+   "kept": 186,
+   "answer_mismatch": 29,
+   "state_mismatch": 16,
+   "self_check_nudge": 1
+  }
+ },
+ "total": {
+  "writer_dropped": 11,
+  "decontaminated_changes": 75,
+  "kept": 1062,
+  "answer_mismatch": 29,
+  "state_mismatch": 64,
+  "self_check_nudge": 31,
+  "decontaminated_same_user": 16,
+  "gave_up": 4,
+  "failed_call": 8
+ },
+ "by_kind": {
+  "missing_info": {
+   "kept": 80,
+   "state_mismatch": 14,
+   "self_check_nudge": 10,
+   "gave_up": 3,
+   "failed_call": 1
+  },
+  "no_tool": {
+   "kept": 101,
+   "self_check_nudge": 16,
+   "state_mismatch": 6
+  },
+  "read_only": {
+   "kept": 26,
+   "answer_mismatch": 29
+  },
+  "single": {
+   "kept": 855,
+   "self_check_nudge": 5,
+   "state_mismatch": 44,
+   "gave_up": 1,
+   "failed_call": 7
+  }
+ },
+ "by_template": {
+  "colleague_by_name": {
+   "kept": 62,
+   "self_check_nudge": 10,
+   "state_mismatch": 2,
+   "gave_up": 3
+  },
+  "delete_ticket": {
+   "kept": 6,
+   "self_check_nudge": 2,
+   "state_mismatch": 2
+  },
+  "hardware_ticket_lookup_device": {
+   "kept": 240,
+   "self_check_nudge": 2,
+   "failed_call": 2
+  },
+  "hardware_ticket_with_device_id": {
+   "kept": 119
+  },
+  "how_to_question": {
+   "kept": 55,
+   "self_check_nudge": 1,
+   "state_mismatch": 3
+  },
+  "no_ticket_to_update": {
+   "kept": 5
+  },
+  "reset_password": {
+   "state_mismatch": 4,
+   "kept": 75
+  },
+  "reveal_password": {
+   "self_check_nudge": 13,
+   "kept": 40,
+   "state_mismatch": 1
+  },
+  "ticket_without_device": {
+   "kept": 128,
+   "state_mismatch": 9,
+   "failed_call": 1,
+   "self_check_nudge": 1
+  },
+  "update_ticket_by_id": {
+   "kept": 54,
+   "state_mismatch": 5,
+   "failed_call": 2
+  },
+  "update_ticket_by_topic": {
+   "self_check_nudge": 1,
+   "kept": 79,
+   "state_mismatch": 10,
+   "gave_up": 1,
+   "failed_call": 2
+  },
+  "which_device": {
+   "state_mismatch": 12,
+   "kept": 13,
+   "failed_call": 1
+  },
+  "written:create_ticket": {
+   "kept": 44,
+   "state_mismatch": 2
+  },
+  "written:get_ticket": {
+   "answer_mismatch": 12,
+   "kept": 10
+  },
+  "written:list_devices": {
+   "kept": 14,
+   "answer_mismatch": 5
+  },
+  "written:list_tickets": {
+   "kept": 2,
+   "answer_mismatch": 12
+  },
+  "written:reset_password": {
+   "kept": 67,
+   "state_mismatch": 4,
+   "self_check_nudge": 1
+  },
+  "written:update_ticket": {
+   "kept": 49,
+   "state_mismatch": 10
+  }
+ }
+}

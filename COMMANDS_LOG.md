@@ -795,3 +795,21 @@ CLAUDE.md "Data formats", PROJECT_OVERVIEW.md and PLAN.md task 2.1.
 # kept 1149/1472: 295 changes (173 sampled, 122 written), 24 text, 4 same_user; most hit pr-ops-05 (86),
 # pr-ops-03 (59), pr-ops-06 (51), pr-ops-02 (47), pr-ops-01 (39), pr-ops-04 (36)
 ```
+
+```bash
+# (human) Lightning rollouts, from commit 49a5232 (clean)
+.venv/bin/python -m factory.collect --tasks data/generated/helpdesk/tasks_round_1.jsonl --run-id round1_helpdesk
+# Collected 1198/1198; reward 1 on 1101/1198
+.venv/bin/python -m factory.collect --tasks data/generated/ops/tasks_round_1.jsonl --run-id round1_ops
+# Collected 1149/1149; reward 1 on 1096/1149
+.venv/bin/python -m factory.filter --run round1_helpdesk --round 1 --output data/generated/helpdesk/round_1.jsonl
+# kept 1062/1198 (sampled 876, written 186). Rejected: 64 state_mismatch, 31 self_check_nudge, 29 answer_mismatch,
+# 8 failed_call, 4 gave_up
+.venv/bin/python -m factory.filter --run round1_ops --round 1 --output data/generated/ops/round_1.jsonl
+# kept 1016/1149 (sampled 871, written 145). Rejected: 48 failed_call (46 unknown_deployment), 33 state_mismatch,
+# 32 self_check_nudge, 17 gave_up, 3 answer_mismatch
+```
+23 of helpdesk's 29 answer_mismatch rejections pass once look-alike hyphens and spaces (U+2010-2012, U+00A0,
+U+202F) in Lightning's answer are made ASCII: right answers the verifier's substring check missed. In the six
+`runs/baseline_*` practice runs this explains 1 attempt (Lightning, pr-ops-08). Verifier change left open for the
+human (it changes scoring for every setup). Task 2.1 done: the human read 10 pilot examples; round 1 has ~1,000 per API.
