@@ -69,6 +69,8 @@ uv pip install --python .venv-vllm/bin/python vllm==0.27.1 --exclude-newer 2026-
 
 ### LoRA check: do PEFT adapters for Nano 4B load and apply correctly in vLLM?
 
+The two scripts are now in the repo as `scripts/checks/lora_make_adapters.py` and `scripts/checks/lora_check_vllm.py`. The commands below ran them from `$SCRATCH` under their original names, `make_adapters.py` and `check_vllm.py`. To rerun, use the repo paths and any `--out` directory.
+
 Three untrained adapters (r=16, alpha=32): `attn_mlp_zero` (attention + MLP, PEFT's default zero init, so it must match the base model exactly), `attn_mlp_rand` (same targets, small random weights, so it must differ from base and match HF+PEFT), and `mamba_rand` (Mamba `in_proj` only, random weights).
 
 ```bash
@@ -139,4 +141,13 @@ pkill -f "vllm serve nvidia/NVIDIA-Nemotron-3-Nano-4B"
 
 # Check nothing is left: printed "no vllm processes" and "0 MiB, 143771 MiB"
 pgrep -af vllm; nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader
+```
+
+```bash
+# Keep the LoRA check scripts in the repo (the scratch directory doesn't survive the session)
+mkdir -p scripts/checks
+cp $SCRATCH/lora_check/make_adapters.py scripts/checks/lora_make_adapters.py
+cp $SCRATCH/lora_check/check_vllm.py scripts/checks/lora_check_vllm.py
+# Check both still compile
+.venv/bin/python -m py_compile scripts/checks/lora_make_adapters.py scripts/checks/lora_check_vllm.py
 ```
