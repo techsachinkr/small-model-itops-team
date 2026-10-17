@@ -9,7 +9,9 @@ Both are projected and must match exactly. The projection keeps every structured
 notes, so a helpful extra note on the ticket the request is about passes; every other ticket must keep
 its notes exactly (task 1.2 review). Order-free records (changes, password resets) are compared as sorted
 lists. The final answer must contain every answer_must_contain string and none of the
-answer_must_not_contain strings (substring checks that ignore case, so "open" matches "Status: Open").
+answer_must_not_contain strings: substring checks that ignore case, so "open" matches "Status: Open", and
+that read look-alike hyphens and spaces as ASCII, so "HD-1034" matches "HD‑1034" (U+2011). Lightning writes
+IDs that way, and in round 1 of the factory 23 of its right answers failed only because of it (task 2.1).
 """
 
 import json
@@ -22,6 +24,23 @@ from gym_env.env import TOOLS, Env
 from gym_env.state import State
 
 TEXT = "<text>"
+
+# Hyphens and spaces that look like ASCII ones: hyphen, non-breaking hyphen, figure dash, no-break space,
+# narrow no-break space. Dashes that mean something else (en and em dashes) are left alone.
+ASCII_LOOKALIKES = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-", "\u00a0": " ", "\u202f": " "})
+
+
+def comparable(text: str) -> str:
+    """Text as the answer checks compare it: look-alike hyphens and spaces made ASCII, case folded."""
+    return text.translate(ASCII_LOOKALIKES).casefold()
+
+
+def answer_check(case: Case, final_answer: str) -> tuple[list[str], list[str]]:
+    """(answer_must_contain strings missing from the answer, answer_must_not_contain strings in it)."""
+    answer = comparable(final_answer)
+    missing = [s for s in case.answer_must_contain or [] if comparable(s) not in answer]
+    forbidden = [s for s in case.answer_must_not_contain or [] if comparable(s) in answer]
+    return missing, forbidden
 
 
 class GoldCallFailed(Exception):
@@ -112,9 +131,7 @@ def check(case: Case, final_state: State, final_answer: str) -> Verdict:
         if want and got and len(got["notes"]) >= len(want["notes"]):
             got["notes"] = want["notes"]  # extra notes on a ticket the request is about are fine
     state_diff = diff(expected, actual)
-    answer = final_answer.casefold()
-    missing = [s for s in case.answer_must_contain or [] if s.casefold() not in answer]
-    forbidden = [s for s in case.answer_must_not_contain or [] if s.casefold() in answer]
+    missing, forbidden = answer_check(case, final_answer)
     return Verdict(
         passed=not state_diff and not missing and not forbidden,
         state_match=not state_diff,

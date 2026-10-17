@@ -136,7 +136,7 @@ System, on multi-API cases:
 
 ## Scoring
 
-- `gym_env/verify.py` is the only scoring logic. For each case: run `gold_calls` on a fresh fixture to get the expected state, run the system on another fresh fixture, and pass only if the final states match exactly. Free text (ticket summaries, notes) only has to be present; tickets the gold creates or updates need at least the gold's number of notes, and every other ticket must keep its notes exactly. The final answer must contain every `answer_must_contain` string and none of the `answer_must_not_contain` strings (substring checks that ignore case).
+- `gym_env/verify.py` is the only scoring logic. For each case: run `gold_calls` on a fresh fixture to get the expected state, run the system on another fresh fixture, and pass only if the final states match exactly. Free text (ticket summaries, notes) only has to be present; tickets the gold creates or updates need at least the gold's number of notes, and every other ticket must keep its notes exactly. The final answer must contain every `answer_must_contain` string and none of the `answer_must_not_contain` strings (substring checks that ignore case and read look-alike hyphens and spaces, like U+2011 in "HD‑1034", as ASCII).
 - Single-model setups run as NeMo Gym agents. The team runs through Gym's remote-agent integration if that works within its time box; otherwise `eval/run_eval.py` drives the team against the same resources server and verifier.
 - Each case runs 3 times and passes if at least 2 runs pass. Report fractions like `37/50`, never percentages.
 - Team failures are labeled `routing` if the plan's agents don't match the APIs in `gold_calls`, otherwise `specialist`.

@@ -813,3 +813,17 @@ CLAUDE.md "Data formats", PROJECT_OVERVIEW.md and PLAN.md task 2.1.
 U+202F) in Lightning's answer are made ASCII: right answers the verifier's substring check missed. In the six
 `runs/baseline_*` practice runs this explains 1 attempt (Lightning, pr-ops-08). Verifier change left open for the
 human (it changes scoring for every setup). Task 2.1 done: the human read 10 pilot examples; round 1 has ~1,000 per API.
+
+### Verifier: the answer check reads look-alike hyphens and spaces as ASCII (user's decision)
+
+`gym_env/verify.py`: new `ASCII_LOOKALIKES` (U+2010, U+2011, U+2012 -> "-"; U+00A0, U+202F -> " "; en and em dashes
+left alone) and `answer_check()`, used by `check()`; `factory/filter.py` imports the same mapping for `text`. Every
+setup is scored the same way; Gym's itops server picks it up at its next start (it runs the repo's gym_env).
+
+```bash
+.venv/bin/python -m pytest -q          # 194 passed (new: test_answer_check_reads_look_alike_hyphens_and_spaces_as_ascii)
+.venv/bin/python scripts/checks/rescore_answers.py runs/baseline_* runs/round1_helpdesk runs/round1_ops runs/pilot_helpdesk
+# Same state match and seatbelt outcome, answer checked again. Only changes: baseline_lightning_ops attempts 21 -> 22
+# of 36 (pr-ops-08 #2), cases 7/12 -> 8/12; round1_helpdesk reward-1 rollouts 1101 -> 1124 of 1198. The student's
+# baselines, round1_ops and the pilot don't change. PLAN.md's baseline table marks Lightning ops 8/12 with a note.
+```

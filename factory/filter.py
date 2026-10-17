@@ -40,6 +40,7 @@ from common.llm import MODELS_CONFIG
 from common.schemas import Case, TrainingExample
 from eval.run_eval import REPO
 from gym_env.tasks import read_cases
+from gym_env.verify import ASCII_LOOKALIKES
 
 # Importing nemo_gym sets HF_HOME to Gym's own cache folder unless it is already set. Keep the usual
 # Hugging Face cache, where the student's tokenizer is (nemo_gym is imported only in conversation()).
@@ -86,9 +87,6 @@ def conversation(row: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[s
                 message["reasoning_content"] = "\n\n".join(t for t in thoughts if t)
         messages.append(message)
     return messages, [dict(tool) for tool in chat.tools or []]
-
-
-ASCII_LOOKALIKES = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-", "\u00a0": " ", "\u202f": " "})
 
 
 def for_template(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

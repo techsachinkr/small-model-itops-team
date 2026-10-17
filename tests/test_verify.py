@@ -96,6 +96,17 @@ def test_answer_check_ignores_case() -> None:
     assert check(case, state, "Priority: p2\nStatus: **Open**").passed
 
 
+def test_answer_check_reads_look_alike_hyphens_and_spaces_as_ascii() -> None:
+    case = CASES["ex-ro-001"].model_copy(update={"answer_must_contain": ["HD-1035", "in progress"],
+                                                  "answer_must_not_contain": ["checkout-4mjx-r57"]})
+    state = final_state(case, gold(case))
+    lightning = "Ticket **HD\u20111035** is in\u202fprogress."  # non-breaking hyphen, narrow no-break space
+    assert check(case, state, lightning).passed
+    verdict = check(case, state, lightning + " Also checkout\u20114mjx\u2011r57.")
+    assert verdict.forbidden_in_answer == ["checkout-4mjx-r57"] and not verdict.passed
+    assert check(case, state, "HD\u20131035 is in progress").missing_from_answer == ["HD-1035"]  # an en dash isn't a hyphen
+
+
 def test_failing_gold_call_is_a_case_error() -> None:
     case = CASES["ex-hd-001"].model_copy(deep=True)
     case.gold_calls[1].args.pop("device_id")
