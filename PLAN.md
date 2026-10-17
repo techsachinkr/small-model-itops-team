@@ -6,6 +6,8 @@ The hackathon runs October 17–18, 2026 at the Red Hat Annex, Raleigh. All code
 
 **GPU:** one H200 (141 GB) on Brev. **Team:** solo.
 
+**Student base:** `nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16` (3.97B). See task 0.2 and `configs/models.yaml`.
+
 Repo: [`techsachinkr/small-model-itops-team`](https://github.com/techsachinkr/small-model-itops-team), private until submission. Use this name in the README, the Hugging Face dataset and model cards, and the submission form.
 
 ## How to use this with Claude Code
@@ -60,8 +62,16 @@ Answers (2026-10-17):
 - [ ] Open the event's Submission Checklist and Demo Video Instructions, and copy any requirements (video length, required links, repo visibility) into this file.
 - [x] Team captain redeems the Brev code (Billing → Redeem Code) and invites teammates (Team → Generate Invite Link). Share SSH access on the instance.
 - [x] Pick the GPU. Lightning in BF16 needs roughly 60+ GB before any other model. Prefer a single GPU with 141 GB or more, or two GPUs. On Blackwell GPUs, Lightning's NVFP4 build is much smaller. Record the plan in `configs/gpu.md`.
-- [ ] Read Lightning's model card for the official parameter count, license, recommended vLLM settings and tool-call parser.
-- [ ] Choose the student base (1–4B) with LoRA support in vLLM and a working tool-call parser. A small Nemotron model is preferred if one qualifies.
+- [x] Read Lightning's model card for the official parameter count, license, recommended vLLM settings and tool-call parser.
+  - 30B total, 3B active (card). Hugging Face's safetensors metadata reports 31.6B (32.9B summed by dtype), likely including the MTP layers; every reading is ≤33B, and rule 2 uses the card's number.
+  - License OpenMDW-1.1. Tool-call parser `qwen3_coder`, reasoning parser `nemotron_v3`. Sampling: temperature 1.0, top_p 0.95; thinking on by default (`enable_thinking`).
+  - vLLM 0.27.1, as pinned by the card (on PyPI 2026-08-11, before the rule 1 cutoff). It needs torch 2.13.0 while the train group uses 2.14.1, so it lives in `.venv-vllm/`. The newest allowed release is 0.30.0 (2026-09-22); it adds Nemotron-H MTP fixes, worth a look only for speculative decoding in 4.1.
+  - The card's 1×H100 recipe, our starting point: `--max-num-seqs 128 --enable-prefix-caching --async-scheduling --mamba-backend flashinfer --mamba-ssm-cache-dtype float16 --enable-mamba-cache-stochastic-rounding --mamba-cache-philox-rounds 5 --reasoning-parser nemotron_v3 --tool-call-parser qwen3_coder --enable-auto-tool-choice`.
+- [x] Choose the student base (1–4B) with LoRA support in vLLM and a working tool-call parser. A small Nemotron model is preferred if one qualifies.
+  - **`nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16`**: 3.97B (card), NVIDIA Nemotron Open Model License. It's the same `nemotron_h` hybrid family as Lightning, and its chat template uses the same tool-call format: `qwen3_coder` tool parser, built-in `nemotron_v3` reasoning parser (the card's `nano_v3` plugin isn't needed). Shortlisted alternatives: `Qwen/Qwen3-4B-Instruct-2507` (fallback, `hermes` parser) and `ibm-granite/granite-4.0-micro` (`granite4`).
+  - LoRA check on vLLM 0.27.1 (commands and results in `COMMANDS_LOG.md`): untrained PEFT adapters load, and vLLM reproduces HF+PEFT greedy output exactly (32/32 tokens) for attention + MLP and for Mamba `in_proj`; a zero-init adapter matches the base. PEFT refuses Mamba `out_proj` and `conv1d` on `nemotron_h`. A tool call parsed with thinking both on and off.
+  - For 2.2: LoRA targets `q_proj k_proj v_proj o_proj up_proj down_proj in_proj`. The `mamba_ssm` and `causal_conv1d` kernels aren't installed, so HF training uses the slower plain-PyTorch Mamba path. Recommended temperature differs from Lightning's: 0.6, top_p 0.95 for tool calling.
+  - For the serve scripts: put `.venv-vllm/bin` on PATH (FlashInfer runs `ninja` from PATH when it JIT-compiles at startup). vLLM leaves prefix caching off by default for this model (relevant to 4.1).
 - [ ] Decide whether `calendar` is in scope. The default is no: two specialists (helpdesk and ops), with calendar as a stretch goal.
 - [ ] Split roles (see Team split). Person C starts writing the test set immediately.
 
@@ -160,7 +170,7 @@ the tree.
 ### [ ] 0.2 Serving, the LLM client and replay mode
 
 ```
-Fill configs/models.yaml with Nemotron 3.5 Lightning and <STUDENT_ID>, including
+Fill configs/models.yaml with Nemotron 3.5 Lightning and Nemotron 3 Nano 4B, including
 each model's official total parameter count from its model card, its vLLM
 tool-call parser (check the installed vLLM docs and Lightning's model card),
 and its port. Record the GPU memory plan in configs/gpu.md. Write

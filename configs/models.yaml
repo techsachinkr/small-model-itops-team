@@ -1,20 +1,29 @@
 # Every generative model the system uses. Hard rule 2: each one is <=33B total
-# parameters (per model, confirmed by the organizers). Filled in by task 0.2;
-# confirm every value against the official model card.
+# parameters (per model, confirmed by the organizers). Values confirmed against
+# each official model card in task 0.2 (2026-10-17).
+
+# Pinned by Lightning's model card (vllm/vllm-openai:v0.27.1); on PyPI 2026-08-11,
+# before the rule 1 cutoff of 2026-10-03. Installed in its own venv, .venv-vllm/.
+vllm_version: "0.27.1"
 
 models:
   lightning:
-    hf_id: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16  # confirm in 0.2
-    total_params_b: null      # official total from the model card (vLLM's blog says 30B)
+    hf_id: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16
+    revision: a9904d24bcc1d289a1950fa9d2b978c47cf903b9
+    total_params_b: 30        # model card: "30B Total / 3B Active"
+    license: OpenMDW-1.1
     port: 8000
-    tool_call_parser: null    # vLLM's blog uses qwen3_coder; confirm in 0.2
-    reasoning_parser: null    # vLLM's blog uses nemotron_v3; confirm in 0.2
+    tool_call_parser: qwen3_coder
+    reasoning_parser: nemotron_v3
 
   student:
-    hf_id: null               # <STUDENT_ID>: 1-4B, LoRA support in vLLM, working tool-call parser
-    total_params_b: null
+    hf_id: nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16
+    revision: dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f
+    total_params_b: 3.97      # model card: "3.97 x 10^9"
+    license: NVIDIA Nemotron Open Model License
     port: 8001
-    tool_call_parser: null
+    tool_call_parser: qwen3_coder
+    reasoning_parser: nemotron_v3   # built-in; the card's nano_v3 plugin is the fallback
 
 # Adapters served on the student server, added after training:
 # adapters:
