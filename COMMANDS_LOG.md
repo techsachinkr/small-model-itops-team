@@ -843,3 +843,6 @@ match; the `other` reason is gone (reward 1 is now exactly: no gave_up, state ma
 .venv/bin/python -m factory.filter --run round1_ops --round 1 --output data/generated/ops/round_1.jsonl
 # kept 1016/1149, byte-identical to before
 ```
+
+Session wrap-up: CLAUDE.md Commands now show the round 1 factory commands and `scripts/checks/rescore_answers.py`;
+PLAN.md task 2.1 notes add the `HF_HOME` quirk and what `text` already contains, for task 2.2.

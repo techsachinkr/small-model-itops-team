@@ -175,15 +175,19 @@ uv run gym eval run --no-serve --agent itops_simple_agent \
 # One setup on one API's practice cases, 3 attempts each. Needs the setup's vLLM server running; starts and
 # stops the Gym servers itself (port 11000 must be free). Results in runs/<run_id>/. Setups: gym_configs/.
 uv run python -m eval.run_eval --setup base_seatbelt --api helpdesk --split practice
-# Factory (task 2.1; settings in configs/factory.yaml). Tasks: sampled actions phrased by Lightning, ~20% written
-# whole by Lightning (needs Lightning on 8000), saved with their config and seed; then drop near-copies of practice.
+# Factory (task 2.1; settings in configs/factory.yaml; methodology in data/generated/README.md). Tasks: sampled
+# actions phrased by Lightning, ~20% written whole by Lightning (needs Lightning on 8000; about 45 min for round 1),
+# saved with their config and seed; then drop near-copies of practice. Commit first: the writer records the commit.
 uv run python -m factory.sampler --api ops --n 20                 # print sampled tasks, no model
-LLM_MODE=record uv run python -m factory.writer --api helpdesk --n 50 --name pilot --out-dir data/generated/helpdesk/pilot
-uv run python -m eval.decontaminate --tasks data/generated/helpdesk/pilot/tasks_pilot.jsonl --against practice
-# Lightning rollouts through Gym (human runs it; Lightning on 8000, port 11000 free), then keep the verified ones
-uv run python -m factory.collect --tasks data/generated/helpdesk/pilot/tasks_pilot.jsonl --run-id pilot_helpdesk
-uv run --group train python -m factory.filter --run pilot_helpdesk --round 1 \
-  --output data/generated/helpdesk/pilot/round_1.jsonl --show 5
+LLM_MODE=record uv run python -m factory.writer --api helpdesk --n 1300 --name round_1   # ops: --n 1500
+uv run python -m eval.decontaminate --tasks data/generated/helpdesk/tasks_round_1.jsonl --against practice
+# Lightning rollouts through Gym (human runs it; Lightning on 8000, port 11000 free; one API at a time), then keep
+# the verified ones (the answer check runs again on each stored answer)
+uv run python -m factory.collect --tasks data/generated/helpdesk/tasks_round_1.jsonl --run-id round1_helpdesk
+uv run --group train python -m factory.filter --run round1_helpdesk --round 1 \
+  --output data/generated/helpdesk/round_1.jsonl --show 5
+# The pilot used --name pilot --out-dir data/generated/helpdesk/pilot and --run-id pilot_helpdesk.
+.venv/bin/python scripts/checks/rescore_answers.py runs/<run_id> ...   # re-score stored rollouts' answer checks
 uv run python -m factory.run_round --api ops --round 1
 uv run python -m eval.run_eval --setup team_trained --split practice
 uv run python -m bench.run --suite all
