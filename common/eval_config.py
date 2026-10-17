@@ -26,6 +26,7 @@ class EvalConfig(BaseModel):
     temperature: float = Field(ge=0)
     top_p: float = Field(gt=0, le=1)
     max_tokens: int = Field(gt=0)
+    thinking: bool  # chat template enable_thinking; the self-check always runs with it off
     max_steps: int = Field(gt=0)
     attempts_per_case: int = Field(gt=0)
     pass_min_attempts: int = Field(gt=0)

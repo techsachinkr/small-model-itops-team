@@ -7,8 +7,8 @@ The seatbelt makes the decisions and keeps one step's bookkeeping; common/tool_l
 - Every invalid call, environment error and failed self-check uses one of the step's retries. Once
   none are left, the next one fails the step (`exhausted`).
 - transient_delays(): a 503 is retried automatically with backoff, without involving the model.
-- self_check(): when the model gives its final answer, it is asked for a structured
-  {complete, reason} verdict. If it isn't complete and retries remain, the step continues.
+- self_check(): when the model gives its final answer, it is asked whether a tool call is still
+  needed. If one is and retries remain, the step continues.
 Every decision is logged as a SeatbeltEvent for the trace.
 """
 
@@ -22,28 +22,34 @@ from pydantic import ValidationError as PydanticValidationError
 from common.eval_config import SeatbeltConfig
 from common.schemas import SeatbeltEvent, SeatbeltEventKind
 
+# The question is "is a tool call still needed?", not "is the task complete?". Asked whether the task
+# was complete, Lightning answered no whenever it had correctly asked the user for missing information,
+# and the seatbelt discarded 24 attempts the verifier had passed (task 1.2, runs/think_*).
 SELF_CHECK_PROMPT = (
     "Check your reply before it goes to the user. Given the user's request and the tool calls made so "
-    "far, is your task complete? It is complete when one of these is true: (a) every action the request "
-    "asked for has been carried out; (b) the request is missing information you need, and your reply "
-    "asks the user for it; (c) the request should not be carried out, and your reply declines it. It is "
-    "not complete only if there is still a tool call you should make now. In `reason`, say which of "
-    "(a), (b) or (c) applies, or what is left to do; then set `complete`. Answer with the JSON object only."
+    "far, is there a tool call you still need to make now, before replying? No tool call is needed if "
+    "every action the request asked for has been carried out, or if your reply asks the user for "
+    "information you need, or declines a request that should not be carried out. A tool call is needed "
+    "only if you skipped an action that you can and should take now with the tools. In `reason`, say "
+    "which applies; then set `tool_call_needed`. Answer with the JSON object only."
 )
-SELF_CHECK_RETRY = "Your self-check says the task is not complete: {reason} Continue the task."
+SELF_CHECK_RETRY = "Your self-check found a tool call you still need to make: {reason} Continue the task."
 
 
 class SelfCheck(BaseModel):
-    complete: bool
     reason: str
+    tool_call_needed: bool
+
+    @property
+    def complete(self) -> bool:
+        return not self.tool_call_needed
 
 
-# `reason` comes first so the model states which case applies before it decides (the smoke run in
-# task 1.2 showed correct requests for missing information judged incomplete).
+# `reason` comes first so the model says which case applies before it decides.
 SELF_CHECK_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "properties": {"reason": {"type": "string"}, "complete": {"type": "boolean"}},
-    "required": ["reason", "complete"],
+    "properties": {"reason": {"type": "string"}, "tool_call_needed": {"type": "boolean"}},
+    "required": ["reason", "tool_call_needed"],
     "additionalProperties": False,
 }
 
@@ -122,11 +128,11 @@ class Seatbelt:
         self._log("transient_retry", turn, f"503; automatic retry {attempt} after {delay_s:g} s", tool=tool)
 
     def self_check(self, turn: int, answer: str) -> SelfCheck:
-        """Parse and log the self-check's answer. A verdict that isn't complete uses a retry."""
+        """Parse and log the self-check's answer. A verdict that a tool call is needed uses a retry."""
         try:
             verdict = SelfCheck.model_validate_json(answer)
         except PydanticValidationError:
-            verdict = SelfCheck(complete=False, reason=f"The self-check answer was not valid: {answer[:200]!r}.")
+            verdict = SelfCheck(reason=f"The self-check answer was not valid: {answer[:200]!r}.", tool_call_needed=True)
         if verdict.complete:
             self._log("self_check", turn, verdict.reason, complete=True)
         else:

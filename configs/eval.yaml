@@ -6,11 +6,14 @@
 # Lightning is only the reference row. Factory rollouts (task 2.1) aren't an eval setup and can use
 # Lightning's 1.0. No seed: the 3 attempts per case should be independent samples. Sent explicitly
 # on every request, because the student's generation_config.json would otherwise give vLLM 1.0.
-# Thinking is on for every setup: both chat templates default to enable_thinking=true. The one
-# exception, the same in every setup: the seatbelt's self-check runs with thinking off.
 temperature: 0.6
 top_p: 0.95
 max_tokens: 8192            # per model call; caps a runaway reasoning trace
+# Thinking off for every setup (task 1.2, 2026-10-17). With thinking on, the student already passed
+# 10-11/12 practice cases per API, leaving the ladder no room; with it off it passed 5-9/12, using about
+# a third of the completion tokens and half the latency (runs/think_*, COMMANDS_LOG.md). The factory's
+# Lightning rollouts aren't an eval setup and can keep thinking on.
+thinking: false             # enable_thinking for every model call, every setup (the self-check is always off)
 max_steps: 10               # max model turns per step (seatbelt self-check calls don't count)
 attempts_per_case: 3
 pass_min_attempts: 2        # a case passes if at least 2 of 3 attempts pass

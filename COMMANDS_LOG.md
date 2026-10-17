@@ -560,3 +560,61 @@ merges into the request; vLLM ignores the extra `metadata` field). Tests: 96 pas
 # draft's fault: the student closed the ticket and added a closing note each time; the gold had no note and
 # the request didn't say. Reworded to ask for the note, and added it to the gold.
 ```
+
+### Harder practice cases (the drafts scored at or above the plan's 11/12 bar)
+
+```bash
+# v2: 24 new drafts (two-action requests, reopen instead of new ticket, inferred delivery/priority, incident vs
+# hardware, joins across lookups, values that need a lookup first, revision choice from change causes,
+# resolved change ticket, missing namespace). New test tests/test_practice_cases.py runs the same checks as
+# before on every practice case: 121 passed.
+.venv/bin/python -m pytest -q
+for api in helpdesk ops; do .venv/bin/python -m eval.run_eval --setup base_seatbelt --api $api --split practice \
+  --run-id smoke_v2_base_seatbelt_$api; done
+# base_seatbelt: helpdesk 10/12, ops 11/12. Every failure checked by hand: all genuine model mistakes
+# (incident filed as software; new ticket instead of updating the existing one; ticket not resolved; device
+# picked without asking; note added instead of explaining there's no delete tool; prod rolled back to 23
+# instead of 22, once via a detour 23 -> 22, which the change log correctly fails).
+
+# v3: replaced 4 easy ops cases (find the unhealthy deployment and roll it back; scale up every staging
+# deployment below 2 replicas; roll back to "whatever was running last Friday"; list every crash-looping pod)
+# and 2 easy helpdesk cases (ticket for another employee; reset for "Hannah Weber" with no employee ID).
+for api in helpdesk ops; do .venv/bin/python -m eval.run_eval --setup base_seatbelt --api $api --split practice \
+  --run-id smoke_v3_base_seatbelt_$api; done
+# base_seatbelt: helpdesk 10/12, ops 11/12. 0/3 every time: pr-hd-04 (infer sms), pr-hd-11 (ask which
+# device), pr-ops-04 (revision from change causes). Several cases flip between runs (pr-hd-06 1/3 -> 3/3,
+# pr-hd-11 2/3 -> 0/3). Stopped iterating: with thinking on, the student handles multi-step lookups,
+# filters, dates and the change-ticket rule; harder cases now mean fitting the practice set to its few
+# weak spots. Decision for the user.
+```
+
+Also wrote PROJECT_OVERVIEW.md (what the system does, for readers new to the project).
+
+### Thinking on vs off, every setup (on the unreviewed v3 drafts)
+
+```bash
+# thinking became one shared eval setting (configs/eval.yaml `thinking`, still true); the thinking-off runs use
+# runs/experiments/eval_thinking_off.yaml, identical except `thinking: false`. Tests: 121 passed.
+for spec in off:base_raw off:base_seatbelt off:lightning on:base_raw on:lightning; do ...
+  .venv/bin/python -m eval.run_eval --setup $setup --api $api --split practice --config $cfg \
+    --run-id think_${mode}_${setup}_${api}; done      # all 10 runs: 36/36 attempts collected
+```
+
+| setup | api | thinking on | thinking off |
+|---|---|---|---|
+| base_raw | helpdesk | 10/12 | 5/12 |
+| base_raw | ops | 11/12 | 9/12 |
+| base_seatbelt | helpdesk | 10/12 (smoke_v3) | 8/12 |
+| base_seatbelt | ops | 11/12 (smoke_v3) | 8/12 |
+| lightning | helpdesk | 9/12 | 7/12 |
+| lightning | ops | 8/12 | 6/12 |
+
+Thinking off: about 3x fewer completion tokens per attempt and about half the latency, for every setup.
+Lightning below the student is the self-check's doing: with thinking on, the verifier passed 33/36 (helpdesk)
+and 30/36 (ops) of Lightning's attempts, and the self-check discarded 7 correct attempts on each. Lightning
+answers complete=false on ask-the-user cases even when its reason says it asked the user. Across the 8
+seatbelt runs, the self-check discarded 24 verifier-correct attempts (22 Lightning's) and almost never led to
+a missing call being made. The schema check and retries do work with thinking off (student ops: 4 invalid
+calls, 9 tool errors sent back).
+
+Also: wrote eval/report.py (results table from run folders) and runs/practice_review.md (review sheet).

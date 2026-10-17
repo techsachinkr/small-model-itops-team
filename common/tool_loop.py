@@ -3,9 +3,9 @@
 The loop speaks OpenAI chat format and needs only two async functions, so the same loop runs inside
 NeMo Gym and outside it:
 - a ModelFn sends the conversation, plus the tools or a JSON schema (for the self-check), to a model
-  and returns a ModelReply. A request with a JSON schema is answered with thinking off, so the schema
-  constrains the whole output (with thinking on, the student sometimes never closed its reasoning and
-  the answer came back empty). The Gym agent (common/gym_agent.py) calls Gym's model server;
+  and returns a ModelReply. Thinking follows the eval config, except that a request with a JSON schema
+  is always answered with thinking off, so the schema constrains the whole output (with thinking on, the
+  student sometimes never closed its reasoning and the answer came back empty). The Gym agent (common/gym_agent.py) calls Gym's model server;
   `llm_model` calls common/llm.py.
 - a ToolFn runs one call and returns (status, output). The Gym agent calls the resources server;
   `env_tools` calls a gym_env Env directly.
@@ -147,7 +147,7 @@ async def run_step(
             if verdict.complete:
                 break
             if belt.exhausted:
-                belt.give_up(turn, "the self-check says the task is not complete and no retries are left")
+                belt.give_up(turn, "the self-check says a tool call is still needed and no retries are left")
                 break
             conversation.append({"role": "user", "content": SELF_CHECK_RETRY.format(reason=verdict.reason)})
             continue
@@ -196,15 +196,15 @@ async def _run_call(turn: int, tool_call: ToolCall, call_tool: ToolFn, belt: Sea
     return Call(turn=turn, tool=name, args=args, status=status, output=output)
 
 
-def llm_model(model: str, sampling: dict[str, Any]) -> ModelFn:
-    """A ModelFn on common/llm.py, for code outside Gym (`sampling` from EvalConfig.sampling())."""
+def llm_model(model: str, sampling: dict[str, Any], thinking: bool) -> ModelFn:
+    """A ModelFn on common/llm.py, for code outside Gym (`sampling` and `thinking` from EvalConfig)."""
 
     async def call(
         messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None, json_schema: dict[str, Any] | None
     ) -> ModelReply:
-        thinking = False if json_schema is not None else None  # see the module docstring
         response = await asyncio.to_thread(
-            llm.chat, model, messages, tools=tools, json_schema=json_schema, thinking=thinking, **sampling
+            llm.chat, model, messages, tools=tools, json_schema=json_schema,
+            thinking=thinking and json_schema is None, **sampling,  # see the module docstring
         )
         message = assistant_message(response.message)
         # vLLM returns reasoning as `reasoning`, but both chat templates read `reasoning_content` from history.

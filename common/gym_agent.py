@@ -90,9 +90,10 @@ class ItopsAgent(SimpleResponsesAPIAgent):
                     "type": "json_schema",
                     "json_schema": {"name": "output", "schema": schema, "strict": True},
                 }
-                # Thinking off for structured answers (common/tool_loop.py). Gym's model server takes
-                # per-request chat template arguments from metadata.
-                body["metadata"] = {"chat_template_kwargs": json.dumps({"enable_thinking": False})}
+            # Thinking as the eval config says, but always off for structured answers (common/tool_loop.py).
+            # Gym's model server takes per-request chat template arguments from metadata.
+            thinking = settings.thinking and schema is None
+            body["metadata"] = {"chat_template_kwargs": json.dumps({"enable_thinking": thinking})}
             start = perf_counter()
             response = await self.server_client.post(
                 server_name=self.config.model_server.name,

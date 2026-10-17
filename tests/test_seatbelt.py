@@ -34,7 +34,7 @@ def turn(*calls: tuple[str, Any], text: str = "") -> ModelReply:
 
 
 def verdict(complete: bool, reason: str = "checked") -> ModelReply:
-    return turn(text=json.dumps({"complete": complete, "reason": reason}))
+    return turn(text=json.dumps({"reason": reason, "tool_call_needed": not complete}))
 
 
 class ScriptedModel:
@@ -163,7 +163,7 @@ def test_failed_self_check_continues_the_step() -> None:
     result, env = run(model)
 
     check = model.requests[1]
-    assert set(check["json_schema"]["required"]) == {"complete", "reason"} and check["tools"] is None
+    assert check["json_schema"]["required"] == ["reason", "tool_call_needed"] and check["tools"] is None
     assert check["messages"][-1] == {"role": "user", "content": SELF_CHECK_PROMPT}
     assert "No ticket was opened." in model.requests[2]["messages"][-1]["content"]
     assert SELF_CHECK_PROMPT not in json.dumps(result.messages)  # the check isn't part of the conversation
@@ -215,7 +215,7 @@ def test_seatbelt_off_stops_at_max_steps_without_failing() -> None:
     assert not result.gave_up and result.answer == "" and len(result.step.calls) == 2
 
 
-def test_llm_model_renames_reasoning_and_turns_thinking_off_for_the_self_check(monkeypatch) -> None:
+def test_llm_model_renames_reasoning_and_follows_the_thinking_setting(monkeypatch) -> None:
     from common import llm, tool_loop
 
     requests: list[dict[str, Any]] = []
@@ -226,11 +226,13 @@ def test_llm_model_renames_reasoning_and_turns_thinking_off_for_the_self_check(m
                                finish_reason="stop", prompt_tokens=5, completion_tokens=2, latency_s=0.1)
 
     monkeypatch.setattr(llm, "chat", fake_chat)
-    model = tool_loop.llm_model("student", {"temperature": 0.6})
+    model = tool_loop.llm_model("student", {"temperature": 0.6}, thinking=True)
     reply = asyncio.run(model(MESSAGES, TOOLS, None))
     asyncio.run(model(MESSAGES, None, {"type": "object"}))
+    asyncio.run(tool_loop.llm_model("student", {}, thinking=False)(MESSAGES, TOOLS, None))
 
     assert reply.message == {"role": "assistant", "content": "Done.", "reasoning_content": "thought"}
     assert reply.text == "Done." and reply.tool_calls == []
-    assert requests[0]["thinking"] is None and requests[0]["temperature"] == 0.6
-    assert requests[1]["thinking"] is False
+    assert requests[0]["thinking"] is True and requests[0]["temperature"] == 0.6
+    assert requests[1]["thinking"] is False  # the self-check
+    assert requests[2]["thinking"] is False
