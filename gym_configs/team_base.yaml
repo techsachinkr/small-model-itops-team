@@ -1,0 +1,5 @@
+# team_base: the Lightning orchestrator with untrained specialists (CLAUDE.md "Eval setups"): every specialist
+# runs the student base model, with the seatbelt. Only the specialists' models differ from team_trained;
+# everything else is in eval_team.yaml.
+helpdesk_model_name: student
+ops_model_name: student

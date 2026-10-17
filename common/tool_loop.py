@@ -167,7 +167,8 @@ async def run_step(
         if belt:
             belt.give_up(max_steps, f"max steps: no accepted final answer after {max_steps} turns")
 
-    step = Step(agent=agent, model=model_name, calls=calls, seatbelt_events=belt.events if belt else [])
+    step = Step(agent=agent, model=model_name, calls=calls, seatbelt_events=belt.events if belt else [],
+                prompt_tokens=tokens[0], completion_tokens=tokens[1])
     return StepResult(step, conversation, answer, tokens[0], tokens[1], time.perf_counter() - start)
 
 

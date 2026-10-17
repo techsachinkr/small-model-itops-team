@@ -12,7 +12,76 @@
     "deployment": "payments",
     "mode": "bad_deploy"
    },
-   "seeded_incidents": 4
+   "seeded_incidents": 4,
+   "ticket_fixtures": [
+    {
+     "name": "incident_prod_checkout_tickets",
+     "base": "incident_prod_checkout",
+     "tickets": [
+      {
+       "employee_id": "E1012",
+       "category": "hardware",
+       "summary": "MacBook battery drains within two hours",
+       "priority": "P4",
+       "status": "open",
+       "device_id": "D2004",
+       "notes": [],
+       "created_at": "2026-10-16T16:30:00Z",
+       "updated_at": "2026-10-16T16:30:00Z"
+      },
+      {
+       "employee_id": "E1012",
+       "category": "incident",
+       "summary": "Payments in prod slows down at peak load; scale it to 6 replicas before the quarter-end payment run",
+       "priority": "P2",
+       "status": "open",
+       "device_id": null,
+       "notes": [],
+       "created_at": "2026-10-16T17:05:00Z",
+       "updated_at": "2026-10-16T17:05:00Z"
+      },
+      {
+       "employee_id": "E1011",
+       "category": "incident",
+       "summary": "Notifications in prod sent duplicate emails after the 3.2.0 deploy",
+       "priority": "P3",
+       "status": "in_progress",
+       "device_id": null,
+       "notes": [
+        "Duplicates stopped after a queue restart; watching it before closing."
+       ],
+       "created_at": "2026-10-16T18:12:00Z",
+       "updated_at": "2026-10-17T09:30:00Z"
+      },
+      {
+       "employee_id": "E1012",
+       "category": "incident",
+       "summary": "Search in prod returned errors after a config push",
+       "priority": "P2",
+       "status": "resolved",
+       "device_id": null,
+       "notes": [
+        "Errors stopped after the search cache was rebuilt; no rollback needed."
+       ],
+       "created_at": "2026-10-17T10:05:00Z",
+       "updated_at": "2026-10-17T12:40:00Z"
+      },
+      {
+       "employee_id": "E1012",
+       "category": "incident",
+       "summary": "Checkout in prod crash-looping since this morning's deploy",
+       "priority": "P1",
+       "status": "open",
+       "device_id": null,
+       "notes": [
+        "Paged the checkout on-call; customers can't complete orders."
+       ],
+       "created_at": "2026-10-19T07:41:00Z",
+       "updated_at": "2026-10-19T07:44:00Z"
+      }
+     ]
+    }
+   ]
   },
   "base": "default",
   "incident": {

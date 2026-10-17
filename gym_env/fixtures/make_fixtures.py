@@ -1,4 +1,4 @@
-"""Builds the canned ops logs from Loghub samples, and the seeded incident fixtures.
+"""Builds the canned ops logs from Loghub samples, the seeded incident fixtures and the ticket fixtures.
 
 Inputs: gym_env/fixtures/default.json (hand-written) and the Loghub samples in data/open/loghub/.
 Outputs, next to default.json:
@@ -6,6 +6,8 @@ Outputs, next to default.json:
   broken ones get a start line followed by Zookeeper or Hadoop connection failures. Lines keep
   Loghub's content and get new timestamps just before the fixture's NOW. They keep Loghub's license.
 - incident_<namespace>_<deployment>.json: a copy of default with a bad deploy this morning.
+- one file per entry in ticket_fixtures: a copy of default or of an incident fixture with hand-written
+  helpdesk tickets added (configs/fixtures.yaml), their IDs continuing the base's counter.
 
     uv run python -m gym_env.fixtures.make_fixtures --config configs/fixtures.yaml
 """
@@ -20,9 +22,19 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from gym_env.state import FIXTURES_DIR, Deployment, Namespace, Revision, State
+from gym_env.state import (
+    FIXTURES_DIR,
+    Category,
+    Deployment,
+    Namespace,
+    Priority,
+    Revision,
+    State,
+    Ticket,
+    TicketStatus,
+)
 
 LOGHUB_URL = "https://github.com/logpai/loghub"
 
@@ -56,6 +68,30 @@ class Incident(BaseModel):
     mode: Literal["bad_deploy", "double_bad_deploy"]
 
 
+class NewTicket(BaseModel):
+    """A hand-written ticket for a ticket fixture; its ID comes from the fixture's counter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    employee_id: str
+    category: Category
+    summary: str
+    priority: Priority
+    status: TicketStatus
+    device_id: str | None = None
+    notes: list[str] = Field(default_factory=list)
+    created_at: str
+    updated_at: str
+
+
+class TicketFixture(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    base: str  # default or a generated incident fixture
+    tickets: list[NewTicket] = Field(min_length=1)
+
+
 class FixturesConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -66,6 +102,7 @@ class FixturesConfig(BaseModel):
     broken_log_lines: int
     demo_incident: Incident
     seeded_incidents: int
+    ticket_fixtures: list[TicketFixture] = Field(default_factory=list)
 
 
 def _iso(moment: datetime) -> str:
@@ -122,6 +159,25 @@ def make_incident(base: State, incident: Incident, rng: random.Random) -> tuple[
         f"{deployment.current_revision} ({deployment.current.image}, deployed {deployment.current.deployed_at})"
         f" crash-loops. The last healthy revision is {latest.revision} ({latest.image})."
     )
+    return state, description
+
+
+def add_tickets(base: State, spec: TicketFixture) -> tuple[State, str]:
+    """A copy of base with spec's tickets added in order, their IDs from base's counter."""
+    state = base.model_copy(deep=True)
+    state.fixture = spec.name
+    employees = {employee.id for employee in state.employees}
+    devices = {device.id: device.employee_id for device in state.devices}
+    added = []
+    for new in spec.tickets:
+        if new.employee_id not in employees:
+            raise ValueError(f"{spec.name}: unknown employee {new.employee_id}")
+        if new.device_id is not None and devices.get(new.device_id) != new.employee_id:
+            raise ValueError(f"{spec.name}: device {new.device_id} isn't assigned to {new.employee_id}")
+        ticket = Ticket(id=state.next_id("ticket", "HD"), **new.model_dump())
+        state.tickets.append(ticket)
+        added.append(f"{ticket.id} ({ticket.employee_id}, {ticket.category} {ticket.priority}, {ticket.status})")
+    description = f"{base.fixture} plus {len(added)} tickets: {', '.join(added)}."
     return state, description
 
 
@@ -200,13 +256,20 @@ def generate(config: FixturesConfig, out_dir: Path) -> list[Path]:
         for i, c in enumerate(rng.sample(candidates, config.seeded_incidents))
     ]
 
-    fixtures = [(base, None, None)]
+    # Each generated fixture with what its generated_by records besides the script and config.
+    fixtures: list[tuple[State, dict[str, Any]]] = [(base, {})]
     for incident in incidents:
         state, description = make_incident(base, incident, rng)
-        fixtures.append((state, incident, description))
+        fixtures.append((state, {"base": "default", "incident": incident.model_dump(), "description": description}))
+    for spec in config.ticket_fixtures:
+        bases = {state.fixture: state for state, _ in fixtures}
+        if spec.base not in bases:
+            raise ValueError(f"{spec.name}: base fixture {spec.base!r} isn't generated before it")
+        state, description = add_tickets(bases[spec.base], spec)
+        fixtures.append((state, {"base": spec.base, "description": description}))
 
     images: dict[str, bool] = {}
-    for state, _, _ in fixtures:
+    for state, _ in fixtures:
         for deployments in state.namespaces.values():
             for revision in (r for d in deployments for r in d.revisions):
                 if images.setdefault(revision.image, revision.healthy) != revision.healthy:
@@ -214,10 +277,9 @@ def generate(config: FixturesConfig, out_dir: Path) -> list[Path]:
 
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
-    for state, incident, description in fixtures[1:]:
+    for state, generated_by in fixtures[1:]:
         data = {
-            "generated_by": {"script": "gym_env/fixtures/make_fixtures.py", "config": config_dump,
-                             "base": "default", "incident": incident.model_dump(), "description": description},
+            "generated_by": {"script": "gym_env/fixtures/make_fixtures.py", "config": config_dump, **generated_by},
             **state.model_dump(mode="json", exclude_none=True),
         }
         path = out_dir / f"{state.fixture}.json"

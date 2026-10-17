@@ -1,23 +1,27 @@
 """Runs one setup on a split through NeMo Gym and writes the results to runs/<run_id>/.
 
     uv run python -m eval.run_eval --setup base_seatbelt --api helpdesk --split practice
+    uv run python -m eval.run_eval --setup team_trained --split practice
 
-The vLLM server for the setup's model must already be running (scripts/serve_*.sh). This script
-starts the Gym servers for the setup (resources_servers/itops/configs/itops.yaml, gym_configs/eval.yaml
-and gym_configs/<setup>.yaml; adapter setups like r1 run the API's own adapter, "<api>_r1"), collects
-`attempts_per_case` rollouts per case with `gym eval run`,
-stops the servers, and writes to runs/<run_id>/:
+Ladder setups run on one API's single-API cases (--api); system setups (single_*, team_*) run on the split's
+multi-API cases, from every file in data/<split>/. The vLLM servers for the setup's models must already be
+running (scripts/serve_*.sh). This script starts the Gym servers for the setup (resources_servers/itops/configs/
+itops.yaml, gym_configs/eval.yaml or, for team setups, gym_configs/eval_team.yaml, and gym_configs/<setup>.yaml;
+adapter setups like r1 run the API's own adapter, "<api>_r1"), collects `attempts_per_case` rollouts per case
+with `gym eval run`, stops the servers, and writes to runs/<run_id>/:
     config.json     arguments, the resolved eval config, the Gym config files, the git commit
     git_diff.patch  uncommitted changes, when the tree is dirty (commit + patch = the code that ran)
     tasks.jsonl     the Gym rows (gym_env/tasks.py)
     rollouts.jsonl  Gym's rollouts, next to Gym's own side files and logs
-    traces.jsonl    one Trace per attempt (common/schemas.py)
+    traces.jsonl    one Trace per attempt (common/schemas.py); a failed team attempt is labeled routing or
+                    specialist (CLAUDE.md "Scoring")
     per_case.json   passed attempts per case
     summary.json    the RunSummary: passes as "k/n", mean latency, cost per 1,000 requests
 
 A case passes if at least `pass_min_attempts` of its attempts pass; an attempt Gym failed to collect
 counts as failed, and the run is reported as partial. Refuses to start when LLM_MODE=replay, when
-chaos is on without --chaos, or for --split test without --final (CLAUDE.md "Scoring", hard rule 4).
+chaos is on without --chaos, for --split test without --final (CLAUDE.md "Scoring", hard rule 4), or for a
+team setup while agents/registry.json has a specialist switched off.
 """
 
 import argparse
@@ -38,29 +42,51 @@ from typing import Any
 
 import yaml
 
+from agents.orchestrator import failure_label
+from agents.specialist import REGISTRY, inactive_names, load_specialists
 from common.eval_config import EVAL_CONFIG, REPO, EvalConfig, load_eval_config
-from common.schemas import Case, RunSummary, SetupSummary, Step, Trace
+from common.schemas import Case, Plan, RunSummary, SetupSummary, Step, Trace
 from gym_env.tasks import case_to_row, read_cases
 
 GYM = Path(sys.executable).parent / "gym"
 GYM_CONFIGS = REPO / "gym_configs"
 ITOPS_CONFIG = REPO / "resources_servers" / "itops" / "configs" / "itops.yaml"
-SETUPS = sorted(path.stem for path in GYM_CONFIGS.glob("*.yaml") if path.stem != "eval")
+SETUPS = sorted(path.stem for path in GYM_CONFIGS.glob("*.yaml") if not path.stem.startswith("eval"))
 ADAPTER_SETUPS = ("r1", "r2")  # one adapter per API; their gym_configs leave the model unset
+SYSTEM_SETUPS = ("single_", "team_")  # prefixes of the setups that run on the multi-API cases
 APIS = ("helpdesk", "ops")
 HEAD_SERVER_PORT = 11000  # Gym's default
 READY = re.compile(r"All (\d+) / \1 servers ready")
 SERVER_TIMEOUT_S = 900  # the first start builds each server's venv
 
 
-def refusal(args: argparse.Namespace, environ: Mapping[str, str], config: EvalConfig, server_chaos: bool) -> str | None:
-    """Why this run must not start, or None."""
+def is_team(setup: str) -> bool:
+    return setup.startswith("team_")
+
+
+def is_system(setup: str) -> bool:
+    return setup.startswith(SYSTEM_SETUPS)
+
+
+def agent_name(setup: str) -> str:
+    """The Gym agent that runs the setup (responses_api_agents/<name>/)."""
+    return "itops_team" if is_team(setup) else "itops_agent"
+
+
+def refusal(
+    args: argparse.Namespace, environ: Mapping[str, str], config: EvalConfig, server_chaos: bool,
+    inactive_specialists: list[str] | None = None,
+) -> str | None:
+    """Why this run must not start, or None. `inactive_specialists`: for team setups."""
     if environ.get("LLM_MODE", "live") == "replay":
         return "LLM_MODE=replay: evals never run on recorded responses (CLAUDE.md \"Scoring\")."
     if args.split == "test" and not args.final:
         return "data/test/ is locked (hard rule 4): --split test runs only with --final, when a human asks for it."
     if (config.chaos or server_chaos) and not args.chaos:
         return f"Chaos is on in {EVAL_CONFIG.name} or {ITOPS_CONFIG.name}; pass --chaos to run with it."
+    if inactive_specialists:
+        return (f"{REGISTRY.name} has specialists switched off ({', '.join(inactive_specialists)}); team setups are "
+                "scored with every specialist active.")
     return None
 
 
@@ -68,8 +94,15 @@ def server_chaos_enabled() -> bool:
     return bool(yaml.safe_load(ITOPS_CONFIG.read_text())["itops"]["resources_servers"]["itops"]["chaos"]["enabled"])
 
 
-def load_cases(split: str, api: str) -> list[Case]:
-    """The split's single-API cases for `api` (the specialist ladder runs on these)."""
+def load_cases(split: str, api: str | None) -> list[Case]:
+    """The split's single-API cases for `api` (the specialist ladder runs on these), or with no api, the
+    multi-API cases in every file of the split (the system setups run on these)."""
+    if api is None:
+        folder = REPO / "data" / split
+        cases = [case for path in sorted(folder.glob("*.jsonl")) for case in read_cases(path) if len(case.apis) > 1]
+        if not cases:
+            raise SystemExit(f"No multi-API cases in {folder}.")
+        return cases
     path = REPO / "data" / split / f"{api}.jsonl"
     cases = [case for case in read_cases(path) if case.apis == [api]]
     if not cases:
@@ -90,7 +123,8 @@ def git_commit(run_dir: Path) -> dict[str, Any]:
 
 
 def gym_configs(setup: str) -> list[Path]:
-    return [ITOPS_CONFIG, GYM_CONFIGS / "eval.yaml", GYM_CONFIGS / f"{setup}.yaml"]
+    shared = GYM_CONFIGS / ("eval_team.yaml" if is_team(setup) else "eval.yaml")
+    return [ITOPS_CONFIG, shared, GYM_CONFIGS / f"{setup}.yaml"]
 
 
 def adapter_model(setup: str, api: str) -> str | None:
@@ -107,9 +141,10 @@ def start_servers(setup: str, config_path: Path, chaos: bool, log_path: Path, mo
     command = [str(GYM), "env", "start"]
     for path in gym_configs(setup):
         command += ["--config", str(path.relative_to(REPO))]
+    agent = agent_name(setup)
     command += [
         "+uv_venv_dir=runs/gym_venvs",
-        f"++itops_agent.responses_api_agents.itops_agent.eval_config={config_path.relative_to(REPO)}",
+        f"++{agent}.responses_api_agents.{agent}.eval_config={config_path.relative_to(REPO)}",
     ]
     if model:
         command.append(f"++policy_model_name={model}")
@@ -148,29 +183,52 @@ def stop_servers(process: subprocess.Popen) -> None:
             continue
 
 
-def collect(tasks: Path, rollouts: Path, attempts: int, log_path: Path) -> int:
-    command = [str(GYM), "eval", "run", "--no-serve", "--agent", "itops_agent", "--input", str(tasks),
+def collect(tasks: Path, rollouts: Path, attempts: int, log_path: Path, agent: str = "itops_agent") -> int:
+    command = [str(GYM), "eval", "run", "--no-serve", "--agent", agent, "--input", str(tasks),
                "--output", str(rollouts), "--num-repeats", str(attempts)]
     with log_path.open("w") as log:
         return subprocess.run(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT).returncode
 
 
+def cost_usd(trace: dict[str, Any], steps: list[Step], plan: Plan | None, config: EvalConfig) -> float:
+    """Every token at the price of the model that produced it, the same formula for every setup (hard rule 7).
+    Tokens that no step or plan accounts for (traces from before steps carried their tokens) go to the first
+    step's model."""
+    parts = [(step.model, step.prompt_tokens, step.completion_tokens) for step in steps]
+    if plan is not None:
+        parts.append((plan.model, plan.prompt_tokens, plan.completion_tokens))
+    rest = (trace["prompt_tokens"] - sum(part[1] for part in parts),
+            trace["completion_tokens"] - sum(part[2] for part in parts))
+    if any(rest):
+        parts.append((steps[0].model if steps else plan.model, *rest))
+    cost = 0.0
+    for model, prompt, completion in parts:
+        prices = config.prices_for(model)
+        cost += (prompt * prices.prompt + completion * prices.completion) / 1e6
+    return cost
+
+
 def to_trace(row: dict[str, Any], run_id: str, setup: str, config: EvalConfig) -> Trace:
     trace = row["trace"]
     steps = [Step.model_validate(step) for step in trace["steps"]]
-    prices = config.prices_for(steps[0].model)
-    cost = (trace["prompt_tokens"] * prices.prompt + trace["completion_tokens"] * prices.completion) / 1e6
+    plan = Plan.model_validate(trace["plan"]) if trace.get("plan") else None
+    passed = row["reward"] == 1.0
+    label = None
+    if is_team(setup) and not passed:
+        label = failure_label(plan, {call["api"] for call in row["case"]["gold_calls"]}, load_specialists())
     return Trace(
         run_id=run_id,
         setup=setup,
         case_id=row["task_id"],
         attempt=row["_ng_rollout_index"] + 1,
+        plan=plan,
         steps=steps,
         prompt_tokens=trace["prompt_tokens"],
         completion_tokens=trace["completion_tokens"],
         latency_s=trace["latency_s"],
-        cost_usd=cost,
-        passed=row["reward"] == 1.0,
+        cost_usd=cost_usd(trace, steps, plan, config),
+        passed=passed,
+        failure_label=label,
     )
 
 
@@ -202,21 +260,27 @@ def summarize(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run one setup on a split through NeMo Gym.")
     parser.add_argument("--setup", required=True, choices=SETUPS)
-    parser.add_argument("--api", required=True, choices=APIS)
+    parser.add_argument("--api", choices=APIS, help="the API whose single-API cases a ladder setup runs on; "
+                        "system setups (single_*, team_*) run on the multi-API cases and take no --api")
     parser.add_argument("--split", required=True, choices=["practice", "test"])
     parser.add_argument("--final", action="store_true", help="required for --split test")
     parser.add_argument("--chaos", action="store_true", help="run with chaos on (demo only)")
     parser.add_argument("--config", type=Path, default=EVAL_CONFIG, help="eval config (default configs/eval.yaml)")
     parser.add_argument("--run-id", help="default: <time>_<setup>_<api>_<split>")
     args = parser.parse_args()
+    if is_system(args.setup) and args.api:
+        parser.error(f"{args.setup} runs on the multi-API cases; drop --api")
+    if not is_system(args.setup) and not args.api:
+        parser.error(f"{args.setup} needs --api")
 
     config_path = args.config.resolve()
     config = load_eval_config(config_path)
-    if reason := refusal(args, os.environ, config, server_chaos_enabled()):
+    inactive = inactive_names() if is_team(args.setup) else []
+    if reason := refusal(args, os.environ, config, server_chaos_enabled(), inactive):
         raise SystemExit(f"Refusing to run: {reason}")
 
     started = datetime.now(timezone.utc)
-    run_id = args.run_id or f"{started:%Y%m%d-%H%M%S}_{args.setup}_{args.api}_{args.split}"
+    run_id = args.run_id or f"{started:%Y%m%d-%H%M%S}_{args.setup}_{args.api or 'multi'}_{args.split}"
     run_dir = REPO / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
     cases = load_cases(args.split, args.api)
@@ -228,6 +292,7 @@ def main() -> None:
         "eval_config": config.model_dump(),
         "gym_configs": [str(path.relative_to(REPO)) for path in gym_configs(args.setup)],
         "adapter": adapter,
+        **({"registry": json.loads(REGISTRY.read_text())} if is_team(args.setup) else {}),
         "cases": len(cases),
         **git_commit(run_dir),
     }, indent=2))
@@ -237,7 +302,8 @@ def main() -> None:
     print(f"{run_id}: {len(cases)} cases x {config.attempts_per_case} attempts; starting Gym servers")
     servers = start_servers(args.setup, config_path, args.chaos, run_dir / "gym_env.log", adapter)
     try:
-        returncode = collect(tasks, run_dir / "rollouts.jsonl", config.attempts_per_case, run_dir / "gym_eval.log")
+        returncode = collect(tasks, run_dir / "rollouts.jsonl", config.attempts_per_case, run_dir / "gym_eval.log",
+                             agent_name(args.setup))
     finally:
         stop_servers(servers)
 
@@ -252,8 +318,11 @@ def main() -> None:
     expected = len(cases) * config.attempts_per_case
     for case_id, result in per_case.items():
         print(f"  {case_id:<12} {result['kind']:<12} {result['passed_attempts']}  {'pass' if result['passed'] else 'FAIL'}")
+    if is_team(args.setup):
+        labels = [trace.failure_label for trace in traces if not trace.passed]
+        print(f"  failed attempts: {labels.count('routing')} routing, {labels.count('specialist')} specialist")
     result = summary.root[args.setup]
-    print(f"{args.setup} on {args.api} {args.split}: {result.passes} cases passed; "
+    print(f"{args.setup} on {args.api or 'multi-API cases'} {args.split}: {result.passes} cases passed; "
           f"mean latency {result.mean_latency_s:.1f} s; ${result.cost_per_1k_usd:.2f} per 1,000 requests")
     if returncode != 0 or len(traces) != expected:
         print(f"PARTIAL RUN: gym eval run exited {returncode}; {len(traces)}/{expected} attempts collected "

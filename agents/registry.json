@@ -1,3 +1,7 @@
 {
-  "active": []
+  "active": ["helpdesk", "ops"],
+  "specialists": {
+    "helpdesk": {"api": "helpdesk", "card": "cards/helpdesk.json"},
+    "ops": {"api": "ops", "card": "cards/ops.json"}
+  }
 }

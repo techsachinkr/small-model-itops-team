@@ -398,6 +398,15 @@ the team against the same resources server and verifier instead.
 
 **Done when:** the demo request works end to end (ticket first, its ID passed to ops, pods back to Running), and `team_base` and `team_trained` are scored on the multi-API practice cases.
 
+Progress (2026-10-17; commands and results in `COMMANDS_LOG.md`):
+- Built: `agents/cards/` and `agents/registry.json`; `agents/specialist.py`; `agents/orchestrator.py`. The plan comes from structured output with `analysis`, at most 6 `steps` ({agent, instruction, depends_on}, `agent` limited to the active specialists), `uncovered` and `reply`. Steps run in dependency order, each getting the answers and successful tool results of the steps it depends on, and the team stops at the first failed step. A CLI runs one practice case outside Gym. Also the Gym agent `itops_team` (`ItopsTeamAgent` in `common/gym_agent.py`; `gym_configs/eval_team.yaml`, `team_base.yaml`, `team_trained.yaml`), and team runs in `eval/run_eval.py`: multi-API cases from every file of the split, no `--api`, per-step pricing, routing/specialist labels, and a refusal while a specialist is switched off.
+- Decided (the user, 2026-10-17): the team is its own NeMo Gym agent rather than Gym's `remote_agent`, which hands every tool call back to Gym between HTTP requests. No fallback was needed: an in-process test runs the agent's /run against the real resources server with scripted model servers. `team_trained` uses the r1 adapters (2.3 hasn't run).
+- Data formats: `Step` carries its own tokens and `Trace` an optional `plan` (CLAUDE.md); every token is priced at the model that produced it.
+- New fixture `incident_prod_checkout_tickets` (deferred from the 1.2 review): the checkout incident plus five tickets. E1012 has five tickets in all, with open change tickets for checkout (HD-1046) and payments capacity (HD-1043) and a resolved one; E1011 has an in_progress one. The next ticket is HD-1047, so a guessed HD-1042 is caught. The other fixtures' state is unchanged (their `generated_by.config` gained `ticket_fixtures`).
+- `data/practice/multi.jsonl`: 8 multi-API cases drafted by Claude (5 multi, 1 read_only, 1 missing_info, 1 no_tool), waiting for the human's review.
+- The demo request (pr-multi-01) through the CLI on `team_trained`: PASS in 3.4 s. Lightning planned the ticket first although the request names it second; helpdesk_r1 opened HD-1042, ops_r1 rolled payments back from 9 to 8 with it, and the 4 pods are Running. Recorded with `LLM_MODE=record`; the replay reproduces it.
+- Left for "Done when": the human reviews the cases, then runs `team_base` and `team_trained` on them.
+
 ### [ ] 3.2 System baselines
 
 ```

@@ -973,3 +973,61 @@ mv runs/r1_helpdesk runs/r1_helpdesk_failed_uv_hook   # the failed run's folder,
 # The per-case, per-attempt and latency comparisons above came from short read-only Python over runs/<run>/config.json,
 # per_case.json, traces.jsonl and rollouts.jsonl (baseline_*_<api> against r1_<api>), not kept.
 ```
+
+## 2026-10-17: task 3.1 Specialists and the Lightning orchestrator
+
+### Research and checks
+
+```bash
+# Which models the running vLLM servers serve (team_trained needs both adapters)
+curl -s -m 3 http://localhost:8000/v1/models   # ['lightning']
+curl -s -m 3 http://localhost:8001/v1/models   # ['student', 'helpdesk_r1', 'ops_r1']
+# Gym 0.6.0's remote_agent (README and app.py): a service at /v1/responses returns each tool call to Gym, which runs it
+# and calls the service again; the trace and the give-up rule would sit outside Gym's verify response. Decided (the
+# user): the team is its own Gym agent, itops_team. Gym's vllm_model server always sends its configured model name
+# (app.py: body.model = self.config.model), so the planner and each specialist get their own model server.
+# The plan schema (enum of active specialists, maxItems 6): vLLM's xgrammar feature check passes and it compiles
+.venv-vllm/bin/python -I -c "...has_xgrammar_unsupported_json_features(schema); xgr.Grammar.from_json_schema(...)"   # in $SCRATCH
+```
+
+### Ticket fixture
+
+```bash
+# configs/fixtures.yaml: ticket_fixtures (incident_prod_checkout plus 5 hand-written tickets). Generated into $SCRATCH
+# first: every existing fixture and logs.json keep identical state; only generated_by.config gains ticket_fixtures.
+.venv/bin/python -m gym_env.fixtures.make_fixtures --config configs/fixtures.yaml --out-dir $SCRATCH/fixtures_check
+.venv/bin/python -m gym_env.fixtures.make_fixtures --config configs/fixtures.yaml
+# New: incident_prod_checkout_tickets, HD-1042..HD-1046, next ticket HD-1047. Regenerated once more after dropping
+# "1.20.0" from the checkout ticket's summary, so pr-multi-06 needs ops to find the image.
+```
+
+### Build and test
+
+Cards and registry (`agents/cards/`, `agents/registry.json`), `agents/specialist.py`, `agents/orchestrator.py` (plan,
+run order, results between steps, CLI), `ItopsTeamAgent` in `common/gym_agent.py` (the single agent's model, tool,
+seed and verify code moved into shared helpers, unchanged), `responses_api_agents/itops_team/`,
+`gym_configs/eval_team.yaml`, `team_base.yaml`, `team_trained.yaml`, team runs in `eval/run_eval.py`, `Step` tokens
+and `Trace.plan` in `common/schemas.py`, and 8 cases in `data/practice/multi.jsonl` (drafted by Claude, for the
+human's review). Tests: `tests/test_orchestrator.py`, `tests/test_gym_agents.py` (both Gym agents' /run in process
+against the real resources server, scripted model servers), additions to `tests/test_run_eval.py` and
+`tests/test_gym_env.py`.
+
+```bash
+# Every setup's Gym config resolved offline, as `gym env start` resolves it (no servers started; $SCRATCH script on
+# GlobalConfigDictParser with offline=True). Team setups failed: itops.yaml's smoke agent points at policy_model,
+# which only eval.yaml defines. eval_team.yaml now points it at planner_model; all 6 setups resolve. Kept as
+# test_gym_resolves_every_setup_s_config, which fails on the old eval_team.yaml (checked) and passes now.
+.venv/bin/python $SCRATCH/gym_parse_check.py base_raw base_seatbelt lightning r1 team_base team_trained
+.venv/bin/python -m pytest -q          # 251 passed (44 new)
+```
+
+### The demo request through the team CLI (approved by the user: once, on the running servers)
+
+```bash
+LLM_MODE=record .venv/bin/python -m agents.orchestrator --case pr-multi-01 --setup team_trained
+# PASS in 3.4 s. Plan (Lightning, 1,245 + 237 tokens): 1. helpdesk opens a P1 incident ticket, 2. ops (after 1) rolls
+# payments back with step 1's ticket. helpdesk_r1: create_ticket -> HD-1042. ops_r1: list_deployments,
+# rollout_history, rollback to 8 with change_ticket HD-1042. Self-checks complete; no seatbelt retries.
+LLM_MODE=replay .venv/bin/python -m agents.orchestrator --case pr-multi-01 --setup team_trained
+# Same plan, calls and PASS from runs/cache/, with no server; prod/payments has 4 Running pods after the run.
+```

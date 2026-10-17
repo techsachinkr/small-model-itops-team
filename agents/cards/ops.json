@@ -1,0 +1,26 @@
+{
+  "name": "ops",
+  "description": "Ops specialist for the prod and staging namespaces. Inspects deployments, pods, logs and rollout history, rolls deployments back and scales them. Any change in prod needs change_ticket: the ID of an open helpdesk ticket for the change. It cannot open or look up helpdesk tickets, so its instruction must include that ticket ID.",
+  "skills": [
+    {
+      "id": "inspect",
+      "name": "Inspect deployments",
+      "description": "List the deployments in a namespace with their image, revision and ready replicas; list a deployment's pods with their status; read a pod's recent logs; show a deployment's rollout history (each revision's image, change cause and deploy time).",
+      "tags": ["ops", "deployments", "pods", "logs"],
+      "examples": [
+        "Find out which deployment in prod is crash-looping and report its name and image.",
+        "Show the rollout history of payments in prod."
+      ]
+    },
+    {
+      "id": "change",
+      "name": "Roll back and scale",
+      "description": "Roll a deployment back to a revision from its rollout history, or set its number of replicas. In prod this needs change_ticket, the ID of an open helpdesk ticket; staging needs none.",
+      "tags": ["ops", "rollback", "scaling"],
+      "examples": [
+        "Roll checkout in prod back to the revision before this morning's deploy, with the ticket ID from the earlier step as change_ticket.",
+        "Scale inventory in staging to 2 replicas."
+      ]
+    }
+  ]
+}

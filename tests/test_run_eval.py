@@ -4,6 +4,7 @@ Nothing here reads data/test/ (hard rule 4)."""
 import argparse
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -12,6 +13,7 @@ import yaml
 from common.eval_config import load_eval_config
 from common.schemas import Case
 from eval import run_eval
+from gym_env.tasks import read_cases
 
 CONFIG = load_eval_config()
 
@@ -51,8 +53,58 @@ def test_main_refuses_the_test_split_before_reading_any_cases(monkeypatch: pytes
         run_eval.main()
 
 
+def test_refuses_team_runs_with_a_specialist_switched_off() -> None:
+    assert "switched off (ops)" in run_eval.refusal(args(), {}, CONFIG, server_chaos=False, inactive_specialists=["ops"])
+    assert run_eval.refusal(args(), {}, CONFIG, server_chaos=False, inactive_specialists=[]) is None
+
+
+@pytest.mark.parametrize("argv, message", [
+    (["--setup", "team_base", "--api", "ops", "--split", "practice"], "drop --api"),
+    (["--setup", "r1", "--split", "practice"], "needs --api"),
+    (["--setup", "team_base", "--split", "test"], "locked"),  # no --api needed; refused before reading cases
+])
+def test_team_setups_take_no_api_and_ladder_setups_need_one(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], argv: list[str], message: str
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["run_eval", *argv])
+    with pytest.raises(SystemExit) as exit_info:
+        run_eval.main()
+    assert message in str(exit_info.value) + capsys.readouterr().err
+
+
 def test_setups_are_the_gym_configs() -> None:
-    assert run_eval.SETUPS == ["base_raw", "base_seatbelt", "lightning", "r1"]
+    assert run_eval.SETUPS == ["base_raw", "base_seatbelt", "lightning", "r1", "team_base", "team_trained"]
+
+
+def test_system_setups_run_on_the_multi_api_cases_of_every_file() -> None:
+    cases = run_eval.load_cases("practice", None)
+    assert {case.id for case in cases} == {case.id for case in read_cases(Path("data/practice/multi.jsonl"))}
+    assert all(len(case.apis) > 1 for case in cases)
+    assert all(case.apis == ["ops"] for case in run_eval.load_cases("practice", "ops"))
+
+
+def test_team_setups_run_the_team_agent_and_differ_only_in_the_specialists_models() -> None:
+    assert run_eval.agent_name("team_base") == "itops_team" and run_eval.agent_name("r1") == "itops_agent"
+    assert [path.name for path in run_eval.gym_configs("team_trained")] == ["itops.yaml", "eval_team.yaml", "team_trained.yaml"]
+    base, trained = (yaml.safe_load((run_eval.GYM_CONFIGS / f"{setup}.yaml").read_text()) for setup in ("team_base", "team_trained"))
+    assert base.keys() == trained.keys() == {"helpdesk_model_name", "ops_model_name"}  # hard rule 7
+
+
+def test_the_specialists_models_reach_the_team_agent_and_its_model_servers() -> None:
+    omegaconf = pytest.importorskip("omegaconf")
+    files = [omegaconf.OmegaConf.load(path) for path in run_eval.gym_configs("team_trained")]
+    config = omegaconf.OmegaConf.merge(*files)
+    agent = config.itops_team.responses_api_agents.itops_team
+    assert (agent.planner_model_name, agent.helpdesk_model_name, agent.ops_model_name) == ("lightning", "helpdesk_r1", "ops_r1")
+    servers = {name: config[name].responses_api_models.vllm_model for name in ("planner_model", "helpdesk_model", "ops_model")}
+    assert {name: (server.model, server.base_url) for name, server in servers.items()} == {
+        "planner_model": ("lightning", "http://localhost:8000/v1"),
+        "helpdesk_model": ("helpdesk_r1", "http://localhost:8001/v1"),
+        "ops_model": ("ops_r1", "http://localhost:8001/v1"),
+    }
+    single = omegaconf.OmegaConf.merge(*[omegaconf.OmegaConf.load(path) for path in run_eval.gym_configs("lightning")])
+    for key in ("return_token_id_information", "uses_reasoning_parser"):  # the model servers match the single setups'
+        assert all(server[key] == single.policy_model.responses_api_models.vllm_model[key] for server in servers.values())
 
 
 def test_r1_is_base_seatbelt_with_the_api_s_own_adapter() -> None:
@@ -63,7 +115,9 @@ def test_r1_is_base_seatbelt_with_the_api_s_own_adapter() -> None:
     assert run_eval.adapter_model("base_seatbelt", "ops") is None
 
 
-def test_gym_starts_with_the_adapter_and_without_ray_s_uv_hook(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.fixture
+def fake_gym(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """Stands in for `gym env start` and returns how it was called."""
     started: dict[str, Any] = {}
 
     class Gym:  # stands in for `gym env start`: records how it was called and reports its servers ready
@@ -84,10 +138,28 @@ def test_gym_starts_with_the_adapter_and_without_ray_s_uv_hook(monkeypatch: pyte
 
     monkeypatch.setattr(run_eval.subprocess, "Popen", Gym)
     monkeypatch.setattr(run_eval.socket, "socket", FreePort)
+    return started
+
+
+def test_gym_starts_with_the_adapter_and_without_ray_s_uv_hook(fake_gym: dict[str, Any], tmp_path: Path) -> None:
     run_eval.start_servers("r1", run_eval.EVAL_CONFIG, False, tmp_path / "gym_env.log", "helpdesk_r1")
-    assert "++policy_model_name=helpdesk_r1" in started["command"]
+    assert "++policy_model_name=helpdesk_r1" in fake_gym["command"]
+    assert "++itops_agent.responses_api_agents.itops_agent.eval_config=configs/eval.yaml" in fake_gym["command"]
     # Under `uv run`, Ray's uv hook stopped every Gym server at startup (task 2.2).
-    assert started["env"]["RAY_ENABLE_UV_RUN_RUNTIME_ENV"] == "0"
+    assert fake_gym["env"]["RAY_ENABLE_UV_RUN_RUNTIME_ENV"] == "0"
+
+
+def test_team_runs_start_and_collect_with_the_team_agent(
+    fake_gym: dict[str, Any], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    run_eval.start_servers("team_base", run_eval.EVAL_CONFIG, False, tmp_path / "gym_env.log")
+    assert "gym_configs/eval_team.yaml" in fake_gym["command"] and "gym_configs/team_base.yaml" in fake_gym["command"]
+    assert "++itops_team.responses_api_agents.itops_team.eval_config=configs/eval.yaml" in fake_gym["command"]
+    collected: dict[str, Any] = {}
+    monkeypatch.setattr(run_eval.subprocess, "run",
+                        lambda command, **kwargs: collected.update(command=command) or SimpleNamespace(returncode=0))
+    run_eval.collect(tmp_path / "tasks.jsonl", tmp_path / "rollouts.jsonl", 3, tmp_path / "gym_eval.log", "itops_team")
+    assert collected["command"][collected["command"].index("--agent") + 1] == "itops_team"
 
 
 def test_the_adapter_name_reaches_the_agent_and_the_model_server() -> None:
@@ -133,3 +205,51 @@ def test_cost_uses_the_model_s_price() -> None:
     assert lightning.cost_usd == pytest.approx(prices["lightning"].prompt + 0.1 * prices["lightning"].completion)
     adapter = run_eval.to_trace(rollout("a", 1, 1.0, "ops_r1"), "run", "r1", CONFIG)
     assert adapter.cost_usd == student.cost_usd  # adapters are priced as the student
+
+
+def test_steps_that_carry_their_tokens_are_priced_the_same() -> None:
+    old = run_eval.to_trace(rollout("a", 1, 1.0), "run", "base_seatbelt", CONFIG)
+    row = rollout("a", 1, 1.0)
+    row["trace"]["steps"][0] |= {"prompt_tokens": 1_000_000, "completion_tokens": 100_000}
+    assert run_eval.to_trace(row, "run", "base_seatbelt", CONFIG).cost_usd == pytest.approx(old.cost_usd)
+
+
+def team_rollout(reward: float, agents: list[str], gold_apis: list[str]) -> dict[str, Any]:
+    """A team attempt: the planner on Lightning (1M prompt tokens), then one step per agent on its adapter."""
+    plan = {"model": "lightning", "analysis": "", "uncovered": [], "reply": "", "prompt_tokens": 1_000_000,
+            "completion_tokens": 0, "steps": [{"agent": agent, "instruction": "", "depends_on": []} for agent in agents]}
+    steps = [{"agent": agent, "model": f"{agent}_r1", "calls": [], "seatbelt_events": [], "prompt_tokens": 1_000_000,
+              "completion_tokens": 100_000} for agent in agents]
+    return {"task_id": "pr-multi-01", "_ng_rollout_index": 0, "reward": reward,
+            "case": {"gold_calls": [{"api": api, "tool": "any", "args": {}} for api in gold_apis]},
+            "trace": {"plan": plan, "steps": steps, "prompt_tokens": 1_000_000 * (1 + len(agents)),
+                      "completion_tokens": 100_000 * len(agents), "latency_s": 3.0}}
+
+
+def test_team_attempts_price_each_model_s_tokens_and_label_failures() -> None:
+    prices = CONFIG.prices_usd_per_1m_tokens
+    student = prices["student"].prompt + 0.1 * prices["student"].completion
+    passed = run_eval.to_trace(team_rollout(1.0, ["helpdesk", "ops"], ["helpdesk", "ops"]), "run", "team_trained", CONFIG)
+    assert passed.cost_usd == pytest.approx(prices["lightning"].prompt + 2 * student)
+    assert passed.plan is not None and passed.plan.agents == {"helpdesk", "ops"} and passed.failure_label is None
+    routing = run_eval.to_trace(team_rollout(0.0, ["helpdesk"], ["helpdesk", "ops"]), "run", "team_trained", CONFIG)
+    specialist = run_eval.to_trace(team_rollout(0.0, ["ops", "helpdesk"], ["helpdesk", "ops"]), "run", "team_base", CONFIG)
+    assert (routing.failure_label, specialist.failure_label) == ("routing", "specialist")
+    assert run_eval.to_trace(rollout("a", 1, 0.0), "run", "base_seatbelt", CONFIG).failure_label is None
+
+
+@pytest.mark.parametrize("setup", run_eval.SETUPS)
+def test_gym_resolves_every_setup_s_config(setup: str) -> None:
+    """The merged config resolves as `gym env start` resolves it, offline (no servers, ports or network). A team
+    setup once failed here: itops.yaml's smoke agent pointed at a model server only eval.yaml defines."""
+    pytest.importorskip("nemo_gym")
+    from nemo_gym.global_config import GlobalConfigDictParser, GlobalConfigDictParserConfig
+    from omegaconf import DictConfig
+
+    paths = [str(path.relative_to(run_eval.REPO)) for path in run_eval.gym_configs(setup)]
+    overrides = {"policy_model_name": "helpdesk_r1"} if setup in run_eval.ADAPTER_SETUPS else {}
+    config = GlobalConfigDictParser().parse(GlobalConfigDictParserConfig(
+        initial_global_config_dict=DictConfig({"config_paths": paths, **overrides}),
+        skip_load_from_cli=True, skip_load_from_dotenv=True, offline=True,
+    ))
+    assert run_eval.agent_name(setup) in config

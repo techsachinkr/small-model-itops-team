@@ -1,0 +1,31 @@
+{
+  "name": "helpdesk",
+  "description": "IT helpdesk specialist. Opens, finds and updates helpdesk tickets, looks up the devices assigned to employees, and resets passwords. It has no access to deployments, pods or anything else in prod or staging.",
+  "skills": [
+    {
+      "id": "tickets",
+      "name": "Helpdesk tickets",
+      "description": "Open a ticket for an employee (category hardware, software, access, network or incident; priority P1 to P4), list an employee's tickets (optionally only open, in_progress or resolved ones), read one ticket with its notes, change a ticket's status or priority, and add notes. The result of opening a ticket includes the new ticket's ID.",
+      "tags": ["helpdesk", "tickets", "incidents", "change tickets"],
+      "examples": [
+        "Open a P1 incident ticket for the current user: checkout in prod is crash-looping after this morning's deploy.",
+        "Find the current user's open ticket about payments and report its ID and summary.",
+        "Add a note to the ticket from the earlier step saying which revision checkout was rolled back to."
+      ]
+    },
+    {
+      "id": "devices",
+      "name": "Devices",
+      "description": "List the devices assigned to an employee. Hardware tickets need the affected device's ID.",
+      "tags": ["helpdesk", "devices"],
+      "examples": ["Which laptop is assigned to the current user?"]
+    },
+    {
+      "id": "passwords",
+      "name": "Password resets",
+      "description": "Reset an employee's password and send a temporary one by email or SMS.",
+      "tags": ["helpdesk", "accounts"],
+      "examples": ["Reset the current user's password and send the temporary one by SMS."]
+    }
+  ]
+}

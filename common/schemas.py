@@ -147,10 +147,38 @@ class Step(Strict):
     calls: list[Call]
     seatbelt_events: list[SeatbeltEvent]
     escalated: bool = False
+    # The step's own tokens, priced at its model's rate (0 in traces written before task 3.1).
+    prompt_tokens: int = Field(0, ge=0)
+    completion_tokens: int = Field(0, ge=0)
 
     @property
     def gave_up(self) -> bool:
         return any(event.kind == "gave_up" for event in self.seatbelt_events)
+
+
+class PlanStep(Strict):
+    """One step of the orchestrator's plan."""
+
+    agent: str  # an active specialist's name
+    instruction: str
+    depends_on: list[int]  # 1-based numbers of the plan steps whose results this step needs
+
+
+class Plan(Strict):
+    """The orchestrator's plan for one request (team setups), with the planner call's tokens."""
+
+    model: str
+    analysis: str
+    steps: list[PlanStep]
+    uncovered: list[str]  # parts of the request no active specialist covers
+    reply: str  # the answer when no step is needed: a question for the user, a decline, or an answer
+    prompt_tokens: int = Field(ge=0)
+    completion_tokens: int = Field(ge=0)
+    error: str | None = None  # the planner's answer wasn't a valid plan; nothing ran
+
+    @property
+    def agents(self) -> set[str]:
+        return {step.agent for step in self.steps}
 
 
 class Trace(Strict):
@@ -160,6 +188,7 @@ class Trace(Strict):
     setup: Setup
     case_id: str
     attempt: int = Field(ge=1)
+    plan: Plan | None = None  # team setups
     steps: list[Step]
     prompt_tokens: int = Field(ge=0)
     completion_tokens: int = Field(ge=0)

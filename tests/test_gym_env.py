@@ -196,6 +196,22 @@ def test_ticket_opened_in_the_same_task_authorizes_the_change() -> None:
     assert result.ok and result.output["change_ticket"] == "HD-1042"
 
 
+def test_the_ticket_fixture_adds_change_tickets_to_its_base() -> None:
+    base, tickets = load_fixture("incident_prod_checkout"), load_fixture("incident_prod_checkout_tickets")
+    assert tickets.namespaces == base.namespaces and tickets.tickets[: len(base.tickets)] == base.tickets
+    added = tickets.tickets[len(base.tickets):]
+    assert [t.id for t in added] == ["HD-1042", "HD-1043", "HD-1044", "HD-1045", "HD-1046"]
+    assert tickets.counters == {"ticket": 1047}
+    assert sum(t.employee_id == "E1012" for t in tickets.tickets) == 5  # several tickets per user
+    env = Env("incident_prod_checkout_tickets")
+    for replicas, ticket, ok in ((3, "HD-1046", True), (4, "HD-1044", True), (5, "HD-1045", False)):  # open, in_progress, resolved
+        result = env.call("scale", {"namespace": "prod", "deployment": "search", "replicas": replicas,
+                                    "change_ticket": ticket})
+        assert result.ok == ok, result.output
+    assert env.call("create_ticket", {"employee_id": "E1012", "category": "incident", "summary": "Search slow",
+                                      "priority": "P3"}).output["ticket"]["id"] == "HD-1047"
+
+
 def test_staging_changes_need_no_ticket() -> None:
     env = Env("incident_staging_inventory")
     assert env.call("rollback", {"namespace": "staging", "deployment": "inventory", "to_revision": 9}).ok

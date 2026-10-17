@@ -1,0 +1,5 @@
+# team_trained: the Lightning orchestrator with trained specialists (CLAUDE.md "Eval setups"): each specialist runs
+# its API's newest adapter on the student server, with the seatbelt. Round 1 for now (task 2.3, round 2, hasn't
+# run). Only the specialists' models differ from team_base; everything else is in eval_team.yaml.
+helpdesk_model_name: helpdesk_r1
+ops_model_name: ops_r1

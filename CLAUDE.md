@@ -50,7 +50,9 @@ gym_env/          resources server: state.py, tools.py, helpdesk.py, ops.py, cal
                   tasks.py (our schema → Gym format), fixtures/ (default.json, make_fixtures.py)
 resources_servers/itops/  Gym's required location: app.py starts gym_env/server.py; config, example data
 responses_api_agents/itops_agent/  Gym's required location: app.py starts common/gym_agent.py
-gym_configs/      NeMo Gym configs: eval.yaml (shared by every setup) and one file per setup
+responses_api_agents/itops_team/   the same for the team agent (ItopsTeamAgent in common/gym_agent.py)
+gym_configs/      NeMo Gym configs: eval.yaml (shared by the single-model setups), eval_team.yaml (shared by the
+                  team setups) and one file per setup
 common/           llm.py (every model call), seatbelt.py, tool_loop.py, schemas.py,
                   eval_config.py (loads configs/eval.yaml), gym_agent.py (Gym agent around tool_loop)
 factory/          sampler.py, writer.py, collect.py (Lightning rollouts via Gym), filter.py,
@@ -85,8 +87,8 @@ Training example (`data/generated/<api>/round_<n>.jsonl`):
 Each generated task file comes with `tasks_<name>.config.json` (settings, seed, git commit, each task's origin) and `tasks_<name>.decontaminate.json` (dropped tasks); each `round_<n>.jsonl` with `round_<n>.stats.json` (kept and rejected counts). Round 1 is broad (`data/generated/<api>/tasks_round_1.jsonl`), round 2 targeted; the pilot in `data/generated/helpdesk/pilot/` isn't training data. Methodology for publishing: `data/generated/README.md`.
 
 Trace (`runs/<run_id>/traces.jsonl`):
-`{run_id, setup, case_id, attempt, steps: [{agent, model, calls, seatbelt_events, escalated}], prompt_tokens, completion_tokens, latency_s, cost_usd, passed, failure_label?: routing|specialist}`
-where a call is `{turn, tool, args, status, output}` (status 0: blocked by the seatbelt, never run) and a seatbelt event is `{kind: invalid_call|tool_error|transient_retry|self_check|gave_up, turn, tool?, detail, complete?, retries_left?}`. A step with a `gave_up` event failed.
+`{run_id, setup, case_id, attempt, plan?, steps: [{agent, model, calls, seatbelt_events, escalated, prompt_tokens, completion_tokens}], prompt_tokens, completion_tokens, latency_s, cost_usd, passed, failure_label?: routing|specialist}`
+where `plan` (team setups) is `{model, analysis, steps: [{agent, instruction, depends_on}], uncovered, reply, prompt_tokens, completion_tokens, error?}`, each step's and the plan's tokens are priced at their own model's rate, a call is `{turn, tool, args, status, output}` (status 0: blocked by the seatbelt, never run) and a seatbelt event is `{kind: invalid_call|tool_error|transient_retry|self_check|gave_up, turn, tool?, detail, complete?, retries_left?}`. A step with a `gave_up` event failed.
 
 Run summary (`runs/<run_id>/summary.json`): per setup, passes as `"k/n"`, mean latency, cost per 1,000 requests, and for `team_escalate` the share of steps handled by small models.
 
@@ -104,7 +106,7 @@ Specialist ladder, per API, on that API's single-API cases. Each row changes one
 System, on multi-API cases:
 - `single_base`, `single_trained`, `single_lightning`: one model with every tool and no orchestrator (`single_trained` is one adapter trained on all specialists' data)
 - `team_base`: Lightning orchestrator with untrained specialists
-- `team_trained`: Lightning orchestrator with trained specialists
+- `team_trained`: Lightning orchestrator with trained specialists (each API's newest adapter; r1 until round 2 exists)
 - `team_escalate`: `team_trained` plus escalation
 - `team_small_planner` (optional): `team_trained` with the student base model as orchestrator, to measure Lightning's contribution as planner
 
@@ -137,9 +139,9 @@ System, on multi-API cases:
 ## Scoring
 
 - `gym_env/verify.py` is the only scoring logic. For each case: run `gold_calls` on a fresh fixture to get the expected state, run the system on another fresh fixture, and pass only if the final states match exactly. Free text (ticket summaries, notes) only has to be present; tickets the gold creates or updates need at least the gold's number of notes, and every other ticket must keep its notes exactly. The final answer must contain every `answer_must_contain` string and none of the `answer_must_not_contain` strings (substring checks that ignore case and read look-alike hyphens and spaces, like U+2011 in "HD‑1034", as ASCII).
-- Single-model setups run as NeMo Gym agents. The team runs through Gym's remote-agent integration if that works within its time box; otherwise `eval/run_eval.py` drives the team against the same resources server and verifier.
+- Every setup runs as a NeMo Gym agent against the same resources server and verifier: the single-model setups as `itops_agent`, the team as its own agent, `itops_team` (decided 2026-10-17, task 3.1; Gym's `remote_agent` would hand every tool call back to Gym between HTTP requests and keep our trace out of the verify response). A team attempt without a valid plan scores 0, like a failed step.
 - Each case runs 3 times and passes if at least 2 runs pass. Report fractions like `37/50`, never percentages.
-- Team failures are labeled `routing` if the plan's agents don't match the APIs in `gold_calls`, otherwise `specialist`.
+- Team failures are labeled `routing` if the plan's agents don't match the APIs in `gold_calls` (or there was no valid plan), otherwise `specialist`.
 - Eval runs refuse to start if chaos is on (unless flagged `--chaos`) or if `LLM_MODE=replay`.
 - Cost: each model has a price per 1M tokens in `configs/eval.yaml`, derived from the GPU's hourly price and measured throughput, with the derivation noted. Every setup is priced with the same formula.
 - The factory's filter uses the same verifier: a Lightning rollout becomes training data only if it passes and contains no failed calls.
@@ -164,7 +166,7 @@ scripts/stop_vllm.sh [lightning|student]    # no name: stop both
 uv run python scripts/smoke_toolcall.py --model <name>   # adapters: add --min-parsed 19
 LLM_MODE=record <command>                   # also save every common/llm.py response to runs/cache/
 LLM_MODE=replay <command>                   # answer from runs/cache/ with no server (never for evals)
-uv run python -m gym_env.fixtures.make_fixtures --config configs/fixtures.yaml   # logs.json + incident fixtures
+uv run python -m gym_env.fixtures.make_fixtures --config configs/fixtures.yaml   # logs.json, incident and ticket fixtures
 uv run python -m gym_env.tasks --cases <cases.jsonl> --output <rows.jsonl>       # our cases -> Gym task rows
 # Gym servers (itops + simple agent + Lightning as policy). UV_EXCLUDE_NEWER keeps Gym's per-server
 # venvs (built under runs/gym_venvs/) within rule 1. Runs in the foreground; Ctrl+C stops it. Not `uv run gym`:
@@ -198,7 +200,13 @@ uv run --group train python -m factory.train_lora --api helpdesk --round 1
 # Dry run to measure memory and speed: --max-steps 3 --limit 80 --run-id <id> --output <scratch dir>
 .venv/bin/python scripts/checks/rescore_answers.py runs/<run_id> ...   # re-score stored rollouts' answer checks
 uv run python -m factory.run_round --api ops --round 1
-uv run python -m eval.run_eval --setup team_trained --split practice
+# The team (task 3.1). One practice case outside Gym: prints the plan, every step, the verdict and the pods of changed
+# deployments. Needs the vLLM servers (LLM_MODE=record also saves the responses; LLM_MODE=replay runs from them with no
+# server); --active overrides agents/registry.json's active list.
+uv run python -m agents.orchestrator --case pr-multi-01 --setup team_trained [--active helpdesk]
+# Team setups on the multi-API practice cases (no --api). Needs Lightning on 8000 and the student with the setup's
+# adapters on 8001, port 11000 free; refuses while agents/registry.json has a specialist switched off.
+uv run python -m eval.run_eval --setup team_trained --split practice --run-id team_trained_practice
 uv run python -m bench.run --suite all
 scripts/demo_reset.sh
 uv run python -m eval.report --run <run_id> [--run <run_id> ...] [--output <file.md>]   # results table
