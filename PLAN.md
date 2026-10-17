@@ -232,7 +232,7 @@ Notes for later tasks (from 0.2; details in `configs/gpu.md` and `COMMANDS_LOG.m
 
 ## Stage 1: Environment and baseline (NeMo Gym)
 
-### [ ] 1.1 The NeMo Gym environment
+### [x] 1.1 The NeMo Gym environment
 
 ```
 First read the installed NeMo Gym docs: the Stateful Environment tutorial, the

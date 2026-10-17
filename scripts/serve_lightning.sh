@@ -15,4 +15,5 @@ start_vllm lightning "$port" \
   --enable-mamba-cache-stochastic-rounding --mamba-cache-philox-rounds 5 \
   --enable-auto-tool-choice --tool-call-parser "$(model_field lightning tool_call_parser)" \
   --reasoning-parser "$(model_field lightning reasoning_parser)" \
+  --structured-outputs-config '{"backend": "xgrammar", "disable_any_whitespace": true}' \
   "$@"

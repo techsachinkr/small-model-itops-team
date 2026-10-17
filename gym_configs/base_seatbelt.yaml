@@ -1,0 +1,8 @@
+# base_seatbelt: the student base model with the seatbelt (CLAUDE.md "Eval setups").
+# Only the model and the seatbelt switch differ between setups; everything else is in eval.yaml.
+policy_model_name: student
+policy_base_url: http://localhost:8001/v1
+itops_agent:
+  responses_api_agents:
+    itops_agent:
+      seatbelt: true

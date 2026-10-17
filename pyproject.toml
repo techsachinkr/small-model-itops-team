@@ -7,6 +7,7 @@ dependencies = [
     "pydantic>=2",
     "pyyaml>=6",
     "openai==2.44.0",  # same pin as nemo-gym 0.6.0
+    "jsonschema>=4",   # the seatbelt checks tool arguments against the schema the model sees
     # nemo-gym needs uvloop, which has no Windows build: Gym work runs on the Brev box.
     "nemo-gym==0.6.0; sys_platform == 'linux'",
 ]

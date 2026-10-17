@@ -1,0 +1,8 @@
+# lightning: Lightning with the seatbelt, as a reference (CLAUDE.md "Eval setups").
+# Only the model and the seatbelt switch differ between setups; everything else is in eval.yaml.
+policy_model_name: lightning
+policy_base_url: http://localhost:8000/v1
+itops_agent:
+  responses_api_agents:
+    itops_agent:
+      seatbelt: true

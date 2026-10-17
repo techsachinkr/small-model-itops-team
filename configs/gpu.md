@@ -19,7 +19,10 @@ One NVIDIA H200 (143,771 MiB as reported by `nvidia-smi`) on Brev, shared by eve
 | Mamba SSM cache | float16, stochastic rounding, 5 Philox rounds (card) | float32 (card) |
 | Mamba backend | flashinfer (card) | vLLM default (triton) |
 | LoRA | – | `--enable-lora --max-lora-rank 16 --max-loras 4`, runtime loading on |
+| Structured outputs | xgrammar, compact JSON (`disable_any_whitespace`) | same |
 | Startup time | 135 s | 40 s (the first start compiles kernels and takes longer) |
+
+Compact JSON (task 1.2): with any whitespace allowed, a Lightning self-check answer got stuck after `{"complete": true` and generated whitespace until `max_tokens` (about 8k tokens). `disable_any_whitespace` needs the backend named explicitly; `auto` is rejected.
 
 At 0.15 the student has 643 Mamba cache blocks, and vLLM needs one per running sequence. Its default `--max-num-seqs` of 1024 doesn't fit and stops startup, hence 256. Raise the share before raising `--max-num-seqs` past 643.
 

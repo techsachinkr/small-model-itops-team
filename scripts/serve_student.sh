@@ -33,4 +33,5 @@ start_vllm student "$port" \
   --mamba-ssm-cache-dtype float32 \
   --enable-auto-tool-choice --tool-call-parser "$(model_field student tool_call_parser)" \
   --reasoning-parser "$(model_field student reasoning_parser)" \
+  --structured-outputs-config '{"backend": "xgrammar", "disable_any_whitespace": true}' \
   "$@"

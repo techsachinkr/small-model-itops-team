@@ -459,3 +459,104 @@ printf '\n# Event materials, kept locally only\nevent_req/\n' >> .gitignore
 # including the "Status: Open" one that failed before
 .venv/bin/python -m pytest -q
 ```
+
+## 2026-10-17: task 1.2 Seatbelt, tool loop and the baseline
+
+Decisions (with the user): temperature 0.6, top_p 0.95, thinking on, for every eval setup (student card's
+tool-calling setting; Lightning is only the reference row); `jsonschema` for the seatbelt's argument check;
+max_steps 10 model turns per step; the self-check uses the step's own model and counts toward its tokens.
+
+### Research: Gym agents and the vLLM model server
+
+Read the installed source: `responses_api_agents/simple_agent/app.py`, `nemo_gym/base_responses_api_agent.py`,
+`responses_api_models/vllm_model/app.py`, `nemo_gym/responses_converter.py`, `nemo_gym/cli/env.py`
+(`_resolve_server_dir`), `nemo_gym/cli/setup_command.py`. Findings: Gym finds our own agent at
+`responses_api_agents/<name>/` in the repo (cwd is searched before the install root); the model server also
+serves `/v1/chat/completions`, returning reasoning as `<think>...</think>` in the content and turning it back
+into `reasoning_content` when the message is sent again; `ResponsesConverter` converts a row's Responses
+input and tools to chat format and a chat conversation back to Responses output items.
+
+### Dependency
+
+```bash
+# Add jsonschema (already in uv.lock as a nemo-gym dependency, 4.26.0) to pyproject.toml
+uv lock
+uv sync                       # mistake: without --group train this uninstalled TRL, PEFT, torch...
+uv sync --group train         # ...so reinstall the train group (same locked versions)
+```
+
+### Build and test
+
+```bash
+.venv/bin/python -m pytest -q tests/test_seatbelt.py   # 11 passed, 1 failed: my test expected 404 for
+                                                       # not_found; the env returns 400. Fixed the test
+.venv/bin/python -m pytest -q                          # 87 passed
+```
+
+### Smoke: the itops agent in Gym, Lightning, the 7 example rows
+
+```bash
+scripts/serve_lightning.sh                            # ready after 44 s
+scripts/serve_student.sh                              # ready after 34 s
+UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z .venv/bin/gym env start --config resources_servers/itops/configs/itops.yaml \
+  --config gym_configs/eval.yaml --config gym_configs/lightning.yaml +uv_venv_dir=runs/gym_venvs \
+  > runs/gym_smoke_agent/gym_env.log 2>&1             # 4/4 servers ready (builds the itops_agent venv)
+.venv/bin/gym eval run --no-serve --agent itops_agent --input resources_servers/itops/data/example.jsonl \
+  --output runs/gym_smoke_agent/rollouts.jsonl
+# 7/7 collected; 6 passed. Two self-check problems:
+# - ex-mi-001 (missing_info): Lightning correctly asked for the deployment and change ticket, but its
+#   self-check said complete=false ("missing deployment name") three times, so the seatbelt gave up.
+# - ex-ro-001: the self-check answer stopped at '{"complete": true' and used ~8k completion tokens:
+#   whitespace generated until max_tokens.
+```
+
+Fixes: compact JSON on both vLLM servers (`--structured-outputs-config '{"backend": "xgrammar",
+"disable_any_whitespace": true}'`; `auto` is rejected with that option; vLLM's xgrammar backend reads it only
+from the server config, not per request), and a clearer self-check prompt.
+
+```bash
+scripts/stop_vllm.sh && scripts/serve_lightning.sh && scripts/serve_student.sh   # 45 s, 34 s
+# Rerun, 3 rollouts per row (servers restarted, so the new prompt is loaded): 19/21 with reward 1.
+# All self-check answers parse now, with normal token counts. ex-multi-001 2/3 (category software
+# vs incident, as in 1.1). ex-mi-001 2/3, and 2 of its 3 attempts still had complete=false self-checks
+# with correct replies.
+UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z .venv/bin/gym env start ... > runs/gym_smoke_agent/gym_env_2.log 2>&1 &
+.venv/bin/gym eval run --no-serve --agent itops_agent --input resources_servers/itops/data/example.jsonl \
+  --output runs/gym_smoke_agent/rollouts_2.jsonl --num-repeats 3
+# Stopping it: SIGINT to the gym process alone doesn't stop it; SIGINT to its process group (like Ctrl+C)
+# does. (A first `pkill -f "gym env start"` killed my own shell, whose command line matched.)
+kill -INT -- -<pgid>
+```
+
+Self-check prompt v3: the three cases spelled out (done / asked for missing information / declined), and
+`reason` before `complete` in the schema so the model names the case before deciding.
+
+### Practice cases (drafts, for human review)
+
+```bash
+# 12 helpdesk + 12 ops cases in data/practice/. Checked: every case validates, gold calls all succeed, a gold
+# run passes the verifier, an idle run fails exactly the single cases, and each read_only answer string
+# appears in the gold tool outputs. 24/24 ok.
+```
+
+### Smoke: eval/run_eval.py end to end (on the unreviewed drafts; not the baseline)
+
+```bash
+.venv/bin/python -m eval.run_eval --setup base_seatbelt --api ops --split practice --run-id smoke_base_seatbelt_ops
+# 36/36 attempts collected, servers stopped cleanly (port 11000 free, no raylet left).
+# base_seatbelt on ops: 12/12 cases. No invalid calls or tool errors at all. 4 of the student's 42
+# self-check answers were empty: it wrote the answer inside a reasoning block it never closed, so the
+# schema never applied. pr-ops-10 attempt 3 gave up on those (2/3 still passes).
+```
+
+Fix: the self-check runs with thinking off (Gym: `metadata.chat_template_kwargs`, which Gym's model server
+merges into the request; vLLM ignores the extra `metadata` field). Tests: 96 passed.
+
+```bash
+.venv/bin/python -m pytest -q                                                    # 96 passed
+.venv/bin/python -m eval.run_eval --setup base_seatbelt --api helpdesk --split practice \
+  --run-id smoke_base_seatbelt_helpdesk
+# base_seatbelt on helpdesk: 11/12 cases; all 36 self-checks parsed. The failure, pr-hd-05 0/3, was my
+# draft's fault: the student closed the ticket and added a closing note each time; the gold had no note and
+# the request didn't say. Reworded to ask for the note, and added it to the gold.
+```

@@ -1,0 +1,28 @@
+# Shared NeMo Gym config for every eval setup (hard rule 7). A setup's file sets only the model and
+# the seatbelt switch. The agent reads sampling, max steps and seatbelt limits from configs/eval.yaml,
+# and the itops resources server and its chaos settings come from
+# resources_servers/itops/configs/itops.yaml. eval/run_eval.py loads all three:
+#   gym env start --config resources_servers/itops/configs/itops.yaml \
+#     --config gym_configs/eval.yaml --config gym_configs/<setup>.yaml
+itops_agent:
+  responses_api_agents:
+    itops_agent:
+      entrypoint: app.py
+      resources_server:
+        type: resources_servers
+        name: itops
+      model_server:
+        type: responses_api_models
+        name: policy_model
+      model_name: ${policy_model_name}
+      seatbelt: ???  # set by the setup's file
+policy_api_key: EMPTY
+policy_model:
+  responses_api_models:
+    vllm_model:
+      entrypoint: app.py
+      base_url: ${policy_base_url}
+      api_key: ${policy_api_key}
+      model: ${policy_model_name}
+      return_token_id_information: false
+      uses_reasoning_parser: true

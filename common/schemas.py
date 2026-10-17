@@ -107,14 +107,46 @@ class TrainingExample(Strict):
         return self
 
 
+class Call(Strict):
+    """One tool call the model made, and what came back."""
+
+    turn: int = Field(ge=1)
+    tool: str
+    args: Any  # parsed arguments, or the raw string if they weren't valid JSON
+    status: int  # 200 ok, 400/404 tool error, 503 transient; 0 = blocked by the seatbelt, never run
+    output: Any
+
+
+SeatbeltEventKind = Literal[
+    "invalid_call",  # unknown tool, unparseable or schema-invalid arguments; not executed
+    "tool_error",  # the environment returned an error
+    "transient_retry",  # a 503 retried automatically, without the model
+    "self_check",  # the completion self-check's verdict
+    "gave_up",  # the step failed: retry limit, max steps, or a failed self-check with no retries left
+]
+
+
+class SeatbeltEvent(Strict):
+    kind: SeatbeltEventKind
+    turn: int = Field(ge=1)
+    tool: str | None = None
+    detail: str
+    complete: bool | None = None  # self_check only
+    retries_left: int | None = None  # after this event, for events that use up a retry
+
+
 class Step(Strict):
-    """One step of a trace. Call and seatbelt event fields are defined in task 1.2."""
+    """One step of a trace: one agent working on one part of the request."""
 
     agent: str
     model: str
-    calls: list[dict[str, Any]]
-    seatbelt_events: list[dict[str, Any]]
+    calls: list[Call]
+    seatbelt_events: list[SeatbeltEvent]
     escalated: bool = False
+
+    @property
+    def gave_up(self) -> bool:
+        return any(event.kind == "gave_up" for event in self.seatbelt_events)
 
 
 class Trace(Strict):

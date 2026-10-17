@@ -34,6 +34,7 @@ Parts:
 - NeMo Gym: the environment is a Gym resources server, and all evaluation and rollout collection go through Gym. Follow the installed version's docs, especially the Stateful Environment tutorial, the Execution and State Match verification pattern, the Local vLLM model server page, and Offline Training (SFT/DPO). Don't guess Gym APIs.
 - vLLM: version 0.27.1 (the version on Lightning's model card), in its own venv `.venv-vllm/` because it pins torch 2.13.0 and the train group uses 2.14.1. Lightning on port 8000. Student base model plus LoRA adapters on port 8001 (`--enable-lora`, `--lora-modules name=path`). Tool calling via `--enable-auto-tool-choice --tool-call-parser <parser>`, with each parser set in `configs/models.yaml`. Use structured outputs (JSON schema) for orchestrator plans, seatbelt self-checks and analyst output. Check the installed version's defaults for prefix caching. Use speculative decoding for Lightning only if the installed vLLM supports it for this model, and any draft model counts toward rule 2.
 - Training: Hugging Face TRL + PEFT (LoRA), or Unsloth following Gym's Unsloth tutorial. Loss on assistant turns only.
+- Seatbelt: `jsonschema` checks tool arguments against the schema the model sees.
 - Team: plain Python. Specialist cards are JSON files in `agents/cards/` using the same fields as an A2A Agent Card. Wrapping specialists with the A2A SDK is a stretch goal.
 - Benchmarks: GuideLLM or vLLM's own benchmark tools.
 - GPU: one Brev instance. `configs/gpu.md` records which servers share the GPU and their memory settings. Training scripts may need to pause a server first.
@@ -48,8 +49,10 @@ gym_env/          resources server: state.py, tools.py, helpdesk.py, ops.py, cal
                   env.py (one task's tools + state), server.py (Gym server), verify.py, chaos.py,
                   tasks.py (our schema → Gym format), fixtures/ (default.json, make_fixtures.py)
 resources_servers/itops/  Gym's required location: app.py starts gym_env/server.py; config, example data
-gym_configs/      NeMo Gym configs, one per setup
-common/           llm.py (every model call), seatbelt.py, tool_loop.py, schemas.py
+responses_api_agents/itops_agent/  Gym's required location: app.py starts common/gym_agent.py
+gym_configs/      NeMo Gym configs: eval.yaml (shared by every setup) and one file per setup
+common/           llm.py (every model call), seatbelt.py, tool_loop.py, schemas.py,
+                  eval_config.py (loads configs/eval.yaml), gym_agent.py (Gym agent around tool_loop)
 factory/          sampler.py, writer.py, collect.py (Lightning rollouts via Gym), filter.py,
                   train_lora.py, analyst.py, run_round.py
 agents/           specialist.py, orchestrator.py, registry.json, cards/
@@ -81,6 +84,7 @@ Training example (`data/generated/<api>/round_<n>.jsonl`):
 
 Trace (`runs/<run_id>/traces.jsonl`):
 `{run_id, setup, case_id, attempt, steps: [{agent, model, calls, seatbelt_events, escalated}], prompt_tokens, completion_tokens, latency_s, cost_usd, passed, failure_label?: routing|specialist}`
+where a call is `{turn, tool, args, status, output}` (status 0: blocked by the seatbelt, never run) and a seatbelt event is `{kind: invalid_call|tool_error|transient_retry|self_check|gave_up, turn, tool?, detail, complete?, retries_left?}`. A step with a `gave_up` event failed.
 
 Run summary (`runs/<run_id>/summary.json`): per setup, passes as `"k/n"`, mean latency, cost per 1,000 requests, and for `team_escalate` the share of steps handled by small models.
 
@@ -117,9 +121,11 @@ System, on multi-API cases:
 - Before executing a call, the tool must exist and its arguments must validate against the tool's JSON schema. If not, send the validation error back to the model as the tool result.
 - Environment errors are sent back to the model as tool results.
 - Invalid calls and errors count toward a limit of 2 retries per step. Transient 503s are retried automatically with backoff, up to 3 times, without involving the model.
-- When the model gives its final answer for a step, it runs a self-check: a structured `{complete: bool, reason}` answer to "given the request and the calls made, is the task complete?". If `false` and retries remain, the step continues; otherwise the step fails.
+- When the model gives its final answer for a step, it runs a self-check: a structured `{complete: bool, reason}` answer to "given the request and the calls made, is the task complete?". If `false` and retries remain, the step continues; otherwise the step fails. The self-check runs with thinking off, so the schema constrains the whole answer (with thinking on, the student sometimes never closed its reasoning and returned nothing).
 - A failed step fails the case, except in `team_escalate`, where it goes to escalation.
 - Every seatbelt event is logged in the trace.
+- Without the seatbelt (`base_raw` only), the loop works like Gym's simple agent: every call goes to the environment, every result (503s included) goes back to the model, and there is no retry limit or self-check.
+- In Gym, a step the seatbelt gave up on scores 0 (`verifier_reward` in the rollout keeps the state-match result).
 
 ## Escalation
 
@@ -164,6 +170,8 @@ UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z uv run gym env start --resources-server it
   --model lightning --model-url http://localhost:8000/v1 --model-api-key EMPTY +uv_venv_dir=runs/gym_venvs
 uv run gym eval run --no-serve --agent itops_simple_agent \
   --input resources_servers/itops/data/example.jsonl --output runs/gym_smoke/rollouts.jsonl
+# One setup on one API's practice cases, 3 attempts each. Needs the setup's vLLM server running; starts and
+# stops the Gym servers itself (port 11000 must be free). Results in runs/<run_id>/. Setups: gym_configs/.
 uv run python -m eval.run_eval --setup base_seatbelt --api helpdesk --split practice
 uv run python -m factory.run_round --api ops --round 1
 uv run python -m eval.run_eval --setup team_trained --split practice

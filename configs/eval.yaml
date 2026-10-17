@@ -1,14 +1,24 @@
 # Shared eval settings. Hard rule 7: identical for every setup; only the
 # model, adapter or agent changes between setups.
 
-temperature: null           # set before the first baseline (task 1.2)
-max_steps: null             # max model turns per step; set in task 1.2
+# Sampling (task 1.2, 2026-10-17). One value for every setup. 0.6/0.95 is the student card's
+# tool-calling setting. Lightning's card says 1.0/0.95, but the ladder measures the student and
+# Lightning is only the reference row. Factory rollouts (task 2.1) aren't an eval setup and can use
+# Lightning's 1.0. No seed: the 3 attempts per case should be independent samples. Sent explicitly
+# on every request, because the student's generation_config.json would otherwise give vLLM 1.0.
+# Thinking is on for every setup: both chat templates default to enable_thinking=true. The one
+# exception, the same in every setup: the seatbelt's self-check runs with thinking off.
+temperature: 0.6
+top_p: 0.95
+max_tokens: 8192            # per model call; caps a runaway reasoning trace
+max_steps: 10               # max model turns per step (seatbelt self-check calls don't count)
 attempts_per_case: 3
 pass_min_attempts: 2        # a case passes if at least 2 of 3 attempts pass
 
 seatbelt:
-  max_retries_per_step: 2   # invalid calls and environment errors
+  max_retries_per_step: 2   # invalid calls, environment errors and failed self-checks
   transient_retries: 3      # automatic 503 retries with backoff, without the model
+  transient_backoff_s: 0.5  # first retry delay; doubles on each retry
 
 chaos: false                # only true in the demo or in runs flagged --chaos
 
