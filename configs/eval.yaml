@@ -1,0 +1,20 @@
+# Shared eval settings. Hard rule 7: identical for every setup; only the
+# model, adapter or agent changes between setups.
+
+temperature: null           # set before the first baseline (task 1.2)
+max_steps: null             # max model turns per step; set in task 1.2
+attempts_per_case: 3
+pass_min_attempts: 2        # a case passes if at least 2 of 3 attempts pass
+
+seatbelt:
+  max_retries_per_step: 2   # invalid calls and environment errors
+  transient_retries: 3      # automatic 503 retries with backoff, without the model
+
+chaos: false                # only true in the demo or in runs flagged --chaos
+
+# Price per 1M tokens, filled in by task 0.2. The same formula for every model:
+#   price_per_1m = gpu_usd_per_hour / (measured_tokens_per_second * 3600 / 1e6)
+# Record the GPU price and the measured throughput used for each number.
+prices_usd_per_1m_tokens:
+  lightning: {prompt: null, completion: null}
+  student: {prompt: null, completion: null}

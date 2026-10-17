@@ -1,0 +1,22 @@
+# Every generative model the system uses. Hard rule 2: each one is <=33B total
+# parameters (per model, confirmed by the organizers). Filled in by task 0.2;
+# confirm every value against the official model card.
+
+models:
+  lightning:
+    hf_id: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16  # confirm in 0.2
+    total_params_b: null      # official total from the model card (vLLM's blog says 30B)
+    port: 8000
+    tool_call_parser: null    # vLLM's blog uses qwen3_coder; confirm in 0.2
+    reasoning_parser: null    # vLLM's blog uses nemotron_v3; confirm in 0.2
+
+  student:
+    hf_id: null               # <STUDENT_ID>: 1-4B, LoRA support in vLLM, working tool-call parser
+    total_params_b: null
+    port: 8001
+    tool_call_parser: null
+
+# Adapters served on the student server, added after training:
+# adapters:
+#   helpdesk_r1: adapters/helpdesk_r1
+#   ops_r1: adapters/ops_r1

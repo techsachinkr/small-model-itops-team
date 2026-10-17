@@ -30,7 +30,7 @@ Parts:
 
 ## Stack
 
-- Python 3.11, `uv` for environment and dependencies.
+- Python 3.13 (NeMo Gym needs ≥3.13.14), `uv` for environment and dependencies. `pyproject.toml` sets `exclude-newer` to 2026-10-03, so every dependency was public at least 2 weeks before the event (rule 1). NeMo Gym is pinned to 0.6.0 and installs only on Linux (it needs uvloop), so Gym, vLLM and training run on the Brev box.
 - NeMo Gym: the environment is a Gym resources server, and all evaluation and rollout collection go through Gym. Follow the installed version's docs, especially the Stateful Environment tutorial, the Execution and State Match verification pattern, the Local vLLM model server page, and Offline Training (SFT/DPO). Don't guess Gym APIs.
 - vLLM: Lightning on port 8000. Student base model plus LoRA adapters on port 8001 (`--enable-lora`, `--lora-modules name=path`). Tool calling via `--enable-auto-tool-choice --tool-call-parser <parser>`, with each parser set in `configs/models.yaml`. Use structured outputs (JSON schema) for orchestrator plans, seatbelt self-checks and analyst output. Check the installed version's defaults for prefix caching. Use speculative decoding for Lightning only if the installed vLLM supports it for this model, and any draft model counts toward rule 2.
 - Training: Hugging Face TRL + PEFT (LoRA), or Unsloth following Gym's Unsloth tutorial. Loss on assistant turns only.
@@ -62,6 +62,7 @@ adapters/         LoRA outputs (gitignored)
 runs/             traces, scores, reports, cache/ (gitignored except runs/final/)
 demo/             app.py
 scripts/          serve_lightning.sh, serve_student.sh, stop_vllm.sh, smoke_toolcall.py, demo_reset.sh
+tests/            pytest tests
 ```
 
 ## Data formats (defined in `common/schemas.py`)
@@ -143,6 +144,8 @@ System, on multi-API cases:
 Planned. Create these as you build, and keep this list accurate.
 
 ```
+uv sync                                     # Windows: core deps only. Linux: also NeMo Gym
+uv sync --group train                       # Brev box: adds TRL, PEFT, transformers
 scripts/serve_lightning.sh
 scripts/serve_student.sh                    # base model + adapters
 scripts/stop_vllm.sh

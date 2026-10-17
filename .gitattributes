@@ -1,0 +1,2 @@
+# LF everywhere, so shell scripts written on Windows still run on the Brev box.
+* text=auto eol=lf

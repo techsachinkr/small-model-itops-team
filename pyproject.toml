@@ -1,0 +1,27 @@
+[project]
+name = "small-model-itops-team"
+version = "0.1.0"
+description = "Small specialist models, trained with NeMo Gym on Nemotron 3.5 Lightning's verified work, run IT operations as a team."
+requires-python = ">=3.13.14,<3.14"
+dependencies = [
+    "pydantic>=2",
+    "pyyaml>=6",
+    "openai==2.44.0",  # same pin as nemo-gym 0.6.0
+    # nemo-gym needs uvloop, which has no Windows build: Gym work runs on the Brev box.
+    "nemo-gym==0.6.0; sys_platform == 'linux'",
+]
+
+[dependency-groups]
+train = ["trl", "peft", "transformers", "datasets"]
+dev = ["pytest"]
+
+[tool.uv]
+package = false
+default-groups = ["dev"]
+environments = ["sys_platform == 'linux'", "sys_platform == 'win32'"]
+# Hard rule 1: outside code must have been open source for 2+ weeks before the event (Oct 17).
+exclude-newer = "2026-10-03T00:00:00Z"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

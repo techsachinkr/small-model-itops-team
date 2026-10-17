@@ -59,7 +59,7 @@ Answers (2026-10-17):
 
 - [ ] Open the event's Submission Checklist and Demo Video Instructions, and copy any requirements (video length, required links, repo visibility) into this file.
 - [x] Team captain redeems the Brev code (Billing → Redeem Code) and invites teammates (Team → Generate Invite Link). Share SSH access on the instance.
-- [ ] Pick the GPU. Lightning in BF16 needs roughly 60+ GB before any other model. Prefer a single GPU with 141 GB or more, or two GPUs. On Blackwell GPUs, Lightning's NVFP4 build is much smaller. Record the plan in `configs/gpu.md`.
+- [x] Pick the GPU. Lightning in BF16 needs roughly 60+ GB before any other model. Prefer a single GPU with 141 GB or more, or two GPUs. On Blackwell GPUs, Lightning's NVFP4 build is much smaller. Record the plan in `configs/gpu.md`.
 - [ ] Read Lightning's model card for the official parameter count, license, recommended vLLM settings and tool-call parser.
 - [ ] Choose the student base (1–4B) with LoRA support in vLLM and a working tool-call parser. A small Nemotron model is preferred if one qualifies.
 - [ ] Decide whether `calendar` is in scope. The default is no: two specialists (helpdesk and ops), with calendar as a stretch goal.
@@ -142,7 +142,7 @@ Solo: stages 0–2 are the core, and stop after round 1 if needed. Then add the 
 
 ## Stage 0: Skeleton and serving
 
-### [ ] 0.1 Repo skeleton
+### [x] 0.1 Repo skeleton
 
 ```
 Read CLAUDE.md and PLAN.md. Create the repo skeleton from "Repo layout" using uv
