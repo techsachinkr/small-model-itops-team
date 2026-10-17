@@ -8,3 +8,6 @@ __pycache__/
 adapters/
 runs/*
 !runs/final/
+
+# Hydra run folders written by every gym command
+outputs/

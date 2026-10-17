@@ -252,6 +252,13 @@ calls and failing a wrong final state.
 
 **Done when:** pytest passes, and Gym can run one hand-made task end to end against the resources server.
 
+Notes for later tasks (from 1.1; commands and results in `COMMANDS_LOG.md`):
+- Decisions: Gym only finds servers at `resources_servers/<name>/`, so `resources_servers/itops/` is a thin wrapper around `gym_env/server.py`. The verifier compares the session's final state, not a replay of the model's calls. Ticket `summary` and `note` only have to be present (option B); per-case keywords (option C) can be added later.
+- "Open ticket" for `change_ticket` means unresolved: status `open` or `in_progress`.
+- 1.2: tool errors come back as HTTP 400/404 with `{"error": {"code", "message"}}`, and chaos as 503 with `"retryable": true`, so the seatbelt can tell them apart. `gym_env.env.Env` runs the same tools without HTTP. Reuse `gym_env.tasks.system_prompt` so every setup sees the same prompt. `max_steps: 10` in `resources_servers/itops/configs/itops.yaml` is only for smoke runs.
+- 1.2: cases must pin down every structured field the gold checks. In the smoke run, Lightning failed only the demo request, filing the ticket as `software` where the gold says `incident`.
+- `gym eval run --input` needs `--no-serve` and servers started with `gym env start` (Commands in CLAUDE.md).
+
 ### [ ] 1.2 Seatbelt, tool loop and the baseline
 
 ```
@@ -453,6 +460,7 @@ These steps are the live demo and build narration in the event's recommended vid
 - Wrap specialists with the A2A SDK so the cards become real A2A Agent Cards.
 - A chaos evaluation: score `team_trained` with `--chaos`.
 - A control run for one API: the same amount of data with no failure analysis.
+- An extra ladder row trained on `r1`'s data plus one outside dataset the organizers allow (for example `Salesforce/xlam-function-calling-60k`; see `data/open/DATA_SOURCES.md`), to test whether outside data helps. Keep it out of `r1` so each improvement stays isolated. It needs a new setup name in CLAUDE.md, conversion to the student's chat template, and its own row in DATA_SOURCES.md.
 - Voice input with NVIDIA's Parakeet speech recognition (input only).
 - Run the trained specialists offline on a laptop.
 - Quantize the student with LLM Compressor, and check the adapters still load and score well.

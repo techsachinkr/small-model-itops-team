@@ -1,0 +1,567 @@
+{
+ "generated_by": {
+  "script": "gym_env/fixtures/make_fixtures.py",
+  "config": {
+   "seed": 0,
+   "loghub_dir": "data/open/loghub",
+   "loghub_commit": "dd61d0952749ee7963bde24220d1be5ede023033",
+   "healthy_log_lines": 12,
+   "broken_log_lines": 15,
+   "demo_incident": {
+    "namespace": "prod",
+    "deployment": "payments",
+    "mode": "bad_deploy"
+   },
+   "seeded_incidents": 4
+  },
+  "base": "default",
+  "incident": {
+   "namespace": "staging",
+   "deployment": "inventory",
+   "mode": "bad_deploy"
+  },
+  "description": "staging/inventory is broken: current revision 10 (registry.corp.example/inventory:4.4.0-rc.2, deployed 2026-10-19T07:25:00Z) crash-loops. The last healthy revision is 9 (registry.corp.example/inventory:4.4.0-rc.1)."
+ },
+ "fixture": "incident_staging_inventory",
+ "now": "2026-10-19T09:00:00Z",
+ "counters": {
+  "ticket": 1042
+ },
+ "employees": [
+  {
+   "id": "E1001",
+   "name": "Priya Raman",
+   "email": "priya.raman@corp.example",
+   "department": "Finance"
+  },
+  {
+   "id": "E1002",
+   "name": "Marcus Chen",
+   "email": "marcus.chen@corp.example",
+   "department": "Engineering"
+  },
+  {
+   "id": "E1003",
+   "name": "Sofia Alvarez",
+   "email": "sofia.alvarez@corp.example",
+   "department": "Sales"
+  },
+  {
+   "id": "E1004",
+   "name": "Daniel Okafor",
+   "email": "daniel.okafor@corp.example",
+   "department": "Engineering"
+  },
+  {
+   "id": "E1005",
+   "name": "Hannah Weber",
+   "email": "hannah.weber@corp.example",
+   "department": "HR"
+  },
+  {
+   "id": "E1006",
+   "name": "Kenji Tanaka",
+   "email": "kenji.tanaka@corp.example",
+   "department": "Support"
+  },
+  {
+   "id": "E1007",
+   "name": "Amara Nwosu",
+   "email": "amara.nwosu@corp.example",
+   "department": "Marketing"
+  },
+  {
+   "id": "E1008",
+   "name": "Lucas Moreau",
+   "email": "lucas.moreau@corp.example",
+   "department": "Engineering"
+  },
+  {
+   "id": "E1009",
+   "name": "Fatima Haddad",
+   "email": "fatima.haddad@corp.example",
+   "department": "Legal"
+  },
+  {
+   "id": "E1010",
+   "name": "Oliver Grant",
+   "email": "oliver.grant@corp.example",
+   "department": "Finance"
+  },
+  {
+   "id": "E1011",
+   "name": "Mei Lin",
+   "email": "mei.lin@corp.example",
+   "department": "IT"
+  },
+  {
+   "id": "E1012",
+   "name": "Ravi Shah",
+   "email": "ravi.shah@corp.example",
+   "department": "Operations"
+  }
+ ],
+ "devices": [
+  {
+   "id": "D2001",
+   "employee_id": "E1004",
+   "type": "laptop",
+   "model": "Dell Latitude 7450"
+  },
+  {
+   "id": "D2002",
+   "employee_id": "E1009",
+   "type": "laptop",
+   "model": "Lenovo ThinkPad T14"
+  },
+  {
+   "id": "D2003",
+   "employee_id": "E1001",
+   "type": "monitor",
+   "model": "Dell U2723QE"
+  },
+  {
+   "id": "D2004",
+   "employee_id": "E1012",
+   "type": "laptop",
+   "model": "MacBook Pro 14"
+  },
+  {
+   "id": "D2005",
+   "employee_id": "E1001",
+   "type": "laptop",
+   "model": "Lenovo ThinkPad X1 Carbon"
+  },
+  {
+   "id": "D2006",
+   "employee_id": "E1007",
+   "type": "laptop",
+   "model": "MacBook Air 13"
+  },
+  {
+   "id": "D2007",
+   "employee_id": "E1006",
+   "type": "phone",
+   "model": "iPhone 15"
+  },
+  {
+   "id": "D2008",
+   "employee_id": "E1002",
+   "type": "laptop",
+   "model": "Dell Precision 5690"
+  },
+  {
+   "id": "D2009",
+   "employee_id": "E1011",
+   "type": "laptop",
+   "model": "Lenovo ThinkPad T14"
+  },
+  {
+   "id": "D2010",
+   "employee_id": "E1005",
+   "type": "laptop",
+   "model": "MacBook Air 13"
+  },
+  {
+   "id": "D2011",
+   "employee_id": "E1002",
+   "type": "dock",
+   "model": "Dell WD22TB4"
+  },
+  {
+   "id": "D2012",
+   "employee_id": "E1003",
+   "type": "laptop",
+   "model": "Lenovo ThinkPad T14"
+  },
+  {
+   "id": "D2013",
+   "employee_id": "E1010",
+   "type": "laptop",
+   "model": "Dell Latitude 7450"
+  },
+  {
+   "id": "D2014",
+   "employee_id": "E1006",
+   "type": "laptop",
+   "model": "Lenovo ThinkPad X1 Carbon"
+  },
+  {
+   "id": "D2015",
+   "employee_id": "E1008",
+   "type": "laptop",
+   "model": "MacBook Pro 16"
+  }
+ ],
+ "tickets": [
+  {
+   "id": "HD-1032",
+   "employee_id": "E1003",
+   "category": "software",
+   "summary": "Excel crashes when opening large pivot tables",
+   "priority": "P3",
+   "status": "resolved",
+   "notes": [
+    "Updated Office to the current build; fixed."
+   ],
+   "created_at": "2026-10-12T10:14:00Z",
+   "updated_at": "2026-10-13T15:02:00Z"
+  },
+  {
+   "id": "HD-1033",
+   "employee_id": "E1007",
+   "category": "access",
+   "summary": "Needs access to the marketing analytics dashboard",
+   "priority": "P3",
+   "status": "resolved",
+   "notes": [
+    "Access granted after manager approval."
+   ],
+   "created_at": "2026-10-12T13:40:00Z",
+   "updated_at": "2026-10-13T09:21:00Z"
+  },
+  {
+   "id": "HD-1034",
+   "employee_id": "E1002",
+   "category": "hardware",
+   "summary": "Dock not detecting the second monitor",
+   "priority": "P3",
+   "status": "in_progress",
+   "device_id": "D2011",
+   "notes": [
+    "Firmware update scheduled."
+   ],
+   "created_at": "2026-10-13T08:55:00Z",
+   "updated_at": "2026-10-14T11:30:00Z"
+  },
+  {
+   "id": "HD-1035",
+   "employee_id": "E1010",
+   "category": "network",
+   "summary": "VPN disconnects every few minutes when working from home",
+   "priority": "P2",
+   "status": "open",
+   "notes": [],
+   "created_at": "2026-10-14T17:05:00Z",
+   "updated_at": "2026-10-14T17:05:00Z"
+  },
+  {
+   "id": "HD-1036",
+   "employee_id": "E1006",
+   "category": "hardware",
+   "summary": "Phone battery drains within a few hours",
+   "priority": "P4",
+   "status": "open",
+   "device_id": "D2007",
+   "notes": [],
+   "created_at": "2026-10-15T09:12:00Z",
+   "updated_at": "2026-10-15T09:12:00Z"
+  },
+  {
+   "id": "HD-1037",
+   "employee_id": "E1012",
+   "category": "incident",
+   "summary": "Nightly inventory export job failed",
+   "priority": "P2",
+   "status": "resolved",
+   "notes": [
+    "Re-ran the export after the database failover; completed."
+   ],
+   "created_at": "2026-10-15T06:48:00Z",
+   "updated_at": "2026-10-15T10:05:00Z"
+  },
+  {
+   "id": "HD-1038",
+   "employee_id": "E1005",
+   "category": "access",
+   "summary": "Locked out of the HR portal after a password change",
+   "priority": "P2",
+   "status": "resolved",
+   "notes": [],
+   "created_at": "2026-10-15T14:20:00Z",
+   "updated_at": "2026-10-15T14:41:00Z"
+  },
+  {
+   "id": "HD-1039",
+   "employee_id": "E1009",
+   "category": "software",
+   "summary": "Request for an Adobe Acrobat Pro license",
+   "priority": "P4",
+   "status": "open",
+   "notes": [],
+   "created_at": "2026-10-16T10:33:00Z",
+   "updated_at": "2026-10-16T10:33:00Z"
+  },
+  {
+   "id": "HD-1040",
+   "employee_id": "E1001",
+   "category": "hardware",
+   "summary": "Laptop fan is very loud under light load",
+   "priority": "P3",
+   "status": "in_progress",
+   "device_id": "D2005",
+   "notes": [
+    "Asked the user to run diagnostics."
+   ],
+   "created_at": "2026-10-16T11:02:00Z",
+   "updated_at": "2026-10-16T16:47:00Z"
+  },
+  {
+   "id": "HD-1041",
+   "employee_id": "E1011",
+   "category": "network",
+   "summary": "Wi-Fi in conference room B keeps dropping",
+   "priority": "P3",
+   "status": "open",
+   "notes": [],
+   "created_at": "2026-10-16T15:18:00Z",
+   "updated_at": "2026-10-16T15:18:00Z"
+  }
+ ],
+ "password_resets": [],
+ "namespaces": {
+  "prod": [
+   {
+    "name": "payments",
+    "replicas": 4,
+    "current_revision": 8,
+    "revisions": [
+     {
+      "revision": 5,
+      "image": "registry.corp.example/payments:2.3.0",
+      "change_cause": "Deploy 2.3.0: retry budget for card authorization",
+      "deployed_at": "2026-10-05T14:10:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 6,
+      "image": "registry.corp.example/payments:2.3.1",
+      "change_cause": "Deploy 2.3.1: fix currency rounding on refunds",
+      "deployed_at": "2026-10-08T10:25:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 7,
+      "image": "registry.corp.example/payments:2.4.0",
+      "change_cause": "Deploy 2.4.0: new fraud-check client",
+      "deployed_at": "2026-10-13T16:05:00Z",
+      "healthy": false
+     },
+     {
+      "revision": 8,
+      "image": "registry.corp.example/payments:2.4.1",
+      "change_cause": "Deploy 2.4.1: fraud-check client timeout fix",
+      "deployed_at": "2026-10-14T09:30:00Z",
+      "healthy": true
+     }
+    ]
+   },
+   {
+    "name": "checkout",
+    "replicas": 3,
+    "current_revision": 13,
+    "revisions": [
+     {
+      "revision": 11,
+      "image": "registry.corp.example/checkout:1.18.0",
+      "change_cause": "Deploy 1.18.0: saved carts",
+      "deployed_at": "2026-10-06T11:00:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 12,
+      "image": "registry.corp.example/checkout:1.18.2",
+      "change_cause": "Deploy 1.18.2: tax rounding fix",
+      "deployed_at": "2026-10-09T15:45:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 13,
+      "image": "registry.corp.example/checkout:1.19.0",
+      "change_cause": "Deploy 1.19.0: one-page checkout",
+      "deployed_at": "2026-10-15T10:20:00Z",
+      "healthy": true
+     }
+    ]
+   },
+   {
+    "name": "inventory",
+    "replicas": 3,
+    "current_revision": 5,
+    "revisions": [
+     {
+      "revision": 3,
+      "image": "registry.corp.example/inventory:4.2.0",
+      "change_cause": "Deploy 4.2.0: warehouse sync v2",
+      "deployed_at": "2026-10-01T09:40:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 4,
+      "image": "registry.corp.example/inventory:4.2.1",
+      "change_cause": "Deploy 4.2.1: fix stock double-count",
+      "deployed_at": "2026-10-07T13:15:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 5,
+      "image": "registry.corp.example/inventory:4.3.0",
+      "change_cause": "Deploy 4.3.0: reservation expiry",
+      "deployed_at": "2026-10-14T14:00:00Z",
+      "healthy": true
+     }
+    ]
+   },
+   {
+    "name": "search",
+    "replicas": 2,
+    "current_revision": 22,
+    "revisions": [
+     {
+      "revision": 21,
+      "image": "registry.corp.example/search:0.9.4",
+      "change_cause": "Deploy 0.9.4: synonym list update",
+      "deployed_at": "2026-09-30T16:30:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 22,
+      "image": "registry.corp.example/search:0.9.5",
+      "change_cause": "Deploy 0.9.5: faster autocomplete",
+      "deployed_at": "2026-10-09T11:10:00Z",
+      "healthy": true
+     }
+    ]
+   },
+   {
+    "name": "notifications",
+    "replicas": 2,
+    "current_revision": 10,
+    "revisions": [
+     {
+      "revision": 8,
+      "image": "registry.corp.example/notifications:3.1.0",
+      "change_cause": "Deploy 3.1.0: SMS provider failover",
+      "deployed_at": "2026-10-02T10:00:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 9,
+      "image": "registry.corp.example/notifications:3.1.1",
+      "change_cause": "Deploy 3.1.1: email template fixes",
+      "deployed_at": "2026-10-10T09:05:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 10,
+      "image": "registry.corp.example/notifications:3.2.0",
+      "change_cause": "Deploy 3.2.0: push notification batching",
+      "deployed_at": "2026-10-16T13:50:00Z",
+      "healthy": true
+     }
+    ]
+   }
+  ],
+  "staging": [
+   {
+    "name": "payments",
+    "replicas": 1,
+    "current_revision": 15,
+    "revisions": [
+     {
+      "revision": 14,
+      "image": "registry.corp.example/payments:2.5.0-rc.1",
+      "change_cause": "Deploy 2.5.0-rc.1: ledger client v3",
+      "deployed_at": "2026-10-15T15:00:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 15,
+      "image": "registry.corp.example/payments:2.5.0-rc.2",
+      "change_cause": "Deploy 2.5.0-rc.2: ledger client retries",
+      "deployed_at": "2026-10-16T12:30:00Z",
+      "healthy": true
+     }
+    ]
+   },
+   {
+    "name": "checkout",
+    "replicas": 2,
+    "current_revision": 21,
+    "revisions": [
+     {
+      "revision": 20,
+      "image": "registry.corp.example/checkout:1.20.0-rc.1",
+      "change_cause": "Deploy 1.20.0-rc.1: address autocomplete",
+      "deployed_at": "2026-10-15T16:10:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 21,
+      "image": "registry.corp.example/checkout:1.20.0-rc.2",
+      "change_cause": "Deploy 1.20.0-rc.2: address autocomplete fixes",
+      "deployed_at": "2026-10-16T14:25:00Z",
+      "healthy": true
+     }
+    ]
+   },
+   {
+    "name": "inventory",
+    "replicas": 1,
+    "current_revision": 10,
+    "revisions": [
+     {
+      "revision": 9,
+      "image": "registry.corp.example/inventory:4.4.0-rc.1",
+      "change_cause": "Deploy 4.4.0-rc.1: bulk import API",
+      "deployed_at": "2026-10-16T10:45:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 10,
+      "image": "registry.corp.example/inventory:4.4.0-rc.2",
+      "change_cause": "Deploy 4.4.0-rc.2: config format migration",
+      "deployed_at": "2026-10-19T07:25:00Z",
+      "healthy": false
+     }
+    ]
+   },
+   {
+    "name": "search",
+    "replicas": 1,
+    "current_revision": 31,
+    "revisions": [
+     {
+      "revision": 30,
+      "image": "registry.corp.example/search:1.0.0-rc.1",
+      "change_cause": "Deploy 1.0.0-rc.1: new ranking model",
+      "deployed_at": "2026-10-13T13:20:00Z",
+      "healthy": true
+     },
+     {
+      "revision": 31,
+      "image": "registry.corp.example/search:1.0.0-rc.2",
+      "change_cause": "Deploy 1.0.0-rc.2: ranking model warm-up",
+      "deployed_at": "2026-10-16T09:55:00Z",
+      "healthy": true
+     }
+    ]
+   },
+   {
+    "name": "notifications",
+    "replicas": 1,
+    "current_revision": 12,
+    "revisions": [
+     {
+      "revision": 12,
+      "image": "registry.corp.example/notifications:3.3.0-rc.1",
+      "change_cause": "Deploy 3.3.0-rc.1: per-user quiet hours",
+      "deployed_at": "2026-10-16T11:35:00Z",
+      "healthy": true
+     }
+    ]
+   }
+  ]
+ },
+ "changes": []
+}

@@ -365,3 +365,60 @@ PY
 git add CLAUDE.md COMMANDS_LOG.md PLAN.md common/llm.py configs/ scripts/ tests/test_llm.py
 git commit
 ```
+
+## 2026-10-17: task 1.1 The NeMo Gym environment
+
+### Research: NeMo Gym 0.6.0
+
+The installed wheel has no `docs/` folder. Read the v0.6.0 docs online (Stateful Environment, Execution and State
+Match, Single-Step Environment) and the installed source under `.venv/lib/python3.13/site-packages/`:
+`resources_servers/example_session_state_mgmt`, `resources_servers/workplace_assistant`,
+`responses_api_agents/simple_agent/app.py`, `nemo_gym/base_resources_server.py`, `nemo_gym/cli/env.py`,
+`nemo_gym/cli/setup_command.py`.
+
+### Loghub sample
+
+```bash
+# Pinned commit of github.com/logpai/loghub, and its license (the notice must go with every copy)
+curl -s https://api.github.com/repos/logpai/loghub/commits/master          # dd61d09..., 2025-06-13
+curl -s https://raw.githubusercontent.com/logpai/loghub/dd61d0952749ee7963bde24220d1be5ede023033/LICENSE
+# Download three structured 2k samples + LICENSE into a new folder (1.6 MB)
+mkdir data/open/loghub && cd data/open/loghub && REF=dd61d0952749ee7963bde24220d1be5ede023033 && \
+  for f in LICENSE OpenStack/OpenStack_2k.log_structured.csv Zookeeper/Zookeeper_2k.log_structured.csv \
+           Hadoop/Hadoop_2k.log_structured.csv; do
+    curl -sSfL -o "$(basename $f)" "https://raw.githubusercontent.com/logpai/loghub/$REF/$f"; done
+sha256sum *   # Hadoop e88e5bf9..., LICENSE 9ffa6ae2..., OpenStack ecc88e79..., Zookeeper e4a450c6...
+```
+
+### Build and test
+
+```bash
+# Fixtures: logs.json (30 images) and 5 incident variants, from default.json + Loghub, seed 0
+.venv/bin/python -m gym_env.fixtures.make_fixtures --config configs/fixtures.yaml
+# Hand-made example cases -> Gym rows (7 rows)
+.venv/bin/python -m gym_env.tasks --cases resources_servers/itops/data/example_cases.jsonl \
+  --output resources_servers/itops/data/example.jsonl
+# Tests: 74 passed. Then three deliberate mutations, each caught and reverted: exact summaries (1 failed),
+# no change_ticket rule (5 failed), unseeded chaos (1 failed)
+.venv/bin/python -m pytest -q
+```
+
+### Verify (the "Done when" check): passed
+
+```bash
+.venv/bin/python -m pytest -q                       # 74 passed
+scripts/serve_lightning.sh                          # ready after 44 s
+# First try, end to end in one command: refused ("-i/--input is not supported when serving end-to-end;
+# add --no-serve"), so start the servers separately. UV_EXCLUDE_NEWER keeps Gym's per-server venvs
+# within rule 1; they go to runs/gym_venvs/ (1.4 GB, gitignored).
+UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z .venv/bin/gym env start --resources-server itops --model-type vllm_model \
+  --model lightning --model-url http://localhost:8000/v1 --model-api-key EMPTY +uv_venv_dir=runs/gym_venvs \
+  > runs/gym_smoke/gym_env.log 2>&1 &
+# 7/7 rollouts collected; mean reward 0.857: 6 of 7 passed. ex-multi-001 (the demo request) failed on
+# tickets.HD-1042.category: expected 'incident', got 'software' (ticket first, HD-1042 passed to the prod
+# rollback, revision 8: all correct)
+.venv/bin/gym eval run --no-serve --agent itops_simple_agent \
+  --input resources_servers/itops/data/example.jsonl --output runs/gym_smoke/rollouts.jsonl
+# Stop the Gym servers (Ctrl+C / kill the gym env start process), then Lightning; GPU back to 0 MiB
+scripts/stop_vllm.sh lightning
+```

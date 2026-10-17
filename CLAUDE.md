@@ -44,8 +44,10 @@ Ports: Lightning 8000, student 8001, orchestrator 8200. Gym's own ports are set 
 
 ```
 configs/          models.yaml, eval.yaml, gpu.md
-gym_env/          resources server: state.py, helpdesk.py, ops.py, calendar.py (optional),
-                  verify.py, chaos.py, tasks.py (our schema → Gym format), fixtures/
+gym_env/          resources server: state.py, tools.py, helpdesk.py, ops.py, calendar.py (optional),
+                  env.py (one task's tools + state), server.py (Gym server), verify.py, chaos.py,
+                  tasks.py (our schema → Gym format), fixtures/ (default.json, make_fixtures.py)
+resources_servers/itops/  Gym's required location: app.py starts gym_env/server.py; config, example data
 gym_configs/      NeMo Gym configs, one per setup
 common/           llm.py (every model call), seatbelt.py, tool_loop.py, schemas.py
 factory/          sampler.py, writer.py, collect.py (Lightning rollouts via Gym), filter.py,
@@ -154,6 +156,14 @@ scripts/stop_vllm.sh [lightning|student]    # no name: stop both
 uv run python scripts/smoke_toolcall.py --model <name>   # adapters: add --min-parsed 19
 LLM_MODE=record <command>                   # also save every common/llm.py response to runs/cache/
 LLM_MODE=replay <command>                   # answer from runs/cache/ with no server (never for evals)
+uv run python -m gym_env.fixtures.make_fixtures --config configs/fixtures.yaml   # logs.json + incident fixtures
+uv run python -m gym_env.tasks --cases <cases.jsonl> --output <rows.jsonl>       # our cases -> Gym task rows
+# Gym servers (itops + simple agent + Lightning as policy). UV_EXCLUDE_NEWER keeps Gym's per-server
+# venvs (built under runs/gym_venvs/) within rule 1. Runs in the foreground; Ctrl+C stops it.
+UV_EXCLUDE_NEWER=2026-10-03T00:00:00Z uv run gym env start --resources-server itops --model-type vllm_model \
+  --model lightning --model-url http://localhost:8000/v1 --model-api-key EMPTY +uv_venv_dir=runs/gym_venvs
+uv run gym eval run --no-serve --agent itops_simple_agent \
+  --input resources_servers/itops/data/example.jsonl --output runs/gym_smoke/rollouts.jsonl
 uv run python -m eval.run_eval --setup base_seatbelt --api helpdesk --split practice
 uv run python -m factory.run_round --api ops --round 1
 uv run python -m eval.run_eval --setup team_trained --split practice

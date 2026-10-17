@@ -1,0 +1,29 @@
+# NeMo Gym config for the itops resources server (code in gym_env/) and a simple agent for smoke
+# runs. The per-setup eval configs are in gym_configs/ (task 1.2).
+itops:
+  resources_servers:
+    itops:
+      entrypoint: app.py
+      domain: agent
+      verified: false
+      description: Simulated IT helpdesk and ops tools, scored by state match against gold calls
+      value: Train small specialists to make IT operations tool calls
+      chaos:
+        enabled: false  # on only in the demo or in runs flagged --chaos
+        rate: 0.15
+        seed: 0
+itops_simple_agent:
+  responses_api_agents:
+    simple_agent:
+      entrypoint: app.py
+      max_steps: 10
+      resources_server:
+        type: resources_servers
+        name: itops
+      model_server:
+        type: responses_api_models
+        name: policy_model
+      datasets:
+        - name: example
+          type: example
+          jsonl_fpath: resources_servers/itops/data/example.jsonl

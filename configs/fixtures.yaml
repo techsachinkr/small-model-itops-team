@@ -1,0 +1,21 @@
+# Fixture generation: gym_env/fixtures/make_fixtures.py. Hard rule 3: the generated fixtures and
+# logs are saved with this config and seed (in their "generated_by" field).
+
+seed: 0
+
+# Loghub samples (data/open/DATA_SOURCES.md), pinned to one commit of github.com/logpai/loghub.
+loghub_dir: data/open/loghub
+loghub_commit: dd61d0952749ee7963bde24220d1be5ede023033
+
+# Canned log lines per revision image.
+healthy_log_lines: 12
+broken_log_lines: 15
+
+# The demo request (PLAN.md "Demo request"): payments in prod broke after this morning's deploy.
+demo_incident: {namespace: prod, deployment: payments, mode: bad_deploy}
+
+# Further incident variants, each on a different deployment picked by the seed, alternating modes.
+# bad_deploy: one broken revision this morning; the previous revision is healthy.
+# double_bad_deploy: a broken revision yesterday and a broken "hotfix" this morning; the last
+# healthy revision is two back.
+seeded_incidents: 4
