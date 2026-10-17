@@ -151,3 +151,57 @@ cp $SCRATCH/lora_check/check_vllm.py scripts/checks/lora_check_vllm.py
 # Check both still compile
 .venv/bin/python -m py_compile scripts/checks/lora_make_adapters.py scripts/checks/lora_check_vllm.py
 ```
+
+### Lightning download (ahead of 0.2 Serving)
+
+```bash
+# Free disk before the download: printed 248 GB free on / (the HF cache at ~/.cache is on the same disk)
+df -h /
+
+# Lightning BF16 at the commit pinned in configs/models.yaml (~63 GB, into the HF cache). Run in the background.
+.venv/bin/hf download nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16 \
+  --revision a9904d24bcc1d289a1950fa9d2b978c47cf903b9 > $SCRATCH/lightning_download.log 2>&1
+
+# Check: cache size for the model, and free disk afterwards
+du -sh ~/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16
+df -h /
+```
+
+Result: finished in about 10 minutes. All 14 shards are in the snapshot, with no `.incomplete` files left. Free disk went from 248 GB to 186 GB. The cache folder itself reports about 1 MB to plain `du`, because the snapshot links point outside it; `du -shL` on the snapshot gives the real size, 62 GB.
+
+```bash
+# Check each shard is complete: its size must equal 8 + header length + the last tensor's end offset.
+# Printed "shards ok: True | tensor bytes 65826538624 | params 32913266240". The index's own
+# total_size (65842365568) is slightly larger than the files hold; it's stale metadata, not missing data.
+python3 -I -c "<header check; see the task 0.2 session>" \
+  /ephemeral/cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16/snapshots/a9904d24bcc1d289a1950fa9d2b978c47cf903b9
+du -shL ~/.cache/huggingface/hub/models--nvidia--NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16/snapshots/a9904d24bcc1d289a1950fa9d2b978c47cf903b9
+```
+
+### Event requirements (0.2 checklist item)
+
+You copied the event page to `event_req/NVIDIA x Red Hat Small Models Hack.pdf`. Its text has links to the Submission Checklist and Demo Video Instructions but not their contents, and the bounty details are images. The results went into PLAN.md, "Event requirements".
+
+```bash
+# The Read tool can't render PDFs here (no poppler), and no PDF library is installed. Run pypdf in a
+# throwaway uvx environment (it doesn't touch the project's dependencies) to extract the text.
+uvx --from pypdf==5.4.0 python -I -c "<write each page's extract_text() to a file>" \
+  "event_req/NVIDIA x Red Hat Small Models Hack.pdf" $SCRATCH/event_req.txt
+
+# Extract link targets (the Airtable form and the Notion subpages) and embedded images. The bounty
+# slides on pages 5–6 are images, which were then viewed directly.
+uvx --from pypdf==5.4.0 --with pillow==11.1.0 python -I -c "<print /Annots URIs; save page.images>" \
+  "event_req/NVIDIA x Red Hat Small Models Hack.pdf" $SCRATCH/event_req_img
+
+# The Notion pages render with JavaScript, so a plain fetch returns nothing. Notion's public page-data
+# endpoint returns each page's blocks as JSON (repeat with the Demo Video Instructions page ID
+# 087f567d-17cc-8239-839b-011a10c5c0d3, saved as video.json).
+curl -s -X POST https://concrete-panther-c83.notion.site/api/v3/loadCachedPageChunk \
+  -H "Content-Type: application/json" \
+  -d '{"page":{"id":"9e5f567d-17cc-83c0-9dc7-0160ca887731"},"limit":200,"cursor":{"stack":[]},"chunkNumber":0,"verticalColumns":false}' \
+  -o $SCRATCH/notion/checklist.json
+
+# Print the blocks as indented text in page order (helper kept in the repo as scripts/tools/notion_page_text.py)
+python3 -I scripts/tools/notion_page_text.py $SCRATCH/notion/checklist.json 9e5f567d-17cc-83c0-9dc7-0160ca887731
+python3 -I scripts/tools/notion_page_text.py $SCRATCH/notion/video.json 087f567d-17cc-8239-839b-011a10c5c0d3
+```
