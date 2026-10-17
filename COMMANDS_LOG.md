@@ -450,3 +450,12 @@ scripts/stop_vllm.sh lightning                      # after stopping the Gym ser
 git rm -r --cached event_req/
 printf '\n# Event materials, kept locally only\nevent_req/\n' >> .gitignore
 ```
+
+### answer_must_contain ignores case
+
+```bash
+# verify.py now matches answer_must_contain case-insensitively (casefold). Tests: 75 passed. Re-scoring the
+# rerun's three ex-ro-001 answers offline (read-only case, so the final state is the fixture): all pass,
+# including the "Status: Open" one that failed before
+.venv/bin/python -m pytest -q
+```

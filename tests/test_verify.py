@@ -90,6 +90,12 @@ def test_read_only_answer_must_contain_every_string() -> None:
     assert verdict.missing_from_answer == ["open"]
 
 
+def test_answer_check_ignores_case() -> None:
+    case = CASES["ex-ro-001"]  # answer_must_contain: ["P2", "open"]
+    state = final_state(case, gold(case))
+    assert check(case, state, "Priority: p2\nStatus: **Open**").passed
+
+
 def test_failing_gold_call_is_a_case_error() -> None:
     case = CASES["ex-hd-001"].model_copy(deep=True)
     case.gold_calls[1].args.pop("device_id")

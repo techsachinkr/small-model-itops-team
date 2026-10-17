@@ -257,7 +257,7 @@ Notes for later tasks (from 1.1; commands and results in `COMMANDS_LOG.md`):
 - "Open ticket" for `change_ticket` means unresolved: status `open` or `in_progress`.
 - 1.2: tool errors come back as HTTP 400/404 with `{"error": {"code", "message"}}`, and chaos as 503 with `"retryable": true`, so the seatbelt can tell them apart. `gym_env.env.Env` runs the same tools without HTTP. Reuse `gym_env.tasks.system_prompt` so every setup sees the same prompt. `max_steps: 10` in `resources_servers/itops/configs/itops.yaml` is only for smoke runs.
 - 1.2: cases must pin down every structured field the gold checks. In the first smoke run, Lightning failed only the demo request, filing the ticket as `software` where the gold says `incident`. After adding category definitions to `create_ticket`'s schema it chose `incident` in 2 of 3 runs.
-- 1.2: `answer_must_contain` is a case-sensitive substring check, so "open" fails an answer that says "Open". Pick strings whose case can't vary (IDs, `P2`), or decide whether the check should ignore case.
+- 1.2: `answer_must_contain` ignores case (decided 2026-10-17, after a correct "Status: Open" answer failed against "open" in the rerun).
 - `gym eval run --input` needs `--no-serve` and servers started with `gym env start` (Commands in CLAUDE.md).
 
 ### [ ] 1.2 Seatbelt, tool loop and the baseline

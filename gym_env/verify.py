@@ -6,7 +6,8 @@ The actual state is the final state of the session the system ran in, which was 
 Both are projected and must match exactly. The projection keeps every structured field, but free text
 (ticket summaries and notes) only has to be present, because no model will reproduce the gold wording
 (PLAN.md task 1.1, option B). Order-free records (changes, password resets) are compared as sorted lists.
-If the case lists answer_must_contain, the final answer must also contain each string (plain substring).
+If the case lists answer_must_contain, the final answer must also contain each string (a substring check
+that ignores case, so "open" matches "Status: Open").
 """
 
 import json
@@ -92,7 +93,8 @@ def diff(expected: Any, actual: Any, path: str = "") -> list[str]:
 
 def check(case: Case, final_state: State, final_answer: str) -> Verdict:
     state_diff = diff(project(expected_state(case)), project(final_state))
-    missing = [s for s in case.answer_must_contain or [] if s not in final_answer]
+    answer = final_answer.casefold()
+    missing = [s for s in case.answer_must_contain or [] if s.casefold() not in answer]
     return Verdict(
         passed=not state_diff and not missing,
         state_match=not state_diff,
