@@ -5,11 +5,14 @@
 
 Reads runs/<run_id>/ from factory/collect.py: rollouts.jsonl, and through config.json the task file with
 its .config.json (each task's origin; slots the writer dropped) and .decontaminate.json (tasks dropped
-before collection). A rollout is kept only if its `reward` is 1 (the verifier's state match and answer
-checks passed, and the seatbelt didn't give up), every call returned 200, and the self-check never sent
-Lightning back to work (that nudge is a user turn the student shouldn't learn to wait for). Otherwise
-its reason is the first of: gave_up, state_mismatch, answer_mismatch, failed_call (status 0 is a call
-the seatbelt blocked), self_check_nudge, other. A task with no rollout is `no_rollout`.
+before collection). A rollout is kept only if the seatbelt didn't give up, the verifier's state match
+passed, its final answer passes the verifier's answer check, every call returned 200, and the self-check
+never sent Lightning back to work (that nudge is a user turn the student shouldn't learn to wait for).
+The state match is the one recorded at collection; the answer check (gym_env.verify.answer_check) runs
+again on the stored answer, so rollouts are judged by the verifier as it is now: round 1 was collected
+before it read look-alike hyphens as ASCII. Otherwise the reason is the first of: gave_up,
+state_mismatch, answer_mismatch, failed_call (status 0 is a call the seatbelt blocked),
+self_check_nudge. A task with no rollout is `no_rollout`.
 
 Each kept rollout becomes a TrainingExample (common/schemas.py):
 - messages: Lightning's whole conversation in chat format, with its reasoning in `reasoning_content`.
@@ -39,15 +42,15 @@ import yaml
 from common.llm import MODELS_CONFIG
 from common.schemas import Case, TrainingExample
 from eval.run_eval import REPO
-from gym_env.tasks import read_cases
-from gym_env.verify import ASCII_LOOKALIKES
+from gym_env.tasks import read_cases, rollout_answer
+from gym_env.verify import ASCII_LOOKALIKES, answer_check
 
 # Importing nemo_gym sets HF_HOME to Gym's own cache folder unless it is already set. Keep the usual
 # Hugging Face cache, where the student's tokenizer is (nemo_gym is imported only in conversation()).
 os.environ.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
 
 THINK_BLOCK = re.compile(r"<think>(.*?)</think>", re.DOTALL)
-REASONS = ("gave_up", "state_mismatch", "answer_mismatch", "failed_call", "self_check_nudge", "other")
+REASONS = ("gave_up", "state_mismatch", "answer_mismatch", "failed_call", "self_check_nudge")
 
 
 def rejection(row: dict[str, Any]) -> str | None:
@@ -58,13 +61,14 @@ def rejection(row: dict[str, Any]) -> str | None:
         return "gave_up"
     if not row.get("state_match"):
         return "state_mismatch"
-    if not row.get("answer_ok"):
+    missing, forbidden = answer_check(Case.model_validate(row["case"]), rollout_answer(row))
+    if missing or forbidden:
         return "answer_mismatch"
     if any(call["status"] != 200 for call in step["calls"]):
         return "failed_call"
     if any(event["kind"] == "self_check" and event.get("complete") is False for event in events):
         return "self_check_nudge"
-    return None if row.get("reward") == 1.0 else "other"
+    return None
 
 
 def conversation(row: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:

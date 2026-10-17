@@ -3,7 +3,7 @@
  "tasks": "data/generated/helpdesk/tasks_round_1.jsonl",
  "round": 1,
  "rollouts": 1198,
- "kept": 1062,
+ "kept": 1085,
  "by_origin": {
   "sampled": {
    "decontaminated_changes": 58,
@@ -17,8 +17,8 @@
   "written": {
    "writer_dropped": 11,
    "decontaminated_changes": 17,
-   "kept": 186,
-   "answer_mismatch": 29,
+   "kept": 209,
+   "answer_mismatch": 6,
    "state_mismatch": 16,
    "self_check_nudge": 1
   }
@@ -26,8 +26,8 @@
  "total": {
   "writer_dropped": 11,
   "decontaminated_changes": 75,
-  "kept": 1062,
-  "answer_mismatch": 29,
+  "kept": 1085,
+  "answer_mismatch": 6,
   "state_mismatch": 64,
   "self_check_nudge": 31,
   "decontaminated_same_user": 16,
@@ -48,8 +48,8 @@
    "state_mismatch": 6
   },
   "read_only": {
-   "kept": 26,
-   "answer_mismatch": 29
+   "kept": 49,
+   "answer_mismatch": 6
   },
   "single": {
    "kept": 855,
@@ -124,16 +124,14 @@
    "state_mismatch": 2
   },
   "written:get_ticket": {
-   "answer_mismatch": 12,
-   "kept": 10
+   "answer_mismatch": 6,
+   "kept": 16
   },
   "written:list_devices": {
-   "kept": 14,
-   "answer_mismatch": 5
+   "kept": 19
   },
   "written:list_tickets": {
-   "kept": 2,
-   "answer_mismatch": 12
+   "kept": 14
   },
   "written:reset_password": {
    "kept": 67,

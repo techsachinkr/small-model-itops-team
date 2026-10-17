@@ -827,3 +827,19 @@ setup is scored the same way; Gym's itops server picks it up at its next start (
 # of 36 (pr-ops-08 #2), cases 7/12 -> 8/12; round1_helpdesk reward-1 rollouts 1101 -> 1124 of 1198. The student's
 # baselines, round1_ops and the pilot don't change. PLAN.md's baseline table marks Lightning ops 8/12 with a note.
 ```
+
+### Re-filter round 1 with the fixed answer check (user's decision)
+
+`factory/filter.py` runs `gym_env.verify.answer_check` again on each stored final answer (new
+`gym_env.tasks.rollout_answer`, the same extraction as the server's `final_answer()`), keeping the recorded state
+match; the `other` reason is gone (reward 1 is now exactly: no gave_up, state match, answer check).
+
+```bash
+.venv/bin/python -m pytest -q          # 196 passed
+# old files kept in $SCRATCH/round1_before/, then removed so the filter could write them again
+.venv/bin/python -m factory.filter --run round1_helpdesk --round 1 --output data/generated/helpdesk/round_1.jsonl
+# kept 1085/1198 (was 1062): +23 written read_only (26 -> 49 of 55); answer_mismatch 29 -> 6. The 1062 earlier
+# examples are byte-identical.
+.venv/bin/python -m factory.filter --run round1_ops --round 1 --output data/generated/ops/round_1.jsonl
+# kept 1016/1149, byte-identical to before
+```

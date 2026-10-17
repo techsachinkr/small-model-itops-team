@@ -60,7 +60,11 @@ NUDGE = {"kind": "self_check", "turn": 1, "detail": "a reset is needed", "comple
     (row(), None),
     (row(reward=0.0, events=[GAVE_UP]), "gave_up"),
     (row(reward=0.0, state_match=False), "state_mismatch"),
-    (row(reward=0.0, answer_ok=False), "answer_mismatch"),
+    (row(CASE.model_copy(update={"answer_must_contain": ["HD-1041", "voicemail"]}), reward=0.0, answer_ok=False),
+     "answer_mismatch"),  # "voicemail" isn't in the answer
+    (row(CASE.model_copy(update={"answer_must_contain": ["HD-1041"]}), reward=0.0, answer_ok=False),
+     None),  # recorded as a mismatch before the verifier read "HD\u20111041" as HD-1041; it passes now
+    (row(CASE.model_copy(update={"answer_must_not_contain": ["hd-1041"]})), "answer_mismatch"),
     (row(statuses=(0, 200)), "failed_call"),  # blocked by the seatbelt, then fixed
     (row(statuses=(400, 200)), "failed_call"),
     (row(events=[NUDGE]), "self_check_nudge"),

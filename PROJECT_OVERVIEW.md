@@ -152,7 +152,7 @@ Every outside source is listed with its license in `data/open/DATA_SOURCES.md`.
 | 0. Repo, serving (vLLM), model client | done |
 | 1.1 NeMo Gym environment and verifier | done |
 | 1.2 Seatbelt, tool loop, Gym agent, eval runner, practice cases, baseline | done: practice cases reviewed; baseline in `runs/practice_baseline.md` |
-| 2.1 Tasks and Lightning rollouts | done: round 1 has 1,062 helpdesk and 1,016 ops verified examples |
+| 2.1 Tasks and Lightning rollouts | done: round 1 has 1,085 helpdesk and 1,016 ops verified examples |
 | 2.2–2.3 Round 1 and round 2 training | not started |
 | 3. Specialists, orchestrator, system baselines, escalation | not started |
 | 4. vLLM serving benchmarks | not started |

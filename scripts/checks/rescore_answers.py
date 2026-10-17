@@ -16,16 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from common.eval_config import load_eval_config  # noqa: E402
 from common.schemas import Case  # noqa: E402
+from gym_env.tasks import rollout_answer  # noqa: E402
 from gym_env.verify import answer_check  # noqa: E402
-
-
-def final_answer(row: dict) -> str:
-    """The last assistant message's text, as gym_env/server.py's final_answer() takes it."""
-    answer = ""
-    for item in row["response"]["output"]:
-        if item.get("type") == "message" and item.get("role") == "assistant":
-            answer = "\n".join(part["text"] for part in item["content"] if part.get("type") == "output_text")
-    return answer
 
 
 def passed(row: dict, answer_ok: bool) -> bool:
@@ -43,7 +35,7 @@ def main() -> None:
         before, after = defaultdict(int), defaultdict(int)
         flipped = []
         for row in rows:
-            missing, forbidden = answer_check(Case.model_validate(row["case"]), final_answer(row))
+            missing, forbidden = answer_check(Case.model_validate(row["case"]), rollout_answer(row))
             old, new = row["reward"] == 1.0, passed(row, not missing and not forbidden)
             before[row["task_id"]] += old
             after[row["task_id"]] += new

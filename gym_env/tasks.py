@@ -2,7 +2,8 @@
 
 This is the only place that knows Gym's row format. A row is
 `{task_id, case, responses_create_params: {input, tools}}`: Gym's agent sends the whole row to
-/seed_session and /verify, which read `case`; the model sees only `responses_create_params`.
+/seed_session and /verify, which read `case`; the model sees only `responses_create_params`. A collected
+rollout adds `response`, whose final answer rollout_answer() reads.
 
     uv run python -m gym_env.tasks --cases <cases.jsonl> --output <rows.jsonl>
 """
@@ -44,6 +45,16 @@ def case_to_row(case: Case, apis: Iterable[str] | None = None) -> dict[str, Any]
             "tools": tool_schemas(apis or case.apis),
         },
     }
+
+
+def rollout_answer(row: dict[str, Any]) -> str:
+    """A collected rollout's final answer: the last assistant message's text, as gym_env/server.py's
+    final_answer() takes it from the response it verifies."""
+    answer = ""
+    for item in row["response"]["output"]:
+        if item.get("type") == "message" and item.get("role") == "assistant":
+            answer = "\n".join(part["text"] for part in item["content"] if part.get("type") == "output_text")
+    return answer
 
 
 def read_cases(path: Path) -> list[Case]:
