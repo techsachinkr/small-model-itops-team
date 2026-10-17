@@ -1,0 +1,50 @@
+# Factory settings (task 2.1). Hard rule 3: every task file is saved with these settings and its seed
+# (tasks_<name>.config.json next to it), and every collection run copies them into runs/<run_id>/.
+
+tasks:                        # factory/sampler.py and factory/writer.py
+  seed: 0
+  written_fraction: 0.2       # share of tasks Lightning writes whole (origin=written); the rest are sampled
+  sampled_kinds:              # weights of the sampled task kinds (PLAN.md: ~20% of the test set asks or declines)
+    single_1_step: 0.3        # the request gives every ID the call needs
+    single_2_steps: 0.4       # one lookup, then the action
+    missing_info: 0.15
+    no_tool: 0.15
+  written_kinds:              # code checks these against the fixture; it can't check that information is
+    single: 0.8               # really missing, so missing_info and no_tool are only sampled
+    read_only: 0.2
+
+writer:                       # Lightning through common/llm.py, with a structured answer
+  model: lightning
+  temperature: 1.0            # Lightning's card; varied phrasing is the point here
+  top_p: 0.95
+  # Phrasing: thinking off, as for the self-check (the schema constrains the whole answer). Writing whole
+  # tasks: thinking on. Off, 4 of 8 trial tasks had facts that contradict the fixture (a colleague's
+  # ticket under the wrong name) or gold values the request never states; on, the facts held
+  # (task 2.1 trial, 2026-10-17). It costs about 5-15k tokens per written task.
+  thinking_phrase: false
+  thinking_write: true
+  max_tokens_phrase: 512
+  max_tokens_write: 12288
+  max_tries: 3                # per task; a task that still fails a check is dropped and logged
+  concurrency: 16
+
+# eval/decontaminate.py. Calibrated on the practice cases (task 2.1, 2026-10-17): distinct practice requests
+# score up to 0.63 against each other (pr-ops-05 vs pr-ops-06), hand-made paraphrases of practice requests
+# 0.67-0.96, and phrased sampled tasks 0.30 median, 0.70 max, mostly through shared templates.
+decontaminate:
+  text_threshold: 0.7         # against any practice request
+  same_user_threshold: 0.25   # tasks that change nothing, against a practice case of the same kind, user and
+                              # fixture: "add a note to my open ticket" from E1004 (pr-hd-10's situation) scored
+                              # 0.32-0.58 in the pilot and calibration; other tasks in such a pair 0.04-0.12
+
+# Lightning rollouts (factory/collect.py): configs/eval.yaml with only these fields changed, so the
+# tools, seatbelt, max steps and sampling are the ones every eval setup uses (hard rule 7 doesn't bind
+# the factory, but the student should learn from the loop it is evaluated in).
+# - thinking on: with it on, the verifier passed 33/36 helpdesk and 30/36 ops of Lightning's practice
+#   attempts, against 27/36 and 21/36 with it off (task 1.2). Those were at temperature 0.6, so it stays.
+# - one attempt per task: diversity comes from the tasks (Gym's offline-training tutorial: low
+#   temperature, one rollout per task for SFT).
+collect:
+  thinking: true
+  attempts_per_case: 1
+  pass_min_attempts: 1

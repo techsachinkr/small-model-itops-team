@@ -1,0 +1,420 @@
+{
+ "script": "factory/writer.py",
+ "args": {
+  "api": "helpdesk",
+  "n": 50,
+  "name": "pilot",
+  "out_dir": "data/generated/helpdesk/pilot",
+  "config": "/home/ubuntu/small-model-itops-team/configs/factory.yaml",
+  "seed": null
+ },
+ "created_at": "2026-10-17T20:04:41.173736+00:00",
+ "git_commit": "c9a3eefca2d622abd1cdaa6544095e53f5d0b995",
+ "git_dirty": true,
+ "factory_config": {
+  "tasks": {
+   "seed": 0,
+   "written_fraction": 0.2,
+   "sampled_kinds": {
+    "single_1_step": 0.3,
+    "single_2_steps": 0.4,
+    "missing_info": 0.15,
+    "no_tool": 0.15
+   },
+   "written_kinds": {
+    "single": 0.8,
+    "read_only": 0.2
+   }
+  },
+  "writer": {
+   "model": "lightning",
+   "temperature": 1.0,
+   "top_p": 0.95,
+   "thinking_phrase": false,
+   "thinking_write": true,
+   "max_tokens_phrase": 512,
+   "max_tokens_write": 12288,
+   "max_tries": 3,
+   "concurrency": 16
+  },
+  "decontaminate": {
+   "text_threshold": 0.7,
+   "same_user_threshold": 0.35
+  },
+  "collect": {
+   "thinking": true,
+   "attempts_per_case": 1,
+   "pass_min_attempts": 1
+  }
+ },
+ "seed": 0,
+ "llm_mode": "record",
+ "writer_model": {
+  "hf_id": "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+  "revision": "a9904d24bcc1d289a1950fa9d2b978c47cf903b9"
+ },
+ "counts": {
+  "slots": 50,
+  "kept": {
+   "sampled": 40,
+   "written": 10
+  },
+  "dropped": {},
+  "prompt_tokens": 48222,
+  "completion_tokens": 42519,
+  "elapsed_s": 53.1
+ },
+ "tasks": {
+  "hd-pilot-0001": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "terse, like a quick chat message; lowercase is fine",
+   "tries": 1
+  },
+  "hd-pilot-0002": {
+   "origin": "sampled",
+   "group": "no_tool",
+   "template": "reveal_password",
+   "style": "terse, like a quick chat message; lowercase is fine",
+   "tries": 1
+  },
+  "hd-pilot-0003": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "reset_password",
+   "twist": "a request on behalf of a colleague, by their employee ID",
+   "tries": 1
+  },
+  "hd-pilot-0004": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "slightly frustrated, but clear about what they want",
+   "tries": 1
+  },
+  "hd-pilot-0005": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "two or three sentences, polite, with a little context about why it matters",
+   "tries": 1
+  },
+  "hd-pilot-0006": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "friendly and chatty, with a greeting",
+   "tries": 1
+  },
+  "hd-pilot-0007": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "ticket_without_device",
+   "style": "two or three sentences, polite, with a little context about why it matters",
+   "tries": 1
+  },
+  "hd-pilot-0008": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "one short sentence, casual",
+   "tries": 1
+  },
+  "hd-pilot-0009": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "hardware_ticket_with_device_id",
+   "style": "one short sentence, casual",
+   "tries": 1
+  },
+  "hd-pilot-0010": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "update_ticket_by_id",
+   "style": "hurried: gets straight to the point, no greeting",
+   "tries": 1
+  },
+  "hd-pilot-0011": {
+   "origin": "sampled",
+   "group": "missing_info",
+   "template": "no_ticket_to_update",
+   "style": "two or three sentences, polite, with a little context about why it matters",
+   "tries": 1
+  },
+  "hd-pilot-0012": {
+   "origin": "sampled",
+   "group": "missing_info",
+   "template": "no_ticket_to_update",
+   "style": "friendly and chatty, with a greeting",
+   "tries": 1
+  },
+  "hd-pilot-0013": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "one short sentence, casual",
+   "tries": 1
+  },
+  "hd-pilot-0014": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "update_ticket_by_id",
+   "style": "formal and precise",
+   "tries": 1
+  },
+  "hd-pilot-0015": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "formal and precise",
+   "tries": 1
+  },
+  "hd-pilot-0016": {
+   "origin": "sampled",
+   "group": "missing_info",
+   "template": "no_ticket_to_update",
+   "style": "friendly and chatty, with a greeting",
+   "tries": 1
+  },
+  "hd-pilot-0017": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "reset_password",
+   "twist": "a sentence of context about why the employee needs it",
+   "tries": 1
+  },
+  "hd-pilot-0018": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "slightly frustrated, but clear about what they want",
+   "tries": 1
+  },
+  "hd-pilot-0019": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "ticket_without_device",
+   "style": "friendly and chatty, with a greeting",
+   "tries": 1
+  },
+  "hd-pilot-0020": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "create_ticket",
+   "twist": "a condition the assistant must check first (do something only if something is true)",
+   "tries": 1
+  },
+  "hd-pilot-0021": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "hurried: gets straight to the point, no greeting",
+   "tries": 1
+  },
+  "hd-pilot-0022": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "one short sentence, casual",
+   "tries": 1
+  },
+  "hd-pilot-0023": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "formal and precise",
+   "tries": 1
+  },
+  "hd-pilot-0024": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "hurried: gets straight to the point, no greeting",
+   "tries": 1
+  },
+  "hd-pilot-0025": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "create_ticket",
+   "twist": "things referred to by description rather than by ID",
+   "tries": 2
+  },
+  "hd-pilot-0026": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "update_ticket",
+   "twist": "a request on behalf of a colleague, by their employee ID",
+   "tries": 1
+  },
+  "hd-pilot-0027": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "create_ticket",
+   "twist": "a short, terse message",
+   "tries": 1
+  },
+  "hd-pilot-0028": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "terse, like a quick chat message; lowercase is fine",
+   "tries": 1
+  },
+  "hd-pilot-0029": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "two or three sentences, polite, with a little context about why it matters",
+   "tries": 1
+  },
+  "hd-pilot-0030": {
+   "origin": "sampled",
+   "group": "missing_info",
+   "template": "no_ticket_to_update",
+   "style": "one short sentence, casual",
+   "tries": 1
+  },
+  "hd-pilot-0031": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "update_ticket",
+   "twist": "a request on behalf of a colleague, by their employee ID",
+   "tries": 1
+  },
+  "hd-pilot-0032": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "reset_password",
+   "twist": "a short, terse message",
+   "tries": 1
+  },
+  "hd-pilot-0033": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "update_ticket",
+   "twist": "a condition the assistant must check first (do something only if something is true)",
+   "tries": 1
+  },
+  "hd-pilot-0034": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "one short sentence, casual",
+   "tries": 1
+  },
+  "hd-pilot-0035": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "hardware_ticket_with_device_id",
+   "style": "friendly and chatty, with a greeting",
+   "tries": 1
+  },
+  "hd-pilot-0036": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "one short sentence, casual",
+   "tries": 1
+  },
+  "hd-pilot-0037": {
+   "origin": "sampled",
+   "group": "missing_info",
+   "template": "colleague_by_name",
+   "style": "hurried: gets straight to the point, no greeting",
+   "tries": 1
+  },
+  "hd-pilot-0038": {
+   "origin": "sampled",
+   "group": "no_tool",
+   "template": "colleague_private_info",
+   "style": "two or three sentences, polite, with a little context about why it matters",
+   "tries": 1
+  },
+  "hd-pilot-0039": {
+   "origin": "sampled",
+   "group": "missing_info",
+   "template": "which_device",
+   "style": "slightly frustrated, but clear about what they want",
+   "tries": 1
+  },
+  "hd-pilot-0040": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "ticket_without_device",
+   "style": "slightly frustrated, but clear about what they want",
+   "tries": 1
+  },
+  "hd-pilot-0041": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "hardware_ticket_with_device_id",
+   "style": "formal and precise",
+   "tries": 1
+  },
+  "hd-pilot-0042": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "reset_password",
+   "style": "slightly frustrated, but clear about what they want",
+   "tries": 1
+  },
+  "hd-pilot-0043": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "hardware_ticket_lookup_device",
+   "style": "one short sentence, casual",
+   "tries": 1
+  },
+  "hd-pilot-0044": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "slightly frustrated, but clear about what they want",
+   "tries": 1
+  },
+  "hd-pilot-0045": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "update_ticket_by_id",
+   "style": "hurried: gets straight to the point, no greeting",
+   "tries": 1
+  },
+  "hd-pilot-0046": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "update_ticket_by_id",
+   "style": "formal and precise",
+   "tries": 1
+  },
+  "hd-pilot-0047": {
+   "origin": "sampled",
+   "group": "single_2_steps",
+   "template": "update_ticket_by_topic",
+   "style": "formal and precise",
+   "tries": 1
+  },
+  "hd-pilot-0048": {
+   "origin": "sampled",
+   "group": "missing_info",
+   "template": "colleague_by_name",
+   "style": "friendly and chatty, with a greeting",
+   "tries": 1
+  },
+  "hd-pilot-0049": {
+   "origin": "written",
+   "kind": "single",
+   "focus": "reset_password",
+   "twist": "a sentence of context about why the employee needs it",
+   "tries": 1
+  },
+  "hd-pilot-0050": {
+   "origin": "sampled",
+   "group": "single_1_step",
+   "template": "reset_password",
+   "style": "terse, like a quick chat message; lowercase is fine",
+   "tries": 1
+  }
+ },
+ "dropped": []
+}

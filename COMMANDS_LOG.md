@@ -679,3 +679,73 @@ for setup in base_raw base_seatbelt lightning; do for api in helpdesk ops; do
 # Self-check: 3 rescues (two read-only answers given without looking, one reset not yet done), no correct
 # question turned into a wrong action. The human reviewed the cases; base < 11/12 on both APIs. Task 1.2 done.
 ```
+
+## 2026-10-17: task 2.1 Tasks and Lightning rollouts
+
+Decisions (with the user): each task's origin goes in the writer's `tasks_<name>.config.json`, not in `Case`;
+rollouts the self-check sent back to work are rejected, not edited; Claude runs the writer's Lightning calls,
+the human runs collection; the pilot lives in `data/generated/helpdesk/pilot/`, separate from round 1.
+
+### Research: chat formats and Gym's offline-training tutorial
+
+Read Gym's "Offline Training with Rollouts (SFT/DPO)" tutorial (docs.nvidia.com/nemo/gym/latest; experimental,
+and its filter needs a `success` field Gym never writes, GitHub issue #2235): collect, filter by reward, and
+convert; low temperature and one rollout per task for SFT. Our filter uses `reward` and the trace instead.
+Checked the student's chat template (HF cache, pinned revision) and vLLM 0.27.1's `chat_utils.py` and
+`FunctionDefinition`: the template needs tool-call arguments as objects (vLLM parses them; `_postprocess_messages`),
+renders `reasoning_content` even with thinking off (so the filter drops it), renders each assistant turn as
+`<think></think>...`, which matches vLLM's generation prompt with thinking off; vLLM keeps `strict: false` in the
+tool definitions, so the filter renders the rollout's own tools. Importing `nemo_gym` sets `HF_HOME` to its own
+cache folder when unset, which hid the student's tokenizer; `factory/filter.py` sets the usual one first.
+
+```bash
+.venv/bin/python -m factory.sampler --api helpdesk --n 14            # print sampled briefs and gold calls
+.venv/bin/python -m factory.sampler --api ops --n 14
+# 400 sampled tasks per API: every one passes sampler.task_problems (gold calls run, kinds consistent)
+```
+
+### Writer trials (Lightning on :8000, live; scratch outputs in $SCRATCH)
+
+```bash
+.venv/bin/python -m factory.writer --api helpdesk --n 10 --name smoke --seed 11 --out-dir $SCRATCH/w1
+# kept 9/10 in 4 s; one written task cited another user's ticket (HD-1040)
+PYTHONPATH=. .venv/bin/python $SCRATCH/try_write.py helpdesk off 8    # written tasks, thinking off
+PYTHONPATH=. .venv/bin/python $SCRATCH/try_write.py helpdesk on 8     # thinking on
+# Off: 4/8 had facts that contradict the fixture or gold values the request never states. On: facts held;
+# still unstated values (status, priority). Added writer.unstated() checks; writing whole tasks uses thinking on.
+PYTHONPATH=. .venv/bin/python $SCRATCH/try_write.py helpdesk on 8     # 8/8 kept
+PYTHONPATH=. .venv/bin/python $SCRATCH/try_write.py ops on 8          # 4/8; 4 dropped because "scale" counted as
+                                                                      # a tool name; fixed (only names with "_")
+```
+
+### Decontamination calibration
+
+```bash
+PYTHONPATH=. .venv/bin/python $SCRATCH/calibrate.py 80     # practice vs practice up to 0.629 (pr-ops-05/06),
+                                                           # hand paraphrases 0.565-0.956, phrased tasks max 0.704
+PYTHONPATH=. .venv/bin/python $SCRATCH/calibrate2.py       # 150 phrased per API: drops helpdesk 12, ops 20, mostly
+                                                           # "changes" (rollbacks in incident fixtures = practice answers)
+LLM_MODE=record PYTHONPATH=. .venv/bin/python $SCRATCH/calibrate3.py   # same-user scores; rule limited to no-change kinds
+```
+Settings: text 0.7 against any practice request; same user, fixture and kind 0.25 (no-change kinds only);
+same changes (free text and change ticket aside) as a practice case or part of one.
+
+### Build and test
+
+```bash
+.venv/bin/python -m pytest -q          # 182 passed (53 new: sampler, writer, decontaminate, collect, filter)
+```
+The filter's pieces on the task 1.2 rollouts (thinking on, real Lightning output): helpdesk 22/36 kept (8 gave_up,
+4 self_check_nudge, 2 answer_mismatch), ops 21/36 (7 gave_up, 3 state, 3 answer, 2 failed_call); every kept one
+renders. 82 of Lightning's 199 answers wrote IDs with a non-breaking hyphen (U+2011); `text` now uses ASCII
+look-alikes for hyphens and spaces in the assistant's text.
+
+### Pilot: 50 helpdesk tasks
+
+```bash
+LLM_MODE=record .venv/bin/python -m factory.writer --api helpdesk --n 50 --name pilot \
+  --out-dir data/generated/helpdesk/pilot                   # kept 50/50 (40 sampled, 10 written) in 53 s
+.venv/bin/python -m eval.decontaminate --tasks data/generated/helpdesk/pilot/tasks_pilot.jsonl --against practice
+# first run at same_user 0.35 kept 45/50 and missed hd-pilot-0016 (E1004, pr-hd-10's situation, score 0.32);
+# restored the task file and reran at 0.25: kept 44/50 (4 changes, 2 same_user)
+```

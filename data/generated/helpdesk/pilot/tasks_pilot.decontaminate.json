@@ -1,0 +1,224 @@
+{
+ "script": "eval/decontaminate.py",
+ "created_at": "2026-10-17T20:05:42.049297+00:00",
+ "against": "practice",
+ "thresholds": {
+  "text_threshold": 0.7,
+  "same_user_threshold": 0.25
+ },
+ "references": [
+  "pr-hd-01",
+  "pr-hd-02",
+  "pr-hd-03",
+  "pr-hd-04",
+  "pr-hd-05",
+  "pr-hd-06",
+  "pr-hd-07",
+  "pr-hd-08",
+  "pr-hd-09",
+  "pr-hd-10",
+  "pr-hd-11",
+  "pr-hd-12",
+  "pr-ops-01",
+  "pr-ops-02",
+  "pr-ops-03",
+  "pr-ops-04",
+  "pr-ops-05",
+  "pr-ops-06",
+  "pr-ops-07",
+  "pr-ops-08",
+  "pr-ops-09",
+  "pr-ops-10",
+  "pr-ops-11",
+  "pr-ops-12"
+ ],
+ "tasks": 50,
+ "kept": 44,
+ "dropped_by_reason": {
+  "changes": 4,
+  "same_user": 2
+ },
+ "score_quantiles": {
+  "0.5": 0.304,
+  "0.9": 0.429,
+  "0.99": 0.554
+ },
+ "dropped": [
+  {
+   "id": "hd-pilot-0015",
+   "reason": "changes",
+   "score": 0.367,
+   "nearest": "pr-hd-03",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-03"
+   ],
+   "task": {
+    "id": "hd-pilot-0015",
+    "request": "Dear IT assistant, I would like to request the reopening of my helpdesk ticket regarding the recurring issue of Excel crashing when opening large pivot tables. Please add a note to the ticket stating that the problem is back.",
+    "user_id": "E1003",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1003"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1032",
+       "status": "open",
+       "note": "The problem is back"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-pilot-0016",
+   "reason": "same_user",
+   "score": 0.32,
+   "nearest": "pr-hd-10",
+   "same_user_score": 0.32,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-pilot-0016",
+    "request": "Hi there! Hope you're having a good week. I just restarted my laptop after getting an error, but it's still acting up. Do me a favor and add a note to my open ticket saying restarting didn't help? Cheers!",
+    "user_id": "E1004",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-pilot-0021",
+   "reason": "changes",
+   "score": 0.281,
+   "nearest": "pr-hd-06",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-06"
+   ],
+   "task": {
+    "id": "hd-pilot-0021",
+    "request": "Can you update Marcus Chen's ticket about the dock not detecting the second monitor and set the priority to P2? His employee ID is E1002.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "list_tickets",
+      "args": {
+       "employee_id": "E1002"
+      }
+     },
+     {
+      "api": "helpdesk",
+      "tool": "update_ticket",
+      "args": {
+       "ticket_id": "HD-1034",
+       "priority": "P2"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-pilot-0030",
+   "reason": "same_user",
+   "score": 0.441,
+   "nearest": "pr-hd-10",
+   "same_user_score": 0.441,
+   "same_changes_as": [],
+   "task": {
+    "id": "hd-pilot-0030",
+    "request": "Hey can you add a note to my open ticket that I'm away until Thursday and they should contact me after that? I think I have one but not sure which.",
+    "user_id": "E1004",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [],
+    "kind": "missing_info"
+   }
+  },
+  {
+   "id": "hd-pilot-0041",
+   "reason": "changes",
+   "score": 0.32,
+   "nearest": "pr-hd-11",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-02"
+   ],
+   "task": {
+    "id": "hd-pilot-0041",
+    "request": "Please open a priority P3 hardware ticket for my colleague Hannah Weber's laptop, which has asset tag D2010 and is a MacBook Air 13. The device stopped charging even with a different charger. Hannah Weber's employee ID is E1005.",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "create_ticket",
+      "args": {
+       "employee_id": "E1005",
+       "category": "hardware",
+       "summary": "Laptop won't charge",
+       "priority": "P3",
+       "device_id": "D2010"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  },
+  {
+   "id": "hd-pilot-0050",
+   "reason": "changes",
+   "score": 0.349,
+   "nearest": "pr-hd-04",
+   "same_user_score": 0.0,
+   "same_changes_as": [
+    "pr-hd-04"
+   ],
+   "task": {
+    "id": "hd-pilot-0050",
+    "request": "can u reset amara nwosu password employee ID E1007 and send the temporary password by text message the old one expired",
+    "user_id": "E1011",
+    "fixture": "default",
+    "apis": [
+     "helpdesk"
+    ],
+    "gold_calls": [
+     {
+      "api": "helpdesk",
+      "tool": "reset_password",
+      "args": {
+       "employee_id": "E1007",
+       "delivery": "sms"
+      }
+     }
+    ],
+    "kind": "single"
+   }
+  }
+ ]
+}
