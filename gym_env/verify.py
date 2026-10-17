@@ -5,9 +5,11 @@ pattern. The expected state comes from running the case's gold calls on a fresh 
 The actual state is the final state of the session the system ran in, which was also a fresh copy.
 Both are projected and must match exactly. The projection keeps every structured field, but free text
 (ticket summaries and notes) only has to be present, because no model will reproduce the gold wording
-(PLAN.md task 1.1, option B). Order-free records (changes, password resets) are compared as sorted lists.
-If the case lists answer_must_contain, the final answer must also contain each string (a substring check
-that ignores case, so "open" matches "Status: Open").
+(PLAN.md task 1.1, option B). Tickets the gold calls create or update need at least the gold's number of
+notes, so a helpful extra note on the ticket the request is about passes; every other ticket must keep
+its notes exactly (task 1.2 review). Order-free records (changes, password resets) are compared as sorted
+lists. The final answer must contain every answer_must_contain string and none of the
+answer_must_not_contain strings (substring checks that ignore case, so "open" matches "Status: Open").
 """
 
 import json
@@ -32,9 +34,11 @@ class Verdict(BaseModel):
     answer_ok: bool
     state_diff: list[str]
     missing_from_answer: list[str]
+    forbidden_in_answer: list[str]
 
 
-def expected_state(case: Case) -> State:
+def gold_run(case: Case) -> Env:
+    """A fresh fixture after the case's gold calls."""
     env = Env(case.fixture, apis=case.apis)
     for i, call in enumerate(case.gold_calls):
         tool = TOOLS.get(call.tool)
@@ -43,7 +47,16 @@ def expected_state(case: Case) -> State:
         result = env.call(call.tool, call.args)
         if not result.ok:
             raise GoldCallFailed(f"{case.id}: gold call {i} ({call.tool}) failed: {result.output}")
-    return env.state
+    return env
+
+
+def expected_state(case: Case) -> State:
+    return gold_run(case).state
+
+
+def gold_tickets(env: Env) -> set[str]:
+    """IDs of the tickets the gold calls created or updated."""
+    return {result.output["ticket"]["id"] for result in env.calls if result.tool in ("create_ticket", "update_ticket")}
 
 
 def project(state: State) -> dict[str, Any]:
@@ -92,13 +105,21 @@ def diff(expected: Any, actual: Any, path: str = "") -> list[str]:
 
 
 def check(case: Case, final_state: State, final_answer: str) -> Verdict:
-    state_diff = diff(project(expected_state(case)), project(final_state))
+    gold = gold_run(case)
+    expected, actual = project(gold.state), project(final_state)
+    for ticket_id in gold_tickets(gold):
+        want, got = expected["tickets"].get(ticket_id), actual["tickets"].get(ticket_id)
+        if want and got and len(got["notes"]) >= len(want["notes"]):
+            got["notes"] = want["notes"]  # extra notes on a ticket the request is about are fine
+    state_diff = diff(expected, actual)
     answer = final_answer.casefold()
     missing = [s for s in case.answer_must_contain or [] if s.casefold() not in answer]
+    forbidden = [s for s in case.answer_must_not_contain or [] if s.casefold() in answer]
     return Verdict(
-        passed=not state_diff and not missing,
+        passed=not state_diff and not missing and not forbidden,
         state_match=not state_diff,
-        answer_ok=not missing,
+        answer_ok=not missing and not forbidden,
         state_diff=state_diff,
         missing_from_answer=missing,
+        forbidden_in_answer=forbidden,
     )

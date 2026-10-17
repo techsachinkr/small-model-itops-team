@@ -101,3 +101,25 @@ def test_failing_gold_call_is_a_case_error() -> None:
     case.gold_calls[1].args.pop("device_id")
     with pytest.raises(GoldCallFailed, match="device_id"):
         check(case, final_state(case, []), "")
+
+
+def test_extra_note_on_a_ticket_the_gold_creates_passes() -> None:
+    case = CASES["ex-hd-001"]  # creates HD-1042
+    calls = [*gold(case), ("update_ticket", {"ticket_id": "HD-1042", "note": "User can bring the laptop in today"})]
+    assert check(case, final_state(case, calls), "Done.").passed
+
+
+def test_extra_note_on_a_ticket_the_gold_leaves_alone_fails() -> None:
+    case = CASES["ex-hd-001"]
+    calls = [*gold(case), ("update_ticket", {"ticket_id": "HD-1035", "note": "Unrelated"})]
+    verdict = check(case, final_state(case, calls), "Done.")
+    assert not verdict.passed and any("HD-1035.notes" in line for line in verdict.state_diff)
+
+
+def test_answer_must_not_contain_fails_an_over_inclusive_answer() -> None:
+    case = CASES["ex-ro-001"].model_copy(update={"answer_must_not_contain": ["P3"]})
+    state = final_state(case, gold(case))
+    assert check(case, state, "Your VPN ticket is P2 and open.").passed
+    verdict = check(case, state, "Your VPN ticket is P2 and open; your other ticket is p3.")
+    assert not verdict.passed and not verdict.answer_ok and verdict.state_match
+    assert verdict.forbidden_in_answer == ["P3"]

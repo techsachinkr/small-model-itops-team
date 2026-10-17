@@ -66,6 +66,7 @@ class Case(Strict):
     gold_calls: list[GoldCall]
     kind: Kind
     answer_must_contain: list[str] | None = None
+    answer_must_not_contain: list[str] | None = None  # e.g. what an over-inclusive answer would list
 
     @model_validator(mode="after")
     def _consistent(self) -> "Case":
@@ -81,6 +82,9 @@ class Case(Strict):
             raise ValueError(f"{self.kind} cases have no gold_calls")
         if self.kind == "read_only" and not self.answer_must_contain:
             raise ValueError("read_only cases need answer_must_contain")
+        required = [text.casefold() for text in self.answer_must_contain or []]
+        if any(text.casefold() in r for text in self.answer_must_not_contain or [] for r in required):
+            raise ValueError("an answer_must_not_contain string is part of a required one")
         return self
 
 

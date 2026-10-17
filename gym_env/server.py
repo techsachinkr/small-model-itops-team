@@ -53,6 +53,7 @@ class ItopsVerifyResponse(BaseVerifyResponse):
     answer_ok: bool
     state_diff: list[str]
     missing_from_answer: list[str]
+    forbidden_in_answer: list[str]
 
 
 def final_answer(response: NeMoGymResponse) -> str:
@@ -100,7 +101,7 @@ class ItopsResourcesServer(SimpleResourcesServer):
         if env is None:
             return ItopsVerifyResponse(
                 **body.model_dump(), reward=0.0, failure_reason="session was never seeded",
-                state_match=False, answer_ok=False, state_diff=[], missing_from_answer=[],
+                state_match=False, answer_ok=False, state_diff=[], missing_from_answer=[], forbidden_in_answer=[],
             )
         verdict = check(body.case, env.state, final_answer(body.response))
         return ItopsVerifyResponse(

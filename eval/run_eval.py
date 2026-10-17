@@ -7,6 +7,7 @@ starts the Gym servers for the setup (resources_servers/itops/configs/itops.yaml
 and gym_configs/<setup>.yaml), collects `attempts_per_case` rollouts per case with `gym eval run`,
 stops the servers, and writes to runs/<run_id>/:
     config.json     arguments, the resolved eval config, the Gym config files, the git commit
+    git_diff.patch  uncommitted changes, when the tree is dirty (commit + patch = the code that ran)
     tasks.jsonl     the Gym rows (gym_env/tasks.py)
     rollouts.jsonl  Gym's rollouts, next to Gym's own side files and logs
     traces.jsonl    one Trace per attempt (common/schemas.py)
@@ -74,11 +75,16 @@ def load_cases(split: str, api: str) -> list[Case]:
     return cases
 
 
-def git_commit() -> dict[str, Any]:
-    def git(*args: str) -> str:
-        return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, check=True).stdout.strip()
+def git(*args: str) -> str:
+    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, check=True).stdout
 
-    return {"git_commit": git("rev-parse", "HEAD"), "git_dirty": bool(git("status", "--porcelain"))}
+
+def git_commit(run_dir: Path) -> dict[str, Any]:
+    """The commit, and the uncommitted changes to tracked files saved as git_diff.patch."""
+    dirty = bool(git("status", "--porcelain").strip())
+    if dirty:
+        (run_dir / "git_diff.patch").write_text(git("diff", "HEAD"))
+    return {"git_commit": git("rev-parse", "HEAD").strip(), "git_dirty": dirty}
 
 
 def gym_configs(setup: str) -> list[Path]:
@@ -207,7 +213,7 @@ def main() -> None:
         "eval_config": config.model_dump(),
         "gym_configs": [str(path.relative_to(REPO)) for path in gym_configs(args.setup)],
         "cases": len(cases),
-        **git_commit(),
+        **git_commit(run_dir),
     }, indent=2))
     tasks = run_dir / "tasks.jsonl"
     tasks.write_text("".join(json.dumps(case_to_row(case)) + "\n" for case in cases))

@@ -260,7 +260,7 @@ Notes for later tasks (from 1.1; commands and results in `COMMANDS_LOG.md`):
 - 1.2: `answer_must_contain` ignores case (decided 2026-10-17, after a correct "Status: Open" answer failed against "open" in the rerun).
 - `gym eval run --input` needs `--no-serve` and servers started with `gym env start` (Commands in CLAUDE.md).
 
-### [ ] 1.2 Seatbelt, tool loop and the baseline
+### [x] 1.2 Seatbelt, tool loop and the baseline
 
 ```
 Write common/seatbelt.py exactly as in CLAUDE.md, and common/tool_loop.py that
@@ -276,6 +276,26 @@ retry limit. Then help me draft 12 practice cases each for helpdesk and ops.
 ```
 
 **Done when:** a human has reviewed the practice cases, and a practice table exists for `base_raw`, `base_seatbelt` and `lightning` on both APIs. If the base model already scores 11/12 or better on an API, make that API harder before going on.
+
+Practice baseline (2026-10-17; `runs/practice_baseline.md`, built by `eval.report` from `runs/baseline_*`; 36/36 attempts each; thinking off):
+
+| setup | helpdesk | ops |
+|---|---|---|
+| `base_raw` | 4/12 | 8/12 |
+| `base_seatbelt` | 4/12 | 8/12 |
+| `lightning` | 9/12 | 7/12 |
+
+Notes for later tasks (from 1.2; commands and results in `COMMANDS_LOG.md`):
+- Every setup runs as the Gym agent `responses_api_agents/itops_agent` (code in `common/gym_agent.py`) around `common/tool_loop.py`. `eval/run_eval.py --setup <s> --api <a> --split practice` starts and stops the Gym servers itself; the setup's vLLM server must be up and port 11000 free. New setups are a `gym_configs/<setup>.yaml` that sets only the model (and the seatbelt switch).
+- Eval settings (`configs/eval.yaml`): temperature 0.6, top_p 0.95, thinking off, max_tokens 8192, 10 turns per step. Thinking off because with it on the student already passed 10–11/12 per API (no room for the ladder); off uses about a third of the tokens and half the latency (`runs/think_*`).
+- 2.1: factory rollouts aren't an eval setup. Collect them with Lightning's thinking on: with it on, the verifier passed 33/36 (helpdesk) and 30/36 (ops) of Lightning's practice attempts, against 27/36 and 21/36 with it off. Render `text` the way the student is evaluated, thinking off: drop the reasoning and use the chat template with `enable_thinking=False`.
+- 2.1: the filter keeps a rollout only if `reward` is 1 (a step the seatbelt gave up on scores 0; `verifier_reward` keeps the state match) and no call failed. In traces, call status 0 means blocked by the seatbelt.
+- The seatbelt self-check asks "is there a tool call you still need to make now?" (`{reason, tool_call_needed}`), with thinking off. Asked "is the task complete?", Lightning said no whenever it had correctly asked the user, and the seatbelt discarded correct attempts. In the baseline it rescued 3 attempts and broke none; once, before the baseline, it pushed a correct question into a wrong action (`pr-hd-09`), so keep watching it.
+- `base_seatbelt` = `base_raw` on practice cases (attempts: 16 vs 14 helpdesk, 23 vs 23 ops). With thinking off the student rarely makes invalid calls; the seatbelt's value will show under chaos and as the trigger for escalation (3.3).
+- Both vLLM servers emit compact JSON for structured outputs (`--structured-outputs-config '{"backend": "xgrammar", "disable_any_whitespace": true}'`); without it a self-check answer ran into whitespace until max_tokens.
+- Verifier (after the evaluator review): tickets the gold creates or updates need at least the gold's number of notes; optional `answer_must_not_contain` per case.
+- Deferred from the review: a new fixture (not edits to `default`) with several tickets per user and real change tickets, for ticket picking and the multi-API cases in 3.1; a check that prod change tickets come from the request or a tool result; coverage gaps (successful email reset, staging rollback, an ops decline case, logs-then-decide).
+- A stray `gym env start` stops only with Ctrl+C for its whole process group: `kill -INT -- -<pgid>`.
 
 ## Stage 2: The factory with NeMo Gym
 

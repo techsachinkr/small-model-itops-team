@@ -45,6 +45,8 @@ def test_case_round_trip() -> None:
         {"kind": "read_only"},  # read_only cases need answer_must_contain
         {"apis": ["ops"]},  # gold call api not listed in apis
         {"apis": []},
+        # a forbidden string inside a required one makes the case impossible to pass
+        {"answer_must_contain": ["ThinkPad X1 Carbon"], "answer_must_not_contain": ["x1 carbon"]},
     ],
 )
 def test_case_rejects(changes: dict[str, Any]) -> None:

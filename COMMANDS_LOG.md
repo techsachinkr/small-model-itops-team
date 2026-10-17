@@ -588,7 +588,7 @@ for api in helpdesk ops; do .venv/bin/python -m eval.run_eval --setup base_seatb
 # weak spots. Decision for the user.
 ```
 
-Also wrote PROJECT_OVERVIEW.md (what the system does, for readers new to the project).
+# Also wrote PROJECT_OVERVIEW.md (what the system does, for readers new to the project).
 
 ### Thinking on vs off, every setup (on the unreviewed v3 drafts)
 
@@ -618,3 +618,64 @@ a missing call being made. The schema check and retries do work with thinking of
 calls, 9 tool errors sent back).
 
 Also: wrote eval/report.py (results table from run folders) and runs/practice_review.md (review sheet).
+
+### Thinking off for every setup, and the self-check reworded (user's decision)
+
+configs/eval.yaml `thinking: false`. Self-check question changed from "is the task complete?" to "is there a
+tool call you still need to make now?" (`{reason, tool_call_needed}`; the trace still logs `complete`).
+CLAUDE.md "Seatbelt" updated. Tests: 121 passed.
+
+```bash
+for api in helpdesk ops; do .venv/bin/python -m eval.run_eval --setup lightning --api $api --split practice \
+  --run-id selfcheck_v4_lightning_$api; done
+# lightning (thinking off): helpdesk 9/12, ops 9/12 (was 7/12 and 6/12 with the old self-check). Correct
+# attempts the self-check discarded: helpdesk 2 (both pr-hd-10, user with no tickets), ops 0 (was 7 and 7 with
+# thinking on, 1 and 8 with thinking off). Remaining failures are genuine: reset the current user's password
+# instead of asking for Hannah's ID; scaled prod payments to 2 on a guess, then to 5 (two prod changes);
+# answered two read-only questions without any tool call; created a ticket without asking which device.
+```
+
+### Evaluator review of the practice cases, and fixes (user approved)
+
+An independent subagent (evaluator persona, no access to data/test/) reviewed all 24 cases by scoring alternative
+call sequences against the env and reading the rollouts. No gold was wrong. I re-checked its main claims in the
+run data: pr-ops-11's 6/6 passes were all prod guesses saved only because the made-up change ticket was rejected;
+in `default` every prod deployment still runs the revision it ran yesterday, so pr-ops-12 had nothing to roll back;
+pr-ops-07 was read as "search" the verb (base looked up payments 2/3); pr-hd-08's base failures all filtered
+status=open on an in_progress ticket. Correction to my earlier note: pr-hd-10's two "discarded" Lightning attempts
+were max-steps loops on list_tickets, not the self-check; but on pr-hd-09 the self-check did push a correct
+question into resetting the current user's password.
+
+Applied:
+- verify.py: tickets the gold creates or updates need at least the gold's number of notes (others stay exact);
+  new optional Case field answer_must_not_contain (schema validates it isn't part of a required string; the
+  server's verify response gains forbidden_in_answer). CLAUDE.md "Data formats" and "Scoring" updated.
+- Cases: pr-hd-02 "in this order"; pr-hd-08 keeps "open" (users call in_progress tickets open; the trap is now in
+  its stated intent), must not contain the other device; pr-ops-07 "revisions of the search deployment", must not
+  contain 0.9.5; pr-ops-08 must not contain any healthy pod name; pr-ops-11 gives change ticket HD-1041 so a guess
+  in either namespace changes state; pr-ops-12 is now a single case on incident_prod_checkout with HD-1041 (read
+  every history, roll back checkout 14 -> 13).
+- Tests for each rule and each fixed case's intent (right behaviour passes, the wrong one the review found fails).
+
+```bash
+.venv/bin/python -m pytest -q           # 129 passed
+```
+
+Not applied (recorded for later): a check that prod change tickets come from the request or a tool result (goes
+beyond state match, rule 6); unordered matching of new tickets; a new fixture with several tickets per user and
+real change tickets (a new fixture, not edits to `default`, so the test set isn't affected; matters most for
+task 3.1); coverage gaps (successful email reset, staging rollback, an ops decline case, logs-then-decide).
+
+### Practice baseline (the "Done when" check): passed
+
+```bash
+# run_eval now saves git_diff.patch in the run folder when the tree is dirty (these runs: commit 699aaeb + patch)
+for setup in base_raw base_seatbelt lightning; do for api in helpdesk ops; do
+  .venv/bin/python -m eval.run_eval --setup $setup --api $api --split practice --run-id baseline_${setup}_${api}; done; done
+.venv/bin/python -m eval.report --run baseline_base_raw_helpdesk ... --output runs/practice_baseline.md
+# 36/36 attempts each. base_raw 4/12 helpdesk, 8/12 ops; base_seatbelt 4/12, 8/12; lightning 9/12, 7/12.
+# Against the thinking-off test runs: pr-ops-11 and pr-ops-12 went 3/3 -> 0/3 for every setup (the evaluator fixes
+# now fail the wrong behaviour); base_raw helpdesk lost 4 attempts with no relevant change (sampling noise).
+# Self-check: 3 rescues (two read-only answers given without looking, one reset not yet done), no correct
+# question turned into a wrong action. The human reviewed the cases; base < 11/12 on both APIs. Task 1.2 done.
+```

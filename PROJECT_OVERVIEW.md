@@ -47,7 +47,7 @@ The tools have realistic quirks, so a model can't guess its way through:
 
 Every task starts from a fresh copy of a fixture, with a frozen clock and deterministic IDs. An optional "chaos" mode makes some calls fail temporarily.
 
-**Scoring.** A verifier runs the task's correct ("gold") calls on one fresh copy and the model on another. It passes the attempt only if the two final states match exactly. For read-only questions, the answer must also contain the right facts. No language model judges correctness.
+**Scoring.** A verifier runs the task's correct ("gold") calls on one fresh copy and the model on another. It passes the attempt only if the two final states match exactly. For read-only questions, the answer must also contain the right facts, and must not list wrong ones. No language model judges correctness.
 
 ### The factory: Lightning teaches the specialists
 
