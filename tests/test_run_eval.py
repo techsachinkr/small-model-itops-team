@@ -235,7 +235,7 @@ def test_a_run_s_commit_and_patch_are_the_code_that_ran_without_the_test_set(
                               capture_output=True, text=True, check=True).stdout
 
     git("init", "-q")
-    (repo / ".gitignore").write_text("runs/\n")
+    (repo / ".gitignore").write_text("runs/*\n!runs/final/\n")  # as the real repo: runs/final/ isn't ignored
     (repo / "code.py").write_text("old\n")
     (repo / "data" / "test" / "cases.jsonl").write_text("locked case\n")
     git("add", "--all")
@@ -246,8 +246,9 @@ def test_a_run_s_commit_and_patch_are_the_code_that_ran_without_the_test_set(
     (repo / "team_escalate.yaml").write_text("escalate: true\n")
     (repo / "data" / "test" / "cases.jsonl").write_text("edited locked case\n")
     (repo / "data" / "test" / "more.jsonl").write_text("new locked case\n")
-    (repo / "runs").mkdir()
+    (repo / "runs" / "final" / "earlier_run").mkdir(parents=True)
     (repo / "runs" / "ignored.txt").write_text("ignored\n")
+    (repo / "runs" / "final" / "earlier_run" / "rollouts.jsonl").write_text("an earlier final run's output\n")
     monkeypatch.setattr(run_eval, "REPO", repo)
 
     record = run_eval.git_commit(tmp_path)
@@ -255,6 +256,7 @@ def test_a_run_s_commit_and_patch_are_the_code_that_ran_without_the_test_set(
     assert record == {"git_commit": git("rev-parse", "HEAD").strip(), "git_dirty": True}
     assert "+new" in patch and "+staged" in patch and "+escalate: true" in patch
     assert "data/test" not in patch and "locked case" not in patch and "ignored" not in patch
+    assert "runs/final" not in patch and "earlier final run" not in patch  # outputs, not code
     assert git("diff", "--cached", "--name-only").split() == ["staged.py"]  # the real index is untouched
     assert git("status", "--porcelain", "--", "team_escalate.yaml").startswith("??")
 

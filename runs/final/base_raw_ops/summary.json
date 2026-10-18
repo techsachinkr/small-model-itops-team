@@ -1,0 +1,8 @@
+{
+  "base_raw": {
+    "passes": "5/10",
+    "mean_latency_s": 3.142044257867383,
+    "cost_per_1k_usd": 0.17851611333333336,
+    "small_model_steps": null
+  }
+}

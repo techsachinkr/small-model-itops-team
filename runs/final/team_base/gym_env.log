@@ -1,0 +1,597 @@
+NeMo Gym is starting a new Ray cluster...
+2026-10-18 11:25:49,201	WARNING authentication_token_setup.py:85 -- Token authentication is enabled for this Ray cluster. Set RAY_AUTH_MODE=disabled to opt out. For more information, see https://docs.ray.io/en/latest/ray-security/token-auth.html
+2026-10-18 11:25:51,795	INFO worker.py:2024 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+Started Ray cluster at 10.0.0.30:38299
+(itops) Using CPython 3.13.16
+(itops) Creating virtual environment with seed packages at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/resources_servers/itops/.venv
+(itops) Activate with: source /home/ubuntu/small-model-itops-team/runs/gym_venvs/resources_servers/itops/.venv/bin/activate
+INFO:     Started server process [1313889]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+(itops_simple_agent) Using CPython 3.13.16
+(itops_simple_agent) Creating virtual environment with seed packages at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/simple_agent/.venv
+(itops_simple_agent) Activate with: source /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/simple_agent/.venv/bin/activate
+INFO:     Uvicorn running on http://127.0.0.1:11000 (Press CTRL+C to quit)
+(itops_team) Using CPython 3.13.16
+(itops_team) Creating virtual environment with seed packages at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv
+(itops_team) Activate with: source /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/bin/activate
+(planner_model) Using CPython 3.13.16
+(planner_model) Creating virtual environment with seed packages at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(planner_model) Activate with: source /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/bin/activate
+Waiting for head server to spin up
+INFO:     127.0.0.1:55822 - "GET / HTTP/1.1" 200 OK
+Waiting for servers to spin up
+(helpdesk_model) Using CPython 3.13.16
+(helpdesk_model) Creating virtual environment with seed packages at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(helpdesk_model) Activate with: source /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/bin/activate
+Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(itops) Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/resources_servers/itops/.venv
+(itops) Checked 3 packages in 10ms
+Checking for HTTP server statuses.
+0 / 7 servers ready. Waiting for servers to spin up: ['itops', 'itops_simple_agent', 'itops_team', 'planner_model', 'helpdesk_model', 'ops_model', 'escalation_model']
+(itops_simple_agent) Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/simple_agent/.venv
+(itops_simple_agent) Checked 3 packages in 7ms
+(ops_model) Using CPython 3.13.16
+(ops_model) Creating virtual environment with seed packages at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(ops_model) Activate with: source /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/bin/activate
+(escalation_model) Using CPython 3.13.16
+(escalation_model) Creating virtual environment with seed packages at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(escalation_model) Activate with: source /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/bin/activate
+Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(itops_team) Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv
+(itops_team) Checked 5 packages in 8ms
+Checked 1 package in 7ms
+Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+Checked 1 package in 9ms
+Checked 1 package in 14ms
+Checked 1 package in 22ms
+(planner_model) Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(planner_model) Resolved 177 packages in 17ms
+(planner_model)    Building vllm-model @ file:///home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model
+(planner_model)       Built vllm-model @ file:///home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model
+(planner_model) Prepared 1 package in 697ms
+(planner_model) Uninstalled 1 package in 0.39ms
+(planner_model) Installed 1 package in 0.52ms
+(planner_model)  ~ vllm-model==0.2.0rc0 (from file:///home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model)
+(helpdesk_model) Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(helpdesk_model) Resolved 177 packages in 17ms
+(helpdesk_model) Prepared 1 package in 0.33ms
+(helpdesk_model) Uninstalled 1 package in 0.41ms
+(helpdesk_model) Installed 1 package in 1ms
+(helpdesk_model)  ~ vllm-model==0.2.0rc0 (from file:///home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model)
+(ops_model) Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(ops_model) Resolved 177 packages in 17ms
+(ops_model) Prepared 1 package in 0.42ms
+(ops_model) Uninstalled 1 package in 0.41ms
+(ops_model) Installed 1 package in 2ms
+(ops_model)  ~ vllm-model==0.2.0rc0 (from file:///home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model)
+(escalation_model) Using Python 3.13.16 environment at: /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv
+(escalation_model) Resolved 177 packages in 17ms
+(escalation_model) Prepared 1 package in 0.28ms
+(escalation_model) Uninstalled 1 package in 0.29ms
+(escalation_model) Installed 1 package in 2ms
+(escalation_model)  ~ vllm-model==0.2.0rc0 (from file:///home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model)
+Connecting to Ray cluster at specified address: 10.0.0.30:38299
+2026-10-18 11:25:54,836	INFO worker.py:1836 -- Connecting to existing Ray cluster at address: 10.0.0.30:38299...
+Connecting to Ray cluster at specified address: 10.0.0.30:38299
+2026-10-18 11:25:54,840	INFO worker.py:1836 -- Connecting to existing Ray cluster at address: 10.0.0.30:38299...
+2026-10-18 11:25:54,863	INFO worker.py:2024 -- Connected to Ray cluster. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+2026-10-18 11:25:54,874	INFO worker.py:2024 -- Connected to Ray cluster. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+(planner_model) Disabling a uvicorn access logging so that the logs aren't spammed with 200 OK messages. This is to help errors pop up better and filter out noise.
+(helpdesk_model) Disabling a uvicorn access logging so that the logs aren't spammed with 200 OK messages. This is to help errors pop up better and filter out noise.
+Connecting to Ray cluster at specified address: 10.0.0.30:38299
+2026-10-18 11:25:54,909	INFO worker.py:1836 -- Connecting to existing Ray cluster at address: 10.0.0.30:38299...
+(helpdesk_model) INFO:     Started server process [1315558]
+(helpdesk_model) INFO:     Waiting for application startup.
+(helpdesk_model) INFO:     Application startup complete.
+(helpdesk_model) INFO:     Uvicorn running on http://127.0.0.1:15469 (Press CTRL+C to quit)
+(planner_model) INFO:     Started server process [1315543]
+(planner_model) INFO:     Waiting for application startup.
+(planner_model) INFO:     Application startup complete.
+(planner_model) INFO:     Uvicorn running on http://127.0.0.1:11121 (Press CTRL+C to quit)
+Connecting to Ray cluster at specified address: 10.0.0.30:38299
+2026-10-18 11:25:54,932	INFO worker.py:1836 -- Connecting to existing Ray cluster at address: 10.0.0.30:38299...
+2026-10-18 11:25:54,934	INFO worker.py:2024 -- Connected to Ray cluster. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+2026-10-18 11:25:54,956	INFO worker.py:2024 -- Connected to Ray cluster. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+(ops_model) Disabling a uvicorn access logging so that the logs aren't spammed with 200 OK messages. This is to help errors pop up better and filter out noise.
+(ops_model) INFO:     Started server process [1315581]
+(ops_model) INFO:     Waiting for application startup.
+(ops_model) INFO:     Application startup complete.
+(ops_model) INFO:     Uvicorn running on http://127.0.0.1:19911 (Press CTRL+C to quit)
+Connecting to Ray cluster at specified address: 10.0.0.30:38299
+2026-10-18 11:25:54,986	INFO worker.py:1836 -- Connecting to existing Ray cluster at address: 10.0.0.30:38299...
+(escalation_model) Disabling a uvicorn access logging so that the logs aren't spammed with 200 OK messages. This is to help errors pop up better and filter out noise.
+(escalation_model) INFO:     Started server process [1315598]
+(escalation_model) INFO:     Waiting for application startup.
+(escalation_model) INFO:     Application startup complete.
+(escalation_model) INFO:     Uvicorn running on http://127.0.0.1:19881 (Press CTRL+C to quit)
+2026-10-18 11:25:55,010	INFO worker.py:2024 -- Connected to Ray cluster. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+Connecting to Ray cluster at specified address: 10.0.0.30:38299
+2026-10-18 11:25:55,018	INFO worker.py:1836 -- Connecting to existing Ray cluster at address: 10.0.0.30:38299...
+Connecting to Ray cluster at specified address: 10.0.0.30:38299
+2026-10-18 11:25:55,032	INFO worker.py:1836 -- Connecting to existing Ray cluster at address: 10.0.0.30:38299...
+2026-10-18 11:25:55,043	INFO worker.py:2024 -- Connected to Ray cluster. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+(itops_team) Disabling a uvicorn access logging so that the logs aren't spammed with 200 OK messages. This is to help errors pop up better and filter out noise.
+2026-10-18 11:25:55,057	INFO worker.py:2024 -- Connected to Ray cluster. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+(itops_team) INFO:     Started server process [1315534]
+(itops_team) INFO:     Waiting for application startup.
+(itops_team) INFO:     Application startup complete.
+(itops_team) INFO:     Uvicorn running on http://127.0.0.1:19248 (Press CTRL+C to quit)
+(itops_simple_agent) Disabling a uvicorn access logging so that the logs aren't spammed with 200 OK messages. This is to help errors pop up better and filter out noise.
+(itops_simple_agent) INFO:     Started server process [1315528]
+(itops_simple_agent) INFO:     Waiting for application startup.
+(itops_simple_agent) INFO:     Application startup complete.
+(itops_simple_agent) INFO:     Uvicorn running on http://127.0.0.1:15420 (Press CTRL+C to quit)
+(itops) Disabling a uvicorn access logging so that the logs aren't spammed with 200 OK messages. This is to help errors pop up better and filter out noise.
+(itops) INFO:     Started server process [1315524]
+(itops) INFO:     Waiting for application startup.
+(itops) INFO:     Application startup complete.
+(itops) INFO:     Uvicorn running on http://127.0.0.1:11421 (Press CTRL+C to quit)
+All 7 / 7 servers ready! Polling every 60s
+
+####################################################################################################
+#
+# Server Instances
+#
+####################################################################################################
+
+[1] itops (resources_servers/itops)
+{
+    'config_path': 'itops',
+    'dir_path': '/home/ubuntu/small-model-itops-team/resources_servers/itops',
+    'entrypoint': 'app.py',
+    'host': '127.0.0.1',
+    'name': 'itops',
+    'pid': 1315524,
+    'port': 11421,
+    'process_name': 'itops',
+    'server_type': 'resources_servers',
+    'url': 'http://127.0.0.1:11421',
+}
+[2] itops_simple_agent (responses_api_agents/simple_agent)
+{
+    'config_path': 'itops_simple_agent',
+    'dir_path': '/home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_agents/simple_agent',
+    'entrypoint': 'app.py',
+    'host': '127.0.0.1',
+    'name': 'simple_agent',
+    'pid': 1315528,
+    'port': 15420,
+    'process_name': 'itops_simple_agent',
+    'server_type': 'responses_api_agents',
+    'url': 'http://127.0.0.1:15420',
+}
+[3] itops_team (responses_api_agents/itops_team)
+{
+    'config_path': 'itops_team',
+    'dir_path': '/home/ubuntu/small-model-itops-team/responses_api_agents/itops_team',
+    'entrypoint': 'app.py',
+    'host': '127.0.0.1',
+    'name': 'itops_team',
+    'pid': 1315534,
+    'port': 19248,
+    'process_name': 'itops_team',
+    'server_type': 'responses_api_agents',
+    'url': 'http://127.0.0.1:19248',
+}
+[4] planner_model (responses_api_models/vllm_model)
+{
+    'config_path': 'planner_model',
+    'dir_path': '/home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model',
+    'entrypoint': 'app.py',
+    'host': '127.0.0.1',
+    'name': 'vllm_model',
+    'pid': 1315543,
+    'port': 11121,
+    'process_name': 'planner_model',
+    'server_type': 'responses_api_models',
+    'url': 'http://127.0.0.1:11121',
+}
+[5] helpdesk_model (responses_api_models/vllm_model)
+{
+    'config_path': 'helpdesk_model',
+    'dir_path': '/home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model',
+    'entrypoint': 'app.py',
+    'host': '127.0.0.1',
+    'name': 'vllm_model',
+    'pid': 1315558,
+    'port': 15469,
+    'process_name': 'helpdesk_model',
+    'server_type': 'responses_api_models',
+    'url': 'http://127.0.0.1:15469',
+}
+[6] ops_model (responses_api_models/vllm_model)
+{
+    'config_path': 'ops_model',
+    'dir_path': '/home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model',
+    'entrypoint': 'app.py',
+    'host': '127.0.0.1',
+    'name': 'vllm_model',
+    'pid': 1315581,
+    'port': 19911,
+    'process_name': 'ops_model',
+    'server_type': 'responses_api_models',
+    'url': 'http://127.0.0.1:19911',
+}
+[7] escalation_model (responses_api_models/vllm_model)
+{
+    'config_path': 'escalation_model',
+    'dir_path': '/home/ubuntu/small-model-itops-team/.venv/lib/python3.13/site-packages/responses_api_models/vllm_model',
+    'entrypoint': 'app.py',
+    'host': '127.0.0.1',
+    'name': 'vllm_model',
+    'pid': 1315598,
+    'port': 19881,
+    'process_name': 'escalation_model',
+    'server_type': 'responses_api_models',
+    'url': 'http://127.0.0.1:19881',
+}
+####################################################################################################
+
+INFO:     127.0.0.1:55826 - "GET /global_config_dict_yaml HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51950 - "GET /global_config_dict_yaml HTTP/1.1" 200 OK
+(itops_team) /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/nemo_gym/reward_profile.py:277: UserWarning: Standard error is 0 (all 15 values are identical) -- confidence interval collapses to a single point rather than being computed.
+(itops_team)   if ci := self._confidence_interval(mean, sem, n):
+(itops_team) /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/nemo_gym/reward_profile.py:277: UserWarning: Standard error is 0 (all 15 values are identical) -- confidence interval collapses to a single point rather than being computed.
+(itops_team)   if ci := self._confidence_interval(mean, sem, n):
+(itops_team) /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/nemo_gym/reward_profile.py:277: UserWarning: Standard error is 0 (all 15 values are identical) -- confidence interval collapses to a single point rather than being computed.
+(itops_team)   if ci := self._confidence_interval(mean, sem, n):
+(itops_team) /home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/nemo_gym/reward_profile.py:327: UserWarning: Standard error is 0 (all 3 values are identical) -- confidence interval collapses to a single point rather than being computed.
+(itops_team)   if ci := self._confidence_interval(mean, se, n):
+Sending interrupt signals to servers...
+Waiting for processes to finish...
+(planner_model) INFO:     Shutting down
+(ops_model) INFO:     Shutting down
+(itops_team) INFO:     Shutting down
+(helpdesk_model) INFO:     Shutting down
+(itops_simple_agent) INFO:     Shutting down
+(itops) INFO:     Shutting down
+(escalation_model) INFO:     Shutting down
+(planner_model) INFO:     Finished server process [1315543]
+(planner_model) ERROR:    Traceback (most recent call last):
+(planner_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 196, in run
+(planner_model)     return runner.run(main)
+(planner_model)            ~~~~~~~~~~^^^^^^
+(planner_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+(planner_model)     return self._loop.run_until_complete(task)
+(planner_model)            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+(planner_model)   File "uvloop/loop.pyx", line 1509, in uvloop.loop.Loop.run_until_complete
+(planner_model)   File "uvloop/loop.pyx", line 1502, in uvloop.loop.Loop.run_until_complete
+(planner_model)     self.run_forever()
+(planner_model)   File "uvloop/loop.pyx", line 1371, in uvloop.loop.Loop.run_forever
+(planner_model)     self._run(mode)
+(planner_model)   File "uvloop/loop.pyx", line 551, in uvloop.loop.Loop._run
+(planner_model)     raise self._last_error
+(planner_model)   File "uvloop/loop.pyx", line 471, in uvloop.loop.Loop._on_idle
+(planner_model)     handler._run()
+(planner_model)   File "uvloop/cbhandles.pyx", line 86, in uvloop.loop.Handle._run
+(planner_model)   File "uvloop/cbhandles.pyx", line 66, in uvloop.loop.Handle._run
+(planner_model)     callback(*args)
+(planner_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 89, in serve
+(planner_model)     with self.capture_signals():
+(planner_model)          ~~~~~~~~~~~~~~~~~~~~^^
+(planner_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/contextlib.py", line 148, in __exit__
+(planner_model)     next(self.gen)
+(planner_model)     ~~~~^^^^^^^^^^
+(planner_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 349, in capture_signals
+(planner_model)     signal.raise_signal(captured_signal)
+(planner_model)     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+(planner_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 158, in _on_sigint
+(planner_model)     raise KeyboardInterrupt()
+(planner_model) KeyboardInterrupt
+(planner_model) 
+(planner_model) During handling of the above exception, another exception occurred:
+(planner_model) 
+(planner_model) Traceback (most recent call last):
+(planner_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/starlette/routing.py", line 661, in lifespan
+(planner_model)     await receive()
+(planner_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/fastapi/telemetry/_runtime.py", line 214, in wrapped_receive
+(planner_model)     message = await receive()
+(planner_model)               ^^^^^^^^^^^^^^^
+(planner_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+(planner_model)     return await self.receive_queue.get()
+(planner_model)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(planner_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/queues.py", line 186, in get
+(planner_model)     await getter
+(planner_model) asyncio.exceptions.CancelledError
+(planner_model) 
+(ops_model) INFO:     Finished server process [1315581]
+(ops_model) ERROR:    Traceback (most recent call last):
+(ops_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 196, in run
+(ops_model)     return runner.run(main)
+(ops_model)            ~~~~~~~~~~^^^^^^
+(ops_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+(ops_model)     return self._loop.run_until_complete(task)
+(ops_model)            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+(ops_model)   File "uvloop/loop.pyx", line 1509, in uvloop.loop.Loop.run_until_complete
+(ops_model)   File "uvloop/loop.pyx", line 1502, in uvloop.loop.Loop.run_until_complete
+(ops_model)     self.run_forever()
+(ops_model)   File "uvloop/loop.pyx", line 1371, in uvloop.loop.Loop.run_forever
+(ops_model)     self._run(mode)
+(ops_model)   File "uvloop/loop.pyx", line 551, in uvloop.loop.Loop._run
+(ops_model)     raise self._last_error
+(ops_model)   File "uvloop/loop.pyx", line 471, in uvloop.loop.Loop._on_idle
+(ops_model)     handler._run()
+(ops_model)   File "uvloop/cbhandles.pyx", line 86, in uvloop.loop.Handle._run
+(ops_model)   File "uvloop/cbhandles.pyx", line 66, in uvloop.loop.Handle._run
+(ops_model)     callback(*args)
+(ops_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 89, in serve
+(ops_model)     with self.capture_signals():
+(ops_model)          ~~~~~~~~~~~~~~~~~~~~^^
+(ops_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/contextlib.py", line 148, in __exit__
+(ops_model)     next(self.gen)
+(ops_model)     ~~~~^^^^^^^^^^
+(ops_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 349, in capture_signals
+(ops_model)     signal.raise_signal(captured_signal)
+(ops_model)     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+(ops_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 158, in _on_sigint
+(ops_model)     raise KeyboardInterrupt()
+(ops_model) KeyboardInterrupt
+(ops_model) 
+(ops_model) During handling of the above exception, another exception occurred:
+(ops_model) 
+(ops_model) Traceback (most recent call last):
+(ops_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/starlette/routing.py", line 661, in lifespan
+(ops_model)     await receive()
+(ops_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/fastapi/telemetry/_runtime.py", line 214, in wrapped_receive
+(ops_model)     message = await receive()
+(ops_model)               ^^^^^^^^^^^^^^^
+(ops_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+(ops_model)     return await self.receive_queue.get()
+(ops_model)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(ops_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/queues.py", line 186, in get
+(ops_model)     await getter
+(ops_model) asyncio.exceptions.CancelledError
+(ops_model) 
+(itops_team) INFO:     Finished server process [1315534]
+(itops_team) ERROR:    Traceback (most recent call last):
+(itops_team)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 196, in run
+(itops_team)     return runner.run(main)
+(itops_team)            ~~~~~~~~~~^^^^^^
+(itops_team)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+(itops_team)     return self._loop.run_until_complete(task)
+(itops_team)            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+(itops_team)   File "uvloop/loop.pyx", line 1509, in uvloop.loop.Loop.run_until_complete
+(itops_team)   File "uvloop/loop.pyx", line 1502, in uvloop.loop.Loop.run_until_complete
+(itops_team)     self.run_forever()
+(itops_team)   File "uvloop/loop.pyx", line 1371, in uvloop.loop.Loop.run_forever
+(itops_team)     self._run(mode)
+(itops_team)   File "uvloop/loop.pyx", line 551, in uvloop.loop.Loop._run
+(itops_team)     raise self._last_error
+(itops_team)   File "uvloop/loop.pyx", line 471, in uvloop.loop.Loop._on_idle
+(itops_team)     handler._run()
+(itops_team)   File "uvloop/cbhandles.pyx", line 86, in uvloop.loop.Handle._run
+(itops_team)   File "uvloop/cbhandles.pyx", line 66, in uvloop.loop.Handle._run
+(itops_team)     callback(*args)
+(itops_team)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 89, in serve
+(itops_team)     with self.capture_signals():
+(itops_team)          ~~~~~~~~~~~~~~~~~~~~^^
+(itops_team)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/contextlib.py", line 148, in __exit__
+(itops_team)     next(self.gen)
+(itops_team)     ~~~~^^^^^^^^^^
+(itops_team)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 349, in capture_signals
+(itops_team)     signal.raise_signal(captured_signal)
+(itops_team)     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+(itops_team)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 158, in _on_sigint
+(itops_team)     raise KeyboardInterrupt()
+(itops_team) KeyboardInterrupt
+(itops_team) 
+(itops_team) During handling of the above exception, another exception occurred:
+(itops_team) 
+(itops_team) Traceback (most recent call last):
+(itops_team)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/starlette/routing.py", line 661, in lifespan
+(itops_team)     await receive()
+(itops_team)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/fastapi/telemetry/_runtime.py", line 214, in wrapped_receive
+(itops_team)     message = await receive()
+(itops_team)               ^^^^^^^^^^^^^^^
+(itops_team)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/itops_team/.venv/lib/python3.13/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+(itops_team)     return await self.receive_queue.get()
+(itops_team)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(itops_team)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/queues.py", line 186, in get
+(itops_team)     await getter
+(itops_team) asyncio.exceptions.CancelledError
+(itops_team) 
+(helpdesk_model) INFO:     Finished server process [1315558]
+(helpdesk_model) ERROR:    Traceback (most recent call last):
+(helpdesk_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 196, in run
+(helpdesk_model)     return runner.run(main)
+(helpdesk_model)            ~~~~~~~~~~^^^^^^
+(helpdesk_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+(helpdesk_model)     return self._loop.run_until_complete(task)
+(helpdesk_model)            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+(helpdesk_model)   File "uvloop/loop.pyx", line 1509, in uvloop.loop.Loop.run_until_complete
+(helpdesk_model)   File "uvloop/loop.pyx", line 1502, in uvloop.loop.Loop.run_until_complete
+(helpdesk_model)     self.run_forever()
+(helpdesk_model)   File "uvloop/loop.pyx", line 1371, in uvloop.loop.Loop.run_forever
+(helpdesk_model)     self._run(mode)
+(helpdesk_model)   File "uvloop/loop.pyx", line 551, in uvloop.loop.Loop._run
+(helpdesk_model)     raise self._last_error
+(helpdesk_model)   File "uvloop/loop.pyx", line 471, in uvloop.loop.Loop._on_idle
+(helpdesk_model)     handler._run()
+(helpdesk_model)   File "uvloop/cbhandles.pyx", line 86, in uvloop.loop.Handle._run
+(helpdesk_model)   File "uvloop/cbhandles.pyx", line 66, in uvloop.loop.Handle._run
+(helpdesk_model)     callback(*args)
+(helpdesk_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 89, in serve
+(helpdesk_model)     with self.capture_signals():
+(helpdesk_model)          ~~~~~~~~~~~~~~~~~~~~^^
+(helpdesk_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/contextlib.py", line 148, in __exit__
+(helpdesk_model)     next(self.gen)
+(helpdesk_model)     ~~~~^^^^^^^^^^
+(helpdesk_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 349, in capture_signals
+(helpdesk_model)     signal.raise_signal(captured_signal)
+(helpdesk_model)     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+(helpdesk_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 158, in _on_sigint
+(helpdesk_model)     raise KeyboardInterrupt()
+(helpdesk_model) KeyboardInterrupt
+(helpdesk_model) 
+(helpdesk_model) During handling of the above exception, another exception occurred:
+(helpdesk_model) 
+(helpdesk_model) Traceback (most recent call last):
+(helpdesk_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/starlette/routing.py", line 661, in lifespan
+(helpdesk_model)     await receive()
+(helpdesk_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/fastapi/telemetry/_runtime.py", line 214, in wrapped_receive
+(helpdesk_model)     message = await receive()
+(helpdesk_model)               ^^^^^^^^^^^^^^^
+(helpdesk_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+(helpdesk_model)     return await self.receive_queue.get()
+(helpdesk_model)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(helpdesk_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/queues.py", line 186, in get
+(helpdesk_model)     await getter
+(helpdesk_model) asyncio.exceptions.CancelledError
+(helpdesk_model) 
+(itops_simple_agent) INFO:     Finished server process [1315528]
+(itops_simple_agent) ERROR:    Traceback (most recent call last):
+(itops_simple_agent)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 196, in run
+(itops_simple_agent)     return runner.run(main)
+(itops_simple_agent)            ~~~~~~~~~~^^^^^^
+(itops_simple_agent)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+(itops_simple_agent)     return self._loop.run_until_complete(task)
+(itops_simple_agent)            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+(itops_simple_agent)   File "uvloop/loop.pyx", line 1509, in uvloop.loop.Loop.run_until_complete
+(itops_simple_agent)   File "uvloop/loop.pyx", line 1502, in uvloop.loop.Loop.run_until_complete
+(itops_simple_agent)     self.run_forever()
+(itops_simple_agent)   File "uvloop/loop.pyx", line 1371, in uvloop.loop.Loop.run_forever
+(itops_simple_agent)     self._run(mode)
+(itops_simple_agent)   File "uvloop/loop.pyx", line 551, in uvloop.loop.Loop._run
+(itops_simple_agent)     raise self._last_error
+(itops_simple_agent)   File "uvloop/loop.pyx", line 471, in uvloop.loop.Loop._on_idle
+(itops_simple_agent)     handler._run()
+(itops_simple_agent)   File "uvloop/cbhandles.pyx", line 86, in uvloop.loop.Handle._run
+(itops_simple_agent)   File "uvloop/cbhandles.pyx", line 66, in uvloop.loop.Handle._run
+(itops_simple_agent)     callback(*args)
+(itops_simple_agent)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/simple_agent/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 89, in serve
+(itops_simple_agent)     with self.capture_signals():
+(itops_simple_agent)          ~~~~~~~~~~~~~~~~~~~~^^
+(itops_simple_agent)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/contextlib.py", line 148, in __exit__
+(itops_simple_agent)     next(self.gen)
+(itops_simple_agent)     ~~~~^^^^^^^^^^
+(itops_simple_agent)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/simple_agent/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 349, in capture_signals
+(itops_simple_agent)     signal.raise_signal(captured_signal)
+(itops_simple_agent)     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+(itops_simple_agent)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 158, in _on_sigint
+(itops_simple_agent)     raise KeyboardInterrupt()
+(itops_simple_agent) KeyboardInterrupt
+(itops_simple_agent) 
+(itops_simple_agent) During handling of the above exception, another exception occurred:
+(itops_simple_agent) 
+(itops_simple_agent) Traceback (most recent call last):
+(itops_simple_agent)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/simple_agent/.venv/lib/python3.13/site-packages/starlette/routing.py", line 661, in lifespan
+(itops_simple_agent)     await receive()
+(itops_simple_agent)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/simple_agent/.venv/lib/python3.13/site-packages/fastapi/telemetry/_runtime.py", line 214, in wrapped_receive
+(itops_simple_agent)     message = await receive()
+(itops_simple_agent)               ^^^^^^^^^^^^^^^
+(itops_simple_agent)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_agents/simple_agent/.venv/lib/python3.13/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+(itops_simple_agent)     return await self.receive_queue.get()
+(itops_simple_agent)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(itops_simple_agent)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/queues.py", line 186, in get
+(itops_simple_agent)     await getter
+(itops_simple_agent) asyncio.exceptions.CancelledError
+(itops_simple_agent) 
+(itops) INFO:     Finished server process [1315524]
+(itops) ERROR:    Traceback (most recent call last):
+(itops)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 196, in run
+(itops)     return runner.run(main)
+(itops)            ~~~~~~~~~~^^^^^^
+(itops)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+(itops)     return self._loop.run_until_complete(task)
+(itops)            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+(itops)   File "uvloop/loop.pyx", line 1509, in uvloop.loop.Loop.run_until_complete
+(itops)   File "uvloop/loop.pyx", line 1502, in uvloop.loop.Loop.run_until_complete
+(itops)     self.run_forever()
+(itops)   File "uvloop/loop.pyx", line 1371, in uvloop.loop.Loop.run_forever
+(itops)     self._run(mode)
+(itops)   File "uvloop/loop.pyx", line 551, in uvloop.loop.Loop._run
+(itops)     raise self._last_error
+(itops)   File "uvloop/loop.pyx", line 471, in uvloop.loop.Loop._on_idle
+(itops)     handler._run()
+(itops)   File "uvloop/cbhandles.pyx", line 86, in uvloop.loop.Handle._run
+(itops)   File "uvloop/cbhandles.pyx", line 66, in uvloop.loop.Handle._run
+(escalation_model) INFO:     Finished server process [1315598]
+(itops)     callback(*args)
+(itops)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/resources_servers/itops/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 89, in serve
+(itops)     with self.capture_signals():
+(itops)          ~~~~~~~~~~~~~~~~~~~~^^
+(itops)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/contextlib.py", line 148, in __exit__
+(itops)     next(self.gen)
+(itops)     ~~~~^^^^^^^^^^
+(itops)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/resources_servers/itops/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 349, in capture_signals
+(itops)     signal.raise_signal(captured_signal)
+(itops)     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+(itops)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 158, in _on_sigint
+(itops)     raise KeyboardInterrupt()
+(itops) KeyboardInterrupt
+(itops) 
+(itops) During handling of the above exception, another exception occurred:
+(itops) 
+(itops) Traceback (most recent call last):
+(itops)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/resources_servers/itops/.venv/lib/python3.13/site-packages/starlette/routing.py", line 661, in lifespan
+(itops)     await receive()
+(itops)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/resources_servers/itops/.venv/lib/python3.13/site-packages/fastapi/telemetry/_runtime.py", line 214, in wrapped_receive
+(itops)     message = await receive()
+(itops)               ^^^^^^^^^^^^^^^
+(itops)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/resources_servers/itops/.venv/lib/python3.13/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+(itops)     return await self.receive_queue.get()
+(itops)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(itops)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/queues.py", line 186, in get
+(itops)     await getter
+(itops) asyncio.exceptions.CancelledError
+(itops) 
+(escalation_model) ERROR:    Traceback (most recent call last):
+(escalation_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 196, in run
+(escalation_model)     return runner.run(main)
+(escalation_model)            ~~~~~~~~~~^^^^^^
+(escalation_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+(escalation_model)     return self._loop.run_until_complete(task)
+(escalation_model)            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+(escalation_model)   File "uvloop/loop.pyx", line 1509, in uvloop.loop.Loop.run_until_complete
+(escalation_model)   File "uvloop/loop.pyx", line 1502, in uvloop.loop.Loop.run_until_complete
+(escalation_model)     self.run_forever()
+(escalation_model)   File "uvloop/loop.pyx", line 1371, in uvloop.loop.Loop.run_forever
+(escalation_model)     self._run(mode)
+(escalation_model)   File "uvloop/loop.pyx", line 551, in uvloop.loop.Loop._run
+(escalation_model)     raise self._last_error
+(escalation_model)   File "uvloop/loop.pyx", line 471, in uvloop.loop.Loop._on_idle
+(escalation_model)     handler._run()
+(escalation_model)   File "uvloop/cbhandles.pyx", line 86, in uvloop.loop.Handle._run
+(escalation_model)   File "uvloop/cbhandles.pyx", line 66, in uvloop.loop.Handle._run
+(escalation_model)     callback(*args)
+(escalation_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 89, in serve
+(escalation_model)     with self.capture_signals():
+(escalation_model)          ~~~~~~~~~~~~~~~~~~~~^^
+(escalation_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/contextlib.py", line 148, in __exit__
+(escalation_model)     next(self.gen)
+(escalation_model)     ~~~~^^^^^^^^^^
+(escalation_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 349, in capture_signals
+(escalation_model)     signal.raise_signal(captured_signal)
+(escalation_model)     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+(escalation_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 158, in _on_sigint
+(escalation_model)     raise KeyboardInterrupt()
+(escalation_model) KeyboardInterrupt
+(escalation_model) 
+(escalation_model) During handling of the above exception, another exception occurred:
+(escalation_model) 
+(escalation_model) Traceback (most recent call last):
+(escalation_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/starlette/routing.py", line 661, in lifespan
+(escalation_model)     await receive()
+(escalation_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/fastapi/telemetry/_runtime.py", line 214, in wrapped_receive
+(escalation_model)     message = await receive()
+(escalation_model)               ^^^^^^^^^^^^^^^
+(escalation_model)   File "/home/ubuntu/small-model-itops-team/runs/gym_venvs/responses_api_models/vllm_model/.venv/lib/python3.13/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+(escalation_model)     return await self.receive_queue.get()
+(escalation_model)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(escalation_model)   File "/home/ubuntu/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/lib/python3.13/asyncio/queues.py", line 186, in get
+(escalation_model)     await getter
+(escalation_model) asyncio.exceptions.CancelledError
+(escalation_model) 
+Some processes (itops) didn't shutdown within the 1s timeout, killing instead. You may see messages like:
+```bash
+rpc_client.h:203: Failed to connect to GCS within 60 seconds. GCS may have been killed. It's either GCS is terminated by `ray stop` or is killed unexpectedly. If it is killed unexpectedly, see the log file gcs_server.out. https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#logging-directory-structure. The program will terminate.
+```
+
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1313889]
+NeMo Gym finished!
+Shutting down Ray cluster spun up by NeMo Gym...

@@ -1,0 +1,8 @@
+{
+  "base_seatbelt": {
+    "passes": "5/10",
+    "mean_latency_s": 3.9612130630994216,
+    "cost_per_1k_usd": 0.17098427,
+    "small_model_steps": null
+  }
+}

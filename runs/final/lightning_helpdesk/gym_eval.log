@@ -1,0 +1,326 @@
+Clearing output fpath since `resume_from_cache=False`!
+Reading rows: 0it [00:00, ?it/s]Reading rows: 10it [00:00, 34100.03it/s]
+Routing rows via agent_map {'_default': 'itops_agent'}
+Repeating rows 3 times (in a pattern of abc to aabbcc)!
+Preprocessing and repeating rows:   0%|          | 0/10 [00:00<?, ?it/s]Preprocessing and repeating rows: 100%|██████████| 10/10 [00:00<00:00, 95979.50it/s]
+Writing materialized rows:   0%|          | 0/30 [00:00<?, ?it/s]Writing materialized rows: 100%|██████████| 30/30 [00:00<00:00, 94113.03it/s]
+Collecting rollouts:   0%|          | 0/30 [00:00<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:02<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:02<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:03<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:03<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:03<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:03<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:03<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:03<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:03<?, ?it/s]                                                           Collecting rollouts:   0%|          | 0/30 [00:04<?, ?it/s]Collecting rollouts:  33%|███▎      | 10/30 [00:04<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:04<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:04<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:05<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:05<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:05<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:05<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:05<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:05<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:05<00:08,  2.40it/s]                                                                    Collecting rollouts:  33%|███▎      | 10/30 [00:05<00:08,  2.40it/s]Collecting rollouts:  67%|██████▋   | 20/30 [00:05<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:05<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:05<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:05<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:05<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:05<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:06<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:06<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:06<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:06<00:02,  3.70it/s]                                                                    Collecting rollouts:  67%|██████▋   | 20/30 [00:06<00:02,  3.70it/s]Collecting rollouts: 100%|██████████| 30/30 [00:06<00:00,  5.89it/s]Collecting rollouts: 100%|██████████| 30/30 [00:06<00:00,  4.73it/s]
+Finished 1 / 30 rollouts (3%) in 0:00:02 (21.67 rollouts/min). Examples left:
+1. itops_agent: 29
+Found 1 / 30 (3.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.0,
+    "state_match": 0.0,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.0
+}
+
+Finished 2 / 30 rollouts (6%) in 0:00:02 (43.28 rollouts/min). Examples left:
+1. itops_agent: 28
+Found 2 / 30 (6.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.0,
+    "state_match": 0.0,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.0
+}
+
+Finished 3 / 30 rollouts (10%) in 0:00:03 (58.03 rollouts/min). Examples left:
+1. itops_agent: 27
+Found 3 / 30 (10.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.0,
+    "state_match": 0.0,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.0
+}
+
+Finished 4 / 30 rollouts (13%) in 0:00:03 (67.49 rollouts/min). Examples left:
+1. itops_agent: 26
+Found 4 / 30 (13.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.25,
+    "state_match": 0.25,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.25
+}
+
+Finished 5 / 30 rollouts (16%) in 0:00:03 (82.05 rollouts/min). Examples left:
+1. itops_agent: 25
+Found 5 / 30 (16.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.4,
+    "state_match": 0.4,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.4
+}
+
+Finished 6 / 30 rollouts (20%) in 0:00:03 (94.41 rollouts/min). Examples left:
+1. itops_agent: 24
+Found 6 / 30 (20.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.5,
+    "state_match": 0.5,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5
+}
+
+Finished 7 / 30 rollouts (23%) in 0:00:03 (109.76 rollouts/min). Examples left:
+1. itops_agent: 23
+Found 7 / 30 (23.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.42857142857142855,
+    "state_match": 0.42857142857142855,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.42857142857142855
+}
+
+Finished 8 / 30 rollouts (26%) in 0:00:03 (124.68 rollouts/min). Examples left:
+1. itops_agent: 22
+Found 8 / 30 (26.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.5,
+    "state_match": 0.5,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5
+}
+
+Finished 9 / 30 rollouts (30%) in 0:00:03 (137.37 rollouts/min). Examples left:
+1. itops_agent: 21
+Found 9 / 30 (30.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.5555555555555556,
+    "state_match": 0.5555555555555556,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5555555555555556
+}
+
+Finished 10 / 30 rollouts (33%) in 0:00:04 (143.55 rollouts/min). Examples left:
+1. itops_agent: 20
+Found 10 / 30 (33.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.6,
+    "state_match": 0.6,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.6
+}
+
+Finished 11 / 30 rollouts (36%) in 0:00:04 (149.70 rollouts/min). Examples left:
+1. itops_agent: 19
+Found 11 / 30 (36.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.6363636363636364,
+    "state_match": 0.6363636363636364,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.6363636363636364
+}
+
+Finished 12 / 30 rollouts (40%) in 0:00:04 (147.87 rollouts/min). Examples left:
+1. itops_agent: 18
+Found 12 / 30 (40.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.6666666666666666,
+    "state_match": 0.6666666666666666,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.6666666666666666
+}
+
+Finished 13 / 30 rollouts (43%) in 0:00:05 (154.27 rollouts/min). Examples left:
+1. itops_agent: 17
+Found 13 / 30 (43.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.6923076923076923,
+    "state_match": 0.6923076923076923,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.6923076923076923
+}
+
+Finished 14 / 30 rollouts (46%) in 0:00:05 (151.49 rollouts/min). Examples left:
+1. itops_agent: 16
+Found 14 / 30 (46.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.6428571428571429,
+    "state_match": 0.6428571428571429,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.6428571428571429
+}
+
+Finished 15 / 30 rollouts (50%) in 0:00:05 (158.30 rollouts/min). Examples left:
+1. itops_agent: 15
+Found 15 / 30 (50.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.6,
+    "state_match": 0.6,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.6
+}
+
+Finished 16 / 30 rollouts (53%) in 0:00:05 (168.34 rollouts/min). Examples left:
+1. itops_agent: 14
+Found 16 / 30 (53.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.625,
+    "state_match": 0.625,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.625
+}
+
+Finished 17 / 30 rollouts (56%) in 0:00:05 (178.36 rollouts/min). Examples left:
+1. itops_agent: 13
+Found 17 / 30 (56.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.5882352941176471,
+    "state_match": 0.5882352941176471,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5882352941176471
+}
+
+Finished 18 / 30 rollouts (60%) in 0:00:05 (187.68 rollouts/min). Examples left:
+1. itops_agent: 12
+Found 18 / 30 (60.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.5555555555555556,
+    "state_match": 0.5555555555555556,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5555555555555556
+}
+
+Finished 19 / 30 rollouts (63%) in 0:00:05 (195.08 rollouts/min). Examples left:
+1. itops_agent: 11
+Found 19 / 30 (63.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.5263157894736842,
+    "state_match": 0.5263157894736842,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5263157894736842
+}
+
+Finished 20 / 30 rollouts (66%) in 0:00:05 (204.97 rollouts/min). Examples left:
+1. itops_agent: 10
+Found 20 / 30 (66.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.55,
+    "state_match": 0.55,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.55
+}
+
+Finished 21 / 30 rollouts (70%) in 0:00:05 (215.19 rollouts/min). Examples left:
+1. itops_agent: 9
+Found 21 / 30 (70.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.5714285714285714,
+    "state_match": 0.5714285714285714,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5714285714285714
+}
+
+Finished 22 / 30 rollouts (73%) in 0:00:05 (225.29 rollouts/min). Examples left:
+1. itops_agent: 8
+Found 22 / 30 (73.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.5454545454545454,
+    "state_match": 0.5454545454545454,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5454545454545454
+}
+
+Finished 23 / 30 rollouts (76%) in 0:00:05 (235.38 rollouts/min). Examples left:
+1. itops_agent: 7
+Found 23 / 30 (76.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.5217391304347826,
+    "state_match": 0.5217391304347826,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5217391304347826
+}
+
+Finished 24 / 30 rollouts (80%) in 0:00:05 (242.45 rollouts/min). Examples left:
+1. itops_agent: 6
+Found 24 / 30 (80.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.5416666666666666,
+    "state_match": 0.5416666666666666,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5416666666666666
+}
+
+Finished 25 / 30 rollouts (83%) in 0:00:05 (251.26 rollouts/min). Examples left:
+1. itops_agent: 5
+Found 25 / 30 (83.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.56,
+    "state_match": 0.56,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.56
+}
+
+Finished 26 / 30 rollouts (86%) in 0:00:06 (256.13 rollouts/min). Examples left:
+1. itops_agent: 4
+Found 26 / 30 (86.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.5384615384615384,
+    "state_match": 0.5384615384615384,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5384615384615384
+}
+
+Finished 27 / 30 rollouts (90%) in 0:00:06 (264.62 rollouts/min). Examples left:
+1. itops_agent: 3
+Found 27 / 30 (90.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.5555555555555556,
+    "state_match": 0.5555555555555556,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5555555555555556
+}
+
+Finished 28 / 30 rollouts (93%) in 0:00:06 (269.40 rollouts/min). Examples left:
+1. itops_agent: 2
+Found 28 / 30 (93.33%) rollouts for `itops_agent`.
+{
+    "reward": 0.5714285714285714,
+    "state_match": 0.5714285714285714,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5714285714285714
+}
+
+Finished 29 / 30 rollouts (96%) in 0:00:06 (276.71 rollouts/min). Examples left:
+1. itops_agent: 1
+Found 29 / 30 (96.67%) rollouts for `itops_agent`.
+{
+    "reward": 0.5862068965517241,
+    "state_match": 0.5862068965517241,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.5862068965517241
+}
+
+Finished 30 / 30 rollouts (100%) in 0:00:06 (283.35 rollouts/min). Examples left:
+
+Found 30 / 30 (100.00%) rollouts for `itops_agent`.
+{
+    "reward": 0.6,
+    "state_match": 0.6,
+    "answer_ok": 1.0,
+    "verifier_reward": 0.6
+}
+
+Sorting results to ensure consistent ordering
+Computing aggregate metrics
+
+Key metrics for itops_agent:
+{
+    "mean/reward": 0.6,
+    "mean/state_match": 0.6,
+    "mean/answer_ok": 1.0,
+    "mean/verifier_reward": 0.6,
+    "mean/input_tokens": 5179.133333333333,
+    "mean/output_tokens": 226.36666666666667,
+    "mean/total_tokens": 5405.5
+}
+Finished rollout collection! View results at:
+Fully materialized inputs: /home/ubuntu/small-model-itops-team/runs/final/lightning_helpdesk/rollouts_materialized_inputs.jsonl
+Rollouts: /home/ubuntu/small-model-itops-team/runs/final/lightning_helpdesk/rollouts.jsonl
+Aggregate metrics: /home/ubuntu/small-model-itops-team/runs/final/lightning_helpdesk/rollouts_aggregate_metrics.json
+Rollout health: 30 checked, 0 healthy, 0 unhealthy, 30 unobserved
+Quality summary: /home/ubuntu/small-model-itops-team/runs/final/lightning_helpdesk/quality_summary.json

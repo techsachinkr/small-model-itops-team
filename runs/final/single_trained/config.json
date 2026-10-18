@@ -1,0 +1,47 @@
+{
+  "run_id": "final/single_trained",
+  "args": {
+    "setup": "single_trained",
+    "api": null,
+    "split": "test",
+    "final": true,
+    "chaos": false,
+    "config": "/home/ubuntu/small-model-itops-team/configs/eval.yaml",
+    "run_id": "final/single_trained"
+  },
+  "started_at": "2026-10-18T11:23:55.750291+00:00",
+  "eval_config": {
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "max_tokens": 8192,
+    "thinking": false,
+    "max_steps": 10,
+    "attempts_per_case": 3,
+    "pass_min_attempts": 2,
+    "seatbelt": {
+      "max_retries_per_step": 2,
+      "transient_retries": 3,
+      "transient_backoff_s": 0.5
+    },
+    "chaos": false,
+    "prices_usd_per_1m_tokens": {
+      "lightning": {
+        "prompt": 0.032,
+        "completion": 0.4594
+      },
+      "student": {
+        "prompt": 0.0233,
+        "completion": 0.1924
+      }
+    }
+  },
+  "gym_configs": [
+    "resources_servers/itops/configs/itops.yaml",
+    "gym_configs/eval.yaml",
+    "gym_configs/single_trained.yaml"
+  ],
+  "adapter": null,
+  "cases": 15,
+  "git_commit": "997e6a0ef7219a00e1162323859631aa18118229",
+  "git_dirty": true
+}

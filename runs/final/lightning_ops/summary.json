@@ -1,0 +1,8 @@
+{
+  "lightning": {
+    "passes": "9/10",
+    "mean_latency_s": 6.0314670488000655,
+    "cost_per_1k_usd": 0.3905129466666667,
+    "small_model_steps": null
+  }
+}

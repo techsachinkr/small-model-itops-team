@@ -1,0 +1,63 @@
+{
+  "run_id": "final/team_small_planner",
+  "args": {
+    "setup": "team_small_planner",
+    "api": null,
+    "split": "test",
+    "final": true,
+    "chaos": false,
+    "config": "/home/ubuntu/small-model-itops-team/configs/eval.yaml",
+    "run_id": "final/team_small_planner"
+  },
+  "started_at": "2026-10-18T11:29:03.056354+00:00",
+  "eval_config": {
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "max_tokens": 8192,
+    "thinking": false,
+    "max_steps": 10,
+    "attempts_per_case": 3,
+    "pass_min_attempts": 2,
+    "seatbelt": {
+      "max_retries_per_step": 2,
+      "transient_retries": 3,
+      "transient_backoff_s": 0.5
+    },
+    "chaos": false,
+    "prices_usd_per_1m_tokens": {
+      "lightning": {
+        "prompt": 0.032,
+        "completion": 0.4594
+      },
+      "student": {
+        "prompt": 0.0233,
+        "completion": 0.1924
+      }
+    }
+  },
+  "gym_configs": [
+    "resources_servers/itops/configs/itops.yaml",
+    "gym_configs/eval_team.yaml",
+    "gym_configs/team_small_planner.yaml"
+  ],
+  "adapter": null,
+  "registry": {
+    "active": [
+      "helpdesk",
+      "ops"
+    ],
+    "specialists": {
+      "helpdesk": {
+        "api": "helpdesk",
+        "card": "cards/helpdesk.json"
+      },
+      "ops": {
+        "api": "ops",
+        "card": "cards/ops.json"
+      }
+    }
+  },
+  "cases": 15,
+  "git_commit": "997e6a0ef7219a00e1162323859631aa18118229",
+  "git_dirty": true
+}

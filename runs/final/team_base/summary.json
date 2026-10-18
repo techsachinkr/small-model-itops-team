@@ -1,0 +1,8 @@
+{
+  "team_base": {
+    "passes": "6/15",
+    "mean_latency_s": 16.41617500142149,
+    "cost_per_1k_usd": 0.5843186333333333,
+    "small_model_steps": null
+  }
+}

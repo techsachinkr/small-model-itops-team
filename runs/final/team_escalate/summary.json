@@ -1,0 +1,8 @@
+{
+  "team_escalate": {
+    "passes": "7/15",
+    "mean_latency_s": 20.722944529443502,
+    "cost_per_1k_usd": 0.5271300466666666,
+    "small_model_steps": "87/87"
+  }
+}

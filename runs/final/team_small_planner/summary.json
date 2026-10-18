@@ -1,0 +1,8 @@
+{
+  "team_small_planner": {
+    "passes": "5/15",
+    "mean_latency_s": 9.404914719954185,
+    "cost_per_1k_usd": 0.3763098288888889,
+    "small_model_steps": null
+  }
+}

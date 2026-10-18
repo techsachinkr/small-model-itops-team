@@ -1,0 +1,62 @@
+{
+  "te-hd-01": {
+    "kind": "single",
+    "passed_attempts": "3/3",
+    "collected_attempts": 3,
+    "passed": true
+  },
+  "te-hd-02": {
+    "kind": "single",
+    "passed_attempts": "3/3",
+    "collected_attempts": 3,
+    "passed": true
+  },
+  "te-hd-03": {
+    "kind": "single",
+    "passed_attempts": "3/3",
+    "collected_attempts": 3,
+    "passed": true
+  },
+  "te-hd-04": {
+    "kind": "single",
+    "passed_attempts": "0/3",
+    "collected_attempts": 3,
+    "passed": false
+  },
+  "te-hd-05": {
+    "kind": "single",
+    "passed_attempts": "0/3",
+    "collected_attempts": 3,
+    "passed": false
+  },
+  "te-hd-06": {
+    "kind": "single",
+    "passed_attempts": "0/3",
+    "collected_attempts": 3,
+    "passed": false
+  },
+  "te-hd-07": {
+    "kind": "read_only",
+    "passed_attempts": "3/3",
+    "collected_attempts": 3,
+    "passed": true
+  },
+  "te-hd-08": {
+    "kind": "single",
+    "passed_attempts": "1/3",
+    "collected_attempts": 3,
+    "passed": false
+  },
+  "te-hd-09": {
+    "kind": "no_tool",
+    "passed_attempts": "0/3",
+    "collected_attempts": 3,
+    "passed": false
+  },
+  "te-hd-10": {
+    "kind": "missing_info",
+    "passed_attempts": "2/3",
+    "collected_attempts": 3,
+    "passed": true
+  }
+}

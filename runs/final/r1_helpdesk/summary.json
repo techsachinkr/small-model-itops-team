@@ -1,0 +1,8 @@
+{
+  "r1": {
+    "passes": "8/10",
+    "mean_latency_s": 4.234954412066145,
+    "cost_per_1k_usd": 0.15345640666666666,
+    "small_model_steps": null
+  }
+}

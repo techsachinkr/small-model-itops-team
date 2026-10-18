@@ -128,15 +128,16 @@ def git(*args: str, env: Mapping[str, str] | None = None) -> str:
                           env=None if env is None else os.environ | dict(env)).stdout
 
 
-# Never copied into a run's patch: the locked test set (hard rule 4). git_dirty still covers it, as a yes or no.
-PATCH_EXCLUDES = (":(exclude)data/test",)
+# Never copied into a run's patch: the locked test set (hard rule 4), and runs/, which holds outputs, not code (runs/final/
+# isn't ignored, so each final run once copied every earlier final run into its patch). git_dirty still covers them.
+PATCH_EXCLUDES = (":(exclude)data/test", ":(exclude)runs")
 
 
 def git_commit(run_dir: Path) -> dict[str, Any]:
     """The commit, and the uncommitted changes saved as git_diff.patch, so that the commit plus the patch is the code
     that ran: changes to tracked files, and untracked files that aren't ignored (task 3.3's new setup files were
-    untracked when they first ran), but nothing under data/test/. The patch is built in a temporary index, so what
-    is staged stays as it was."""
+    untracked when they first ran), but nothing under data/test/ or runs/. The patch is built in a temporary index, so
+    what is staged stays as it was."""
     dirty = bool(git("status", "--porcelain").strip())
     if dirty:
         with tempfile.TemporaryDirectory() as tmp:

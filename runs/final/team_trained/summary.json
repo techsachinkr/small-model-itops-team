@@ -1,0 +1,8 @@
+{
+  "team_trained": {
+    "passes": "8/15",
+    "mean_latency_s": 21.47650845591173,
+    "cost_per_1k_usd": 0.52926064,
+    "small_model_steps": null
+  }
+}

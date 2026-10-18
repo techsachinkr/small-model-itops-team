@@ -1,0 +1,8 @@
+{
+  "single_trained": {
+    "passes": "8/15",
+    "mean_latency_s": 12.590834762487793,
+    "cost_per_1k_usd": 0.4169155666666667,
+    "small_model_steps": null
+  }
+}

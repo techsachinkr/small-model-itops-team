@@ -1561,3 +1561,20 @@ for a in helpdesk_r1 ops_r1 all_r1; do uv run python scripts/smoke_toolcall.py -
 # Peak reserved 23.9, 20.5 and 26.4 GB. smoke_toolcall: 20/20 parsed for each (pass mark 19). The student server serves
 # student, all_r1, helpdesk_r1, ops_r1 (the new ones); the originals are in runs/adapters_practice/.
 ```
+
+## 2026-10-18: task 5.1 step 4 and 6, the final run (the human ran the chain) and its report
+
+```bash
+# 15 runs into runs/final/ (ladder per API, then the system setups), all at 997e6a0, split test, --final, chaos off,
+# every attempt collected (30/30 per ladder run, 45/45 per system run). Checked from config.json, summary.json and
+# per_case.json only (the traces and rollouts hold the test cases). Each run after the first is dirty only from the
+# earlier final runs' files: their git_diff.patch files touch only runs/final/ but snowballed to 4.1 GB, so
+# eval/run_eval.py now leaves runs/ out of patches, and .gitignore keeps runs/final/*/git_diff.patch out of git
+# (runs/final/ is 19 MB without them).
+.venv/bin/python -m eval.report --run final/base_raw_helpdesk ... --run final/team_small_planner --output runs/final/report.md
+# Cases (attempts): helpdesk base_raw 6/10 (17/30), base_seatbelt 5/10 (15/30), r1 8/10 (23/30), lightning 6/10 (18/30);
+# ops 5/10 (18/30), 5/10 (18/30), 7/10 (21/30), 9/10 (27/30); single_base 7/15 (20/45), single_trained 8/15 (24/45),
+# single_lightning 10/15 (30/45), team_base 6/15 (18/45), team_trained 8/15 (25/45), team_escalate 7/15 (24/45, no
+# escalation), team_small_planner 5/15 (17/45).
+uv run pytest -q   # 309 passed
+```

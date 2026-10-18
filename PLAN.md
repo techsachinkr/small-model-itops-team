@@ -525,7 +525,7 @@ Progress (2026-10-18; commands and results in `COMMANDS_LOG.md`):
 
 ## Stage 5: Final evaluation and submission
 
-### [ ] 5.1 Final run on the test set (humans run this)
+### [x] 5.1 Final run on the test set (humans run this)
 
 1. Run the test-set lock audit and the fairness audit from `PROMPTS.md`, and fix anything they find.
 2. Freeze the code: commit and tag `final-candidate`.
@@ -540,6 +540,26 @@ Progress (2026-10-18, before the freeze; commands and results in `COMMANDS_LOG.m
 - Step 3's first try found no test cases: `data/test/` doesn't exist (the human checked; earlier it was reported complete). The human is writing it now (the user's decision, 05:35 ET). Claude can't write or see it; it wrote `TEST_SET_GUIDE.md` (layout, format, rules of thumb, tools), `scripts/checks/fixture_overview.py` (what each fixture holds) and `scripts/checks/check_cases.py` (the practice cases' checks, for drafts outside `data/test/`; it refuses `data/test/`), from the code and fixtures only.
 - The test set's author (the user's decision, about 05:45 ET, after a human-written set turned out not to exist; the user edited hard rule 4 to allow it): a fresh Claude Code subagent, briefed with `TEST_SET_GUIDE.md`, the fixture overview and the helper scripts only, told not to read the practice cases, generated data, runs, plans, prompts or the agents' code, not to run any model, and to report counts only, so the session that built the system hasn't seen the cases. It writes `~/test_drafts/{helpdesk,ops,multi}.yaml` and `.jsonl` (10, 10 and 15 cases); the human moves the `.jsonl` files into `data/test/`. The README must say the test set is AI-written, by a fresh agent of the same model family that built the system, and how it was briefed.
 - Step 3 (the human ran it): of the 35 test cases' neighbours, 58 of 1,198 generated helpdesk tasks and 209 of 1,149 ops tasks were too close (almost all the same state changes as a test case, with other wording: the fixtures and their incidents are shared), and 54 and 203 training examples were built from them. Option A (the user's choice): `factory/drop_test_overlap.py` wrote `round_1_test_clean.jsonl` (helpdesk 1,031 of 1,085 examples, ops 813 of 1,016), and helpdesk_r1, ops_r1 and all_r1 were retrained on it with task 2.2's settings (124, 98 and 220 steps; 14, 11 and 38 min), keeping their names, so every setup runs them unchanged; each passed `smoke_toolcall` 20/20. The practice results came from the originals, now in `runs/adapters_practice/`; the final run uses the retrained ones. The README must say both.
+- Step 4, the final run (the human ran it; 15 runs in `runs/final/`, commit `997e6a0`, tag final-candidate, every attempt collected) and step 6, `runs/final/report.md`. Cases passed (attempts):
+
+  | setup | helpdesk (10 cases) | ops (10 cases) |
+  |---|---|---|
+  | `base_raw` | 6/10 (17/30) | 5/10 (18/30) |
+  | `base_seatbelt` | 5/10 (15/30) | 5/10 (18/30) |
+  | `r1` | 8/10 (23/30) | 7/10 (21/30) |
+  | `lightning` | 6/10 (18/30) | 9/10 (27/30) |
+
+  | setup | multi-API (15 cases) | mean latency | $ per 1,000 requests |
+  |---|---|---|---|
+  | `single_base` | 7/15 (20/45) | 12.5 s | 0.54 |
+  | `single_trained` | 8/15 (24/45) | 12.6 s | 0.42 |
+  | `single_lightning` | 10/15 (30/45) | 11.7 s | 0.79 |
+  | `team_base` | 6/15 (18/45) | 16.4 s | 0.58 |
+  | `team_trained` | 8/15 (25/45) | 21.5 s | 0.53 |
+  | `team_escalate` | 7/15 (24/45) | 20.7 s | 0.53 |
+  | `team_small_planner` | 5/15 (17/45) | 9.4 s | 0.38 |
+
+  On held-out cases, training helps both specialists (r1 against base_seatbelt: helpdesk 8/10 against 5/10, 23/30 against 15/30 attempts; ops 7/10 against 5/10, 21/30 against 18/30), and on helpdesk r1 beats Lightning (8/10 against 6/10); the seatbelt alone adds nothing, as on practice. The team does not beat one trained model with every tool: team_trained and single_trained tie (8/15 each, 25/45 against 24/45 attempts), and Lightning alone does best (10/15). Lightning as planner is worth 8 attempts (25/45 against the student's 17/45), and training is worth 7 inside the team (team_base 18/45). No step needed escalation (0 of 87). Costs carry the adapter-pricing caveat (`eval/report.py`'s note); the teams answer slower (about 21 s against 12 s).
 - Step 5 cut (the user's decision; cut list item 6): it had no code and no data. `data/open/DATA_SOURCES.md` now lists Workplace Assistant and When2Call under "Considered and not used", as planned and not run, and the README must say the regression checks weren't run.
 
 ### [ ] 5.2 Publishing and write-ups
