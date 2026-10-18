@@ -137,3 +137,15 @@ def test_tasks_inside_the_test_folder_are_refused(stand_in_test_set: Path, monke
         monkeypatch.setattr(sys, "argv", ["decontaminate", "--against", against, "--tasks", str(stand_in_test_set / "helpdesk.jsonl")])
         with pytest.raises(SystemExit, match="locked"):
             decontaminate.main()
+
+
+def test_with_no_test_cases_found_it_stops_and_says_where_it_looked(
+    stand_in_test_set: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (stand_in_test_set / "helpdesk.jsonl").unlink()  # an empty folder: nothing to compare with
+    path = tmp_path / "tasks_t.jsonl"
+    path.write_text(task("Please reset my password.").model_dump_json() + "\n")
+    monkeypatch.setattr(sys, "argv", ["decontaminate", "--against", "test", "--tasks", str(path)])
+    with pytest.raises(SystemExit, match="No test cases found: .* data/test/\\*.jsonl"):
+        decontaminate.main()
+    assert not (tmp_path / "tasks_t.decontaminate_test.json").exists()

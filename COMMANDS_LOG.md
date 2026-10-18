@@ -1484,3 +1484,13 @@ uv run pytest -q   # 303 passed
 # 5.1 step 5) and CLAUDE.md (repo layout) updated to match. Docs only.
 uv run pytest -q   # 303 passed
 ```
+
+### 5.1 step 3, first try (the human ran it)
+
+```bash
+uv run python -m eval.decontaminate --against test --tasks data/generated/helpdesk/tasks_round_1.jsonl data/generated/ops/tasks_round_1.jsonl
+# ValueError: max() iterable argument is empty: it found no test cases in data/test/*.jsonl, the layout
+# eval/run_eval.py --final reads too (data/test/ not opened here, hard rule 4). No report written, no file changed.
+# decontaminate.py now stops with a message saying where it looked instead (tested); the human checks the layout.
+uv run pytest -q   # 304 passed
+```

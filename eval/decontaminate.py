@@ -159,6 +159,10 @@ def main() -> None:
         raise SystemExit(f"{', '.join(done)} exist: these tasks were already decontaminated against {args.against}.")
     thresholds = load_factory_config(args.config)["decontaminate"]
     references = reference_cases(args.against)
+    if not references:
+        raise SystemExit(f"No {args.against} cases found: this script and eval/run_eval.py read data/{args.against}/*.jsonl, "
+                         "one case per line in the data/practice/ format (helpdesk.jsonl, ops.jsonl, and the multi-API "
+                         "cases in any other .jsonl). Nothing was changed.")
     for path, report_path in zip(args.tasks, reports):
         if args.against == "test":
             check_against_test(path, report_path, references, thresholds)
