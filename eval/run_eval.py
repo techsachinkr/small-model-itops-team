@@ -10,7 +10,8 @@ itops.yaml, gym_configs/eval.yaml or, for team setups, gym_configs/eval_team.yam
 adapter setups like r1 run the API's own adapter, "<api>_r1"), collects `attempts_per_case` rollouts per case
 with `gym eval run`, stops the servers, and writes to runs/<run_id>/:
     config.json     arguments, the resolved eval config, the Gym config files, the git commit
-    git_diff.patch  uncommitted changes, when the tree is dirty (commit + patch = the code that ran)
+    git_diff.patch  uncommitted changes, untracked files included, when the tree is dirty (commit + patch = the
+                    code that ran; data/test/ is never copied into it, hard rule 4)
     tasks.jsonl     the Gym rows (gym_env/tasks.py)
     rollouts.jsonl  Gym's rollouts, next to Gym's own side files and logs
     traces.jsonl    one Trace per attempt (common/schemas.py); a failed team attempt is labeled routing or
@@ -33,6 +34,7 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from collections import defaultdict
@@ -112,15 +114,28 @@ def load_cases(split: str, api: str | None) -> list[Case]:
     return cases
 
 
-def git(*args: str) -> str:
-    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, check=True).stdout
+def git(*args: str, env: Mapping[str, str] | None = None) -> str:
+    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, check=True,
+                          env=None if env is None else os.environ | dict(env)).stdout
+
+
+# Never copied into a run's patch: the locked test set (hard rule 4). git_dirty still covers it, as a yes or no.
+PATCH_EXCLUDES = (":(exclude)data/test",)
 
 
 def git_commit(run_dir: Path) -> dict[str, Any]:
-    """The commit, and the uncommitted changes to tracked files saved as git_diff.patch."""
+    """The commit, and the uncommitted changes saved as git_diff.patch, so that the commit plus the patch is the code
+    that ran: changes to tracked files, and untracked files that aren't ignored (task 3.3's new setup files were
+    untracked when they first ran), but nothing under data/test/. The patch is built in a temporary index, so what
+    is staged stays as it was."""
     dirty = bool(git("status", "--porcelain").strip())
     if dirty:
-        (run_dir / "git_diff.patch").write_text(git("diff", "HEAD"))
+        with tempfile.TemporaryDirectory() as tmp:
+            index = {"GIT_INDEX_FILE": str(Path(tmp) / "index")}
+            git("read-tree", "HEAD", env=index)
+            git("add", "--all", "--", ".", *PATCH_EXCLUDES, env=index)
+            patch = git("diff", "--cached", "HEAD", "--", ".", *PATCH_EXCLUDES, env=index)
+        (run_dir / "git_diff.patch").write_text(patch)
     return {"git_commit": git("rev-parse", "HEAD").strip(), "git_dirty": dirty}
 
 

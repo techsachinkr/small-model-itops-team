@@ -1270,3 +1270,13 @@ uv run python -m eval.run_eval --setup team_small_planner --split practice --run
 .venv/bin/python -I $SCRATCH/team_attempts.py team_escalate_practice team_trained_practice_v3 team_small_planner_practice
 # Lightning's escalated parts: $0.041 per 1,000 requests; the specialists' parts at Lightning's rate would add $0.023.
 LLM_MODE=replay uv run python -m agents.orchestrator --case pr-multi-01 --setup team_escalate   # PASS, from the cache
+
+### git_diff.patch with untracked files, never data/test/ (the user's request, after the runs)
+
+```bash
+uv run pytest -q   # 278 passed, with the new throwaway-repo test of git_commit
+# git_commit on the real repo into $SCRATCH/patch_check (deleted after): HEAD 9e34f45, dirty; the patch covered exactly
+# the two changed files (eval/run_eval.py, tests/test_run_eval.py); every "data/test" in it is this change's own code
+# and comments; `git diff --cached --name-only` was the same before and after.
+.venv/bin/python -c "from pathlib import Path; from eval.run_eval import git_commit; print(git_commit(Path('$SCRATCH/patch_check')))"
+```

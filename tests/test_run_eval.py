@@ -2,6 +2,7 @@
 Nothing here reads data/test/ (hard rule 4)."""
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -217,6 +218,58 @@ def test_the_adapter_name_reaches_the_agent_and_the_model_server() -> None:
     config = omegaconf.OmegaConf.merge(*files, omegaconf.OmegaConf.from_dotlist(["policy_model_name=ops_r1"]))
     assert config.itops_agent.responses_api_agents.itops_agent.model_name == "ops_r1"
     assert config.policy_model.responses_api_models.vllm_model.model == "ops_r1"
+
+
+def test_a_run_s_commit_and_patch_are_the_code_that_ran_without_the_test_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On a throwaway repo with its own data/test/: the patch holds tracked changes, staged files and untracked ones
+    (task 3.3's new setup files were untracked when they ran), never the locked test set (hard rule 4) or ignored
+    files, and leaves the real index as it was. Applied to the commit, it rebuilds the tree."""
+    repo = tmp_path / "repo"
+    (repo / "data" / "test").mkdir(parents=True)
+
+    def git(*args: str, cwd: Path = repo) -> str:
+        return subprocess.run(["git", "-c", "user.name=test", "-c", "user.email=test@example.com", *args], cwd=cwd,
+                              capture_output=True, text=True, check=True).stdout
+
+    git("init", "-q")
+    (repo / ".gitignore").write_text("runs/\n")
+    (repo / "code.py").write_text("old\n")
+    (repo / "data" / "test" / "cases.jsonl").write_text("locked case\n")
+    git("add", "--all")
+    git("commit", "-qm", "start")
+    (repo / "code.py").write_text("new\n")
+    (repo / "staged.py").write_text("staged\n")
+    git("add", "staged.py")
+    (repo / "team_escalate.yaml").write_text("escalate: true\n")
+    (repo / "data" / "test" / "cases.jsonl").write_text("edited locked case\n")
+    (repo / "data" / "test" / "more.jsonl").write_text("new locked case\n")
+    (repo / "runs").mkdir()
+    (repo / "runs" / "ignored.txt").write_text("ignored\n")
+    monkeypatch.setattr(run_eval, "REPO", repo)
+
+    record = run_eval.git_commit(tmp_path)
+    patch = (tmp_path / "git_diff.patch").read_text()
+    assert record == {"git_commit": git("rev-parse", "HEAD").strip(), "git_dirty": True}
+    assert "+new" in patch and "+staged" in patch and "+escalate: true" in patch
+    assert "data/test" not in patch and "locked case" not in patch and "ignored" not in patch
+    assert git("diff", "--cached", "--name-only").split() == ["staged.py"]  # the real index is untouched
+    assert git("status", "--porcelain", "--", "team_escalate.yaml").startswith("??")
+
+    rebuilt = tmp_path / "rebuilt"
+    git("clone", "-q", str(repo), str(rebuilt), cwd=tmp_path)
+    (rebuilt / "run.patch").write_text(patch)
+    git("apply", "run.patch", cwd=rebuilt)
+    for name in ("code.py", "staged.py", "team_escalate.yaml"):
+        assert (rebuilt / name).read_text() == (repo / name).read_text()
+    assert (rebuilt / "data" / "test" / "cases.jsonl").read_text() == "locked case\n"  # as committed, never patched
+
+    git("add", "--all")
+    git("commit", "-qm", "everything")
+    clean = tmp_path / "clean"
+    clean.mkdir()
+    assert run_eval.git_commit(clean)["git_dirty"] is False and not (clean / "git_diff.patch").exists()
 
 
 def case(case_id: str) -> Case:
