@@ -13,7 +13,8 @@ import yaml
 from common.eval_config import load_eval_config
 from common.schemas import Case
 from eval import run_eval
-from gym_env.tasks import read_cases
+from gym_env.env import tool_schemas
+from gym_env.tasks import case_to_row, read_cases
 
 CONFIG = load_eval_config()
 
@@ -60,10 +61,11 @@ def test_refuses_team_runs_with_a_specialist_switched_off() -> None:
 
 @pytest.mark.parametrize("argv, message", [
     (["--setup", "team_base", "--api", "ops", "--split", "practice"], "drop --api"),
+    (["--setup", "single_base", "--api", "ops", "--split", "practice"], "drop --api"),
     (["--setup", "r1", "--split", "practice"], "needs --api"),
     (["--setup", "team_base", "--split", "test"], "locked"),  # no --api needed; refused before reading cases
 ])
-def test_team_setups_take_no_api_and_ladder_setups_need_one(
+def test_system_setups_take_no_api_and_ladder_setups_need_one(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], argv: list[str], message: str
 ) -> None:
     monkeypatch.setattr(sys, "argv", ["run_eval", *argv])
@@ -73,7 +75,8 @@ def test_team_setups_take_no_api_and_ladder_setups_need_one(
 
 
 def test_setups_are_the_gym_configs() -> None:
-    assert run_eval.SETUPS == ["base_raw", "base_seatbelt", "lightning", "r1", "team_base", "team_trained"]
+    assert run_eval.SETUPS == ["base_raw", "base_seatbelt", "lightning", "r1", "single_base", "single_lightning",
+                               "single_trained", "team_base", "team_trained"]
 
 
 def test_system_setups_run_on_the_multi_api_cases_of_every_file() -> None:
@@ -113,6 +116,25 @@ def test_r1_is_base_seatbelt_with_the_api_s_own_adapter() -> None:
     assert run_eval.adapter_model("r1", "helpdesk") == "helpdesk_r1"
     assert run_eval.adapter_model("r1", "ops") == "ops_r1"
     assert run_eval.adapter_model("base_seatbelt", "ops") is None
+
+
+def test_single_setups_are_the_ladder_s_models_with_every_tool() -> None:
+    """One model with every tool and no orchestrator: base_seatbelt's and lightning's files, and single_base's with
+    the all_r1 adapter (priced as the student), run by the single agent on the multi-API cases, whose rows carry every
+    API's tools in a fixed order."""
+    single_base, base, single_lightning, lightning, single_trained = (
+        yaml.safe_load((run_eval.GYM_CONFIGS / f"{setup}.yaml").read_text())
+        for setup in ("single_base", "base_seatbelt", "single_lightning", "lightning", "single_trained"))
+    assert single_base == base and single_lightning == lightning  # hard rule 7: only the model differs
+    assert single_trained == single_base | {"policy_model_name": "all_r1"}
+    assert CONFIG.prices_for("all_r1") == CONFIG.prices_for("student")
+    for setup in ("single_base", "single_lightning", "single_trained"):
+        assert run_eval.is_system(setup) and run_eval.agent_name(setup) == "itops_agent"
+        assert [path.name for path in run_eval.gym_configs(setup)] == ["itops.yaml", "eval.yaml", f"{setup}.yaml"]
+    every_tool = tool_schemas(run_eval.APIS)
+    assert len(every_tool) > len(tool_schemas(["helpdesk"])) > 0
+    for case in run_eval.load_cases("practice", None):
+        assert case_to_row(case)["responses_create_params"]["tools"] == every_tool
 
 
 @pytest.fixture

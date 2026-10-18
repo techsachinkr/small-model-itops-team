@@ -31,3 +31,6 @@ models:
 adapters:
   helpdesk_r1: adapters/helpdesk_r1
   ops_r1: adapters/ops_r1
+  # single_trained's adapter (task 3.2, factory/train_lora.py --api all): both APIs' round 1 examples, rendered with
+  # every tool, the same settings
+  all_r1: adapters/all_r1

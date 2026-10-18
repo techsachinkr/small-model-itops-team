@@ -2,16 +2,18 @@
 and tokenizer, skipped if they aren't in the local Hugging Face cache), the held-out split, and the settings."""
 
 import json
+import random
 import re
 from pathlib import Path
 
 import pytest
 
 from common.schemas import TrainingExample
-from eval.run_eval import REPO
+from eval.run_eval import APIS, REPO
 from factory import filter as factory_filter
 from factory import train_lora
 from factory.sampler import load_factory_config
+from gym_env.env import tool_schemas
 
 
 def tokenizer_available() -> bool:
@@ -104,10 +106,10 @@ def test_labels_cover_exactly_what_the_student_generates() -> None:
         assert ids[:run[0]] == tokenizer(prompt, add_special_tokens=False)["input_ids"]
 
 
-def example(number: int, api: str = "helpdesk") -> TrainingExample:
-    case_id = f"hd-t-{number:04d}"
+def example(number: int, api: str = "helpdesk", messages: list[dict] | None = None, text: str = "") -> TrainingExample:
+    case_id = f"{api}-t-{number:04d}"
     return TrainingExample(id=f"{case_id}-1", api=api, round=1, kind="single", origin="sampled", source="broad",
-                           case_id=case_id, teacher="lightning", reward=1.0, messages=[], text="")
+                           case_id=case_id, teacher="lightning", reward=1.0, messages=messages or [], text=text)
 
 
 def test_the_held_out_split_is_seeded_and_disjoint() -> None:
@@ -127,6 +129,42 @@ def test_an_adapter_trains_on_its_own_api_only(tmp_path: Path) -> None:
         train_lora.load_examples([path], "helpdesk")
     assert train_lora.data_files("ops", 2) == [REPO / "data/generated/ops/round_1.jsonl",
                                                 REPO / "data/generated/ops/round_2.jsonl"]
+
+
+def test_the_every_api_adapter_holds_out_what_each_api_s_own_adapter_held_out() -> None:
+    helpdesk, ops = [example(n) for n in range(100)], [example(n, api="ops") for n in range(60)]
+    for examples in (helpdesk, ops):  # one API: the split the round 1 adapters were trained with
+        ids = sorted(e.id for e in examples)
+        assert {e.id for e in train_lora.split(examples, 0.05, seed=0)[1]} == set(random.Random(0).sample(ids, round(len(ids) * 0.05)))
+    train, held_out = train_lora.split(helpdesk + ops, 0.05, seed=0)
+    alone = [train_lora.split(examples, 0.05, seed=0) for examples in (helpdesk, ops)]
+    assert {e.id for e in held_out} == {e.id for _, own in alone for e in own}
+    assert {e.id for e in train} == {e.id for own, _ in alone for e in own}
+
+
+def test_the_every_api_adapter_needs_every_api_s_examples(tmp_path: Path) -> None:
+    path = tmp_path / "round_1.jsonl"
+    path.write_text(example(1).model_dump_json() + "\n")
+    with pytest.raises(SystemExit, match="no ops examples"):
+        train_lora.load_examples([path], "all")
+    path.write_text("".join(e.model_dump_json() + "\n" for e in (example(1), example(1, api="ops"))))
+    assert [e.api for e in train_lora.load_examples([path], "all")] == ["helpdesk", "ops"]
+    assert train_lora.data_files("all", 1) == [REPO / "data/generated/helpdesk/round_1.jsonl",
+                                               REPO / "data/generated/ops/round_1.jsonl"]
+
+
+@needs_tokenizer
+def test_the_every_api_adapter_sees_every_tool_and_learns_the_same_tokens() -> None:
+    tokenizer = factory_filter.student_tokenizer()
+    stored = example(1, messages=MESSAGES, text=factory_filter.render(MESSAGES, tool_schemas(["helpdesk"])))
+    text = train_lora.with_every_tool(stored)
+    assert text == factory_filter.render(MESSAGES, tool_schemas(APIS))
+    assert all(tool["name"] in text for tool in tool_schemas(APIS)) and "rollback" not in stored.text
+    learned = [[tokenizer.decode([row["input_ids"][p] for p in run]) for run in labeled_runs(row["labels"])]
+               for row in (train_lora.tokenize(t, tokenizer) for t in (stored.text, text))]
+    assert learned[0] == learned[1]  # the same assistant tokens; only the prompt's tool list grew
+    with pytest.raises(SystemExit, match="don't render to its stored text"):
+        train_lora.with_every_tool(stored.model_copy(update={"text": stored.text.replace("LT-2007", "LT-2008")}))
 
 
 def test_the_shipped_settings_fit_the_student_server() -> None:

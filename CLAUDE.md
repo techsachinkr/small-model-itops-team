@@ -104,7 +104,7 @@ Specialist ladder, per API, on that API's single-API cases. Each row changes one
 - `lightning`: Lightning, as a reference
 
 System, on multi-API cases:
-- `single_base`, `single_trained`, `single_lightning`: one model with every tool and no orchestrator (`single_trained` is one adapter trained on all specialists' data)
+- `single_base`, `single_trained`, `single_lightning`: one model with every tool and no orchestrator (`single_trained` is one adapter, `all_r1`, trained on all specialists' data with the same settings, each example rendered with every tool)
 - `team_base`: Lightning orchestrator with untrained specialists
 - `team_trained`: Lightning orchestrator with trained specialists (each API's newest adapter; r1 until round 2 exists)
 - `team_escalate`: `team_trained` plus escalation
@@ -197,6 +197,9 @@ uv run --group train python -m factory.filter --run round1_helpdesk --round 1 \
 # 20 min and up to ~25 GB each, next to both vLLM servers (configs/gpu.md). Adapter in adapters/<api>_r<n>/ (served
 # as "<api>_r<n>" after scripts/serve_student.sh restarts), logs and metrics in runs/train_<api>_r<n>/.
 uv run --group train python -m factory.train_lora --api helpdesk --round 1
+# single_trained's adapter (task 3.2): --api all trains all_r<n> on every API's examples, each held out as for its own
+# API's adapter and rendered with every tool; about 45 min and up to ~30 GB next to both vLLM servers.
+uv run --group train python -m factory.train_lora --api all --round 1
 # Dry run to measure memory and speed: --max-steps 3 --limit 80 --run-id <id> --output <scratch dir>
 .venv/bin/python scripts/checks/rescore_answers.py runs/<run_id> ...   # re-score stored rollouts' answer checks
 uv run python -m factory.run_round --api ops --round 1
@@ -207,6 +210,9 @@ uv run python -m agents.orchestrator --case pr-multi-01 --setup team_trained [--
 # Team setups on the multi-API practice cases (no --api). Needs Lightning on 8000 and the student with the setup's
 # adapters on 8001, port 11000 free; refuses while agents/registry.json has a specialist switched off.
 uv run python -m eval.run_eval --setup team_trained --split practice --run-id team_trained_practice
+# The single-model system setups (task 3.2) on the same cases, also without --api: one model with every tool and no
+# orchestrator. single_trained runs all_r1 on the student server.
+uv run python -m eval.run_eval --setup single_trained --split practice --run-id single_trained_practice
 uv run python -m bench.run --suite all
 scripts/demo_reset.sh
 uv run python -m eval.report --run <run_id> [--run <run_id> ...] [--output <file.md>]   # results table

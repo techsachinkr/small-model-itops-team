@@ -1100,3 +1100,82 @@ uv run python -m eval.run_eval --setup team_trained --split practice --run-id te
 git checkout -- .claude/settings.json
 git diff --quiet HEAD -- .claude/settings.json && echo "matches HEAD"   # matches HEAD
 ```
+
+## 2026-10-18: task 3.2 System baselines
+
+### Planning: what re-rendering the training examples with every tool costs (CPU only, read-only)
+
+```bash
+# For single_trained's adapter (the user chose this 2026-10-18): train on the same trajectories, rendered with every
+# API's tools as the single_* setups see them at eval. $SCRATCH/tool_tokens.py re-renders round 1's examples with
+# factory.filter.render, with each example's own API's tools and then with every tool.
+PYTHONPATH=$PWD .venv/bin/python $SCRATCH/tool_tokens.py
+# Own API's tools: identical to the stored text for helpdesk 1,085/1,085 and ops 1,016/1,016 (gym_env.env's
+# Responses-format schemas render exactly like the chat-format tools filter.py had). Every tool: helpdesk tokens
+# 2,025,176 -> 3,212,166 (1.59x), ops 1,801,570 -> 3,024,834 (1.68x); longest 3,696 -> 4,790 (max_length is 8,192).
+# Data unchanged since the specialists trained: sha256 of both round_1.jsonl files matches runs/train_*_r1/config.json.
+```
+
+### single_base and single_lightning
+
+```bash
+# gym_configs/single_base.yaml and single_lightning.yaml are base_seatbelt.yaml's and lightning.yaml's contents;
+# eval/run_eval.py already runs single_* setups on the multi-API cases with itops_agent, and each case row carries
+# all 12 tools (helpdesk and ops). Tests: those files equal the ladder's, the rows carry every tool, single_* refuse
+# --api, and the parametrized offline Gym config check now covers both setups.
+.venv/bin/python -m pytest -q          # 255 passed (4 new)
+```
+
+### single_trained's adapter: `factory/train_lora.py --api all` (re-rendered with every tool, the user's choice)
+
+```bash
+# --api all: both APIs' round_<n> files; each API's examples split on their own with the seed (so the held-out
+# examples are the round 1 adapters'); each trajectory rendered again with every tool after checking that its own
+# API's tools give back its stored text. Adapter all_r<n>, run train_all_r<n>; config.json and training_run.json say
+# how the text was rendered. Tests: the one-API split is unchanged and the union's is both APIs' splits, --api all
+# needs every API's examples, and (real template and tokenizer) the new text lists every tool and trains the same tokens.
+.venv/bin/python -m pytest -q          # 258 passed (3 new)
+# The full round 1 data through the same functions ($SCRATCH/union_check.py, CPU only, 40 s): 1,996 training examples
+# and 105 held out, the held-out ids identical to runs/train_{helpdesk,ops}_r1's; trained tokens 392,801 (train) and
+# 19,285 (held out), the round 1 adapters' sums, and unchanged in each of the 2,101 examples. Training tokens
+# 3,638,423 -> 5,928,197 (1.63x), longest 4,790. Also wrote the 10 longest per API to $SCRATCH/longest_all.jsonl.
+PYTHONPATH=$PWD .venv/bin/python $SCRATCH/union_check.py $SCRATCH/longest_all.jsonl
+```
+
+### Dry run next to both vLLM servers (the user approved; adapter in $SCRATCH, run kept in runs/dryrun_train_all_longest)
+
+```bash
+nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader   # 104,987 MiB (Lightning 81,616, student 23,356), 0 %
+ss -ltn | grep -c ':11000 '                                                 # 0: no eval running
+# Worst case: one step on those 20 examples (16 per step, 3,784-4,790 tokens); the GPU sampled every 500 ms with
+# nvidia-smi --query-gpu=memory.used -lms 500 into $SCRATCH/dryrun_all_gpu.txt, stopped after the run.
+.venv/bin/python -m factory.train_lora --api all --round 1 --data $SCRATCH/longest_all.jsonl --max-steps 1 \
+  --run-id dryrun_train_all_longest --output $SCRATCH/dryrun_all_longest_adapter
+# 15.2 s for the step (2.2's helpdesk worst case: 11.7 s); peak 18,746 MiB allocated and 24,406 reserved (2.2: 16,377
+# and 24,306), 37,644 free at the start; the whole GPU peaked at 130,164 of 143,771 MiB (2.2: 130,724), and went back
+# to 104,987. The round 1 runs reserved about 3 GB more than their dry run, so expect about 28 GB. Time: 1.63x the
+# round 1 runs' tokens at their 6.8 s per step, about 11 s x 250 steps: about 47 min.
+```
+
+### single_trained
+
+```bash
+# gym_configs/single_trained.yaml: single_base.yaml with model all_r1 (on the student server); configs/models.yaml
+# records the adapter. Tests: it differs from single_base only in the model, all_r1 is priced as the student, and the
+# offline Gym config check covers it.
+.venv/bin/python -m pytest -q          # 259 passed (1 new)
+```
+
+### all_r1 training (the human ran it, in their terminal, both vLLM servers up)
+
+```bash
+uv run --group train python -m factory.train_lora --api all --round 1
+# Ran from commit 744d3ca with this task's changes uncommitted (git_diff.patch in runs/train_all_r1/). 1,996 examples
+# re-rendered with every tool, 105 held out (the round 1 adapters' ids, checked in its config.json); 250 steps in
+# 43.4 min (10.4 s/step); train loss 0.2741; eval loss 0.2097 -> 0.2021 (epochs 1 -> 2), token accuracy 0.9295 ->
+# 0.9324; peak 30,238 MiB reserved, 18,878 allocated, 37,644 free at the start. On the same 105 examples the round 1
+# adapters ended at 0.1473 (helpdesk's 54) and 0.2608 (ops's 51), 0.2025 weighted by examples. Adapter in
+# adapters/all_r1 (68 MB; r=16, alpha 32, the same seven targets).
+nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader   # 104,987 MiB, 0 %: training released its memory
+curl -s localhost:8001/v1/models   # student, helpdesk_r1, ops_r1: all_r1 is served only after the student server restarts
+```

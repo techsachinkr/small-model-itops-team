@@ -435,6 +435,13 @@ table with correct cases, mean latency and cost per 1,000 requests.
 
 **Done when:** the system practice table has all available setups.
 
+Progress (2026-10-18; commands and results in `COMMANDS_LOG.md`):
+- Built: `gym_configs/single_base.yaml` and `single_lightning.yaml` (the `base_seatbelt` and `lightning` files; `eval/run_eval.py` already ran `single_*` setups on the multi-API cases with `itops_agent`, and each case's row carries all 12 tools), `gym_configs/single_trained.yaml` (model `all_r1`), and `factory/train_lora.py --api all`.
+- Decided (the user, 2026-10-18): `all_r1` trains on the same trajectories rendered again with every tool, as the `single_*` setups prompt the model; the stored `text` lists only its own API's 6 tools. Each API's examples are held out as for its own adapter. Checked on CPU: the 1,996 training and 105 held-out examples are the round 1 adapters', the trained tokens are unchanged in all 2,101 examples (392,801 in training), and the prompts are 1.63x longer (longest 4,790 tokens).
+- Dry run (one step on the 20 longest examples, next to both servers): 15.2 s, 24,406 MiB reserved, GPU peak 130,164 of 143,771 MiB (2.2's worst case: 130,724).
+- Training (run `train_all_r1`; the human ran it, from `744d3ca` with this task's changes uncommitted, `git_diff.patch` in the run): 250 steps in 43.4 min, peak 30,238 MiB reserved. Held-out eval loss 0.2097 -> 0.2021 over the 2 epochs; on the same 105 examples the round 1 adapters ended at 0.1473 (helpdesk's 54) and 0.2608 (ops's 51), 0.2025 weighted by examples.
+- Next, run by the human: the `single_base` and `single_lightning` evals, a student-server restart (to serve `all_r1`), `smoke_toolcall`, and the `single_trained` eval. Then the system table from `eval.report`, with the team rows from `team_*_practice_v2` (only docs changed since `60bc6b5`).
+
 ### [ ] 3.3 Escalation and Lightning's planner contribution
 
 ```

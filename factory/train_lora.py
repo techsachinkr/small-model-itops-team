@@ -1,13 +1,18 @@
-"""LoRA fine-tuning of the student on one API's kept Lightning rollouts, with TRL and PEFT.
+"""LoRA fine-tuning of the student on one API's kept Lightning rollouts (or every API's), with TRL and PEFT.
 
     uv run --group train python -m factory.train_lora --api helpdesk --round 1
+    uv run --group train python -m factory.train_lora --api all --round 1
 
 Trains on data/generated/<api>/round_1.jsonl through round_<n>.jsonl (factory/filter.py; --data overrides) with
-the `train:` settings in configs/factory.yaml, and writes:
+the `train:` settings in configs/factory.yaml. `--api all` trains single_trained's adapter, all_r<n>, on every
+API's examples with the same settings: each API's examples are held out exactly as for that API's own adapter, and
+each trajectory is rendered again with every API's tools, as the single_* setups prompt the model (rendering it
+with its own API's tools must give back its stored text, so the tools are the only change). It writes:
     adapters/<api>_r<n>/     the PEFT adapter, which scripts/serve_student.sh serves as model "<api>_r<n>",
-                             and training_run.json (which run made it)
+                             and training_run.json (which run made it, from which data, rendered how)
     runs/train_<api>_r<n>/   config.json     arguments, settings, base model and revision, data files with their
-                                             sha256, token counts, held-out example ids, git commit
+                                             sha256, how the text was rendered, token counts, held-out example
+                                             ids, git commit
                              log.jsonl       the Trainer's logs as they arrive (loss, learning rate, eval loss)
                              metrics.json    final metrics: runtime, losses, peak GPU memory, the full log
                              git_diff.patch  uncommitted changes, when the tree is dirty
@@ -38,8 +43,9 @@ from pydantic import Field
 from common.llm import MODELS_CONFIG
 from common.schemas import Strict, TrainingExample
 from eval.run_eval import APIS, REPO, git_commit
-from factory.filter import student_tokenizer
+from factory.filter import render, student_tokenizer
 from factory.sampler import FACTORY_CONFIG, load_factory_config
+from gym_env.env import tool_schemas
 
 # Importing nemo_gym sets HF_HOME to Gym's own cache folder unless it is already set. Keep the usual Hugging Face
 # cache, where the student is; transformers is imported only in train(), after this.
@@ -50,6 +56,7 @@ os.environ.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
 GENERATION_PROMPT = "<|im_start|>assistant\n<think></think>"
 ASSISTANT_TURN = "<|im_start|>assistant\n"
 END_OF_TURN = "<|im_end|>"
+EVERY_API = "all"  # --api all: one adapter on every API's examples (single_trained)
 
 
 class LoraSettings(Strict):
@@ -109,14 +116,19 @@ def tokenize(text: str, tokenizer: Any) -> dict[str, list[int]]:
 
 
 def data_files(api: str, round_: int) -> list[Path]:
-    return [REPO / "data" / "generated" / api / f"round_{k}.jsonl" for k in range(1, round_ + 1)]
+    apis = APIS if api == EVERY_API else (api,)
+    return [REPO / "data" / "generated" / name / f"round_{k}.jsonl" for name in apis for k in range(1, round_ + 1)]
 
 
 def load_examples(paths: list[Path], api: str) -> list[TrainingExample]:
     examples = []
     for path in paths:
         examples += [TrainingExample.model_validate_json(line) for line in path.read_text().splitlines() if line.strip()]
-    if others := sorted({example.api for example in examples} - {api}):
+    found = {example.api for example in examples}
+    if api == EVERY_API:
+        if missing := sorted(set(APIS) - found):
+            raise SystemExit(f"The data has no {', '.join(missing)} examples; --api all trains on every API's.")
+    elif others := sorted(found - {api}):
         raise SystemExit(f"The data has {', '.join(others)} examples; this run trains the {api} adapter only.")
     if len({example.id for example in examples}) != len(examples):
         raise SystemExit("The data has duplicate example ids.")
@@ -124,10 +136,22 @@ def load_examples(paths: list[Path], api: str) -> list[TrainingExample]:
 
 
 def split(examples: list[TrainingExample], fraction: float, seed: int) -> tuple[list[TrainingExample], list[TrainingExample]]:
-    """A seeded split into training examples and examples held out for eval loss."""
-    held_out = set(random.Random(seed).sample(sorted(example.id for example in examples), round(len(examples) * fraction)))
+    """A seeded split into training examples and examples held out for eval loss, made for each API on its own, so the
+    --api all adapter holds out exactly the examples each API's own adapter held out."""
+    held_out: set[str] = set()
+    for api in sorted({example.api for example in examples}):
+        ids = sorted(example.id for example in examples if example.api == api)
+        held_out |= set(random.Random(seed).sample(ids, round(len(ids) * fraction)))
     return ([example for example in examples if example.id not in held_out],
             [example for example in examples if example.id in held_out])
+
+
+def with_every_tool(example: TrainingExample) -> str:
+    """The example's trajectory rendered with every API's tools, in the order the single_* setups' rows list them."""
+    if render(example.messages, tool_schemas([example.api])) != example.text:
+        raise SystemExit(f"{example.id}: its messages don't render to its stored text, so re-rendering them would "
+                         "change more than the tools.")
+    return render(example.messages, tool_schemas(APIS))
 
 
 def token_counts(rows: list[dict[str, list[int]]]) -> dict[str, int]:
@@ -217,7 +241,8 @@ def train(settings: TrainSettings, train_rows: list[dict[str, list[int]]], eval_
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="LoRA fine-tuning of the student on one API's kept rollouts.")
-    parser.add_argument("--api", required=True, choices=APIS)
+    parser.add_argument("--api", required=True, choices=[*APIS, EVERY_API],
+                        help=f"{EVERY_API}: single_trained's adapter, on every API's examples with every tool")
     parser.add_argument("--round", type=int, required=True)
     parser.add_argument("--config", type=Path, default=FACTORY_CONFIG, help="factory config (its train: section)")
     parser.add_argument("--data", type=Path, nargs="+", help="default: data/generated/<api>/round_1..<n>.jsonl")
@@ -243,7 +268,9 @@ def main() -> None:
         examples = random.Random(settings.seed).sample(examples, min(args.limit, len(examples)))
     train_examples, eval_examples = split(examples, settings.eval_fraction, settings.seed)
     tokenizer = student_tokenizer()
-    rows = {example.id: tokenize(example.text, tokenizer) for example in examples}
+    every_tool = args.api == EVERY_API
+    rows = {example.id: tokenize(with_every_tool(example) if every_tool else example.text, tokenizer)
+            for example in examples}
     if too_long := [example_id for example_id, row in rows.items() if len(row["input_ids"]) > settings.max_length]:
         raise SystemExit(f"{len(too_long)} examples are longer than max_length {settings.max_length} "
                          f"(for example {too_long[0]}); raise it in {shown(args.config.resolve())}.")
@@ -253,7 +280,10 @@ def main() -> None:
     run_dir.mkdir(parents=True)
     student = yaml.safe_load(MODELS_CONFIG.read_text())["models"]["student"]
     provenance = {"run_id": run_id, "base_model": student["hf_id"], "revision": student["revision"],
-                  "data": [{"path": shown(path), "sha256": sha256(path)} for path in paths], **git_commit(run_dir)}
+                  "data": [{"path": shown(path), "sha256": sha256(path)} for path in paths],
+                  "text": ("re-rendered with every API's tools: " + ", ".join(tool["name"] for tool in tool_schemas(APIS))
+                           if every_tool else "stored (each example's own API's tools)"),
+                  **git_commit(run_dir)}
     (run_dir / "config.json").write_text(json.dumps({
         **provenance,
         "args": {key: jsonable(value) for key, value in vars(args).items()},

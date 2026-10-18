@@ -1,0 +1,11 @@
+# single_trained: one adapter trained on every specialist's data, with every tool and no orchestrator, with the
+# seatbelt (CLAUDE.md "Eval setups"). all_r1 is trained on round 1's helpdesk and ops examples with the round 1
+# adapters' settings, each rendered with every tool (factory/train_lora.py --api all); scripts/serve_student.sh serves
+# adapters/all_r1 under that name. The same as single_base except for the model. Only the model and the seatbelt
+# switch differ between setups; everything else is in eval.yaml.
+policy_model_name: all_r1
+policy_base_url: http://localhost:8001/v1
+itops_agent:
+  responses_api_agents:
+    itops_agent:
+      seatbelt: true
