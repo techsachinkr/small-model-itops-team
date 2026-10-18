@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from common.eval_config import load_eval_config  # noqa: E402
 from common.schemas import Case  # noqa: E402
+from eval.run_eval import test_run_refusal  # noqa: E402
 from gym_env.tasks import rollout_answer  # noqa: E402
 from gym_env.verify import answer_check  # noqa: E402
 
@@ -30,6 +31,8 @@ def main() -> None:
     parser.add_argument("runs", nargs="+", type=Path)
     args = parser.parse_args()
     need = load_eval_config().pass_min_attempts
+    if refused := [reason for run in args.runs if (reason := test_run_refusal(run))]:
+        raise SystemExit("Refusing: " + " ".join(refused))
     for run in args.runs:
         rows = [json.loads(line) for line in (run / "rollouts.jsonl").read_text().splitlines() if line.strip()]
         before, after = defaultdict(int), defaultdict(int)

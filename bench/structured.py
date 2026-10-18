@@ -36,7 +36,7 @@ from agents.specialist import load_specialists
 from common.eval_config import load_eval_config
 from common.llm import port_for
 from common.seatbelt import SELF_CHECK_PROMPT, SELF_CHECK_SCHEMA
-from eval.run_eval import REPO, git_commit, load_cases
+from eval.run_eval import REPO, git_commit, load_cases, test_run_refusal
 from gym_env.tasks import system_prompt
 
 BENCH = REPO / "runs" / "bench"
@@ -64,6 +64,8 @@ def self_check_requests(run_id: str) -> list[dict[str, Any]]:
     from factory.filter import conversation
 
     run_dir = REPO / "runs" / run_id
+    if reason := test_run_refusal(run_dir):
+        raise SystemExit(f"Refusing: {reason}")
     api = json.loads((run_dir / "config.json").read_text())["args"]["api"]
     requests = []
     for line in (run_dir / "rollouts.jsonl").read_text().splitlines():

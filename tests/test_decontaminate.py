@@ -1,5 +1,6 @@
 """eval/decontaminate.py against the practice cases: paraphrases and the same changes are dropped, other
-tasks are kept, and there is no way to point it at data/test/ yet (hard rule 4)."""
+tasks are kept. Against the test cases (task 5.1, hard rule 4) it reports and changes nothing; these tests point it
+at a stand-in test folder of their own, never data/test/."""
 
 import json
 import sys
@@ -94,7 +95,45 @@ def test_main_rewrites_the_tasks_and_reports_the_drops(monkeypatch: pytest.Monke
         decontaminate.main()
 
 
-def test_there_is_no_test_option(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(sys, "argv", ["decontaminate", "--tasks", str(tmp_path / "x.jsonl"), "--against", "test"])
-    with pytest.raises(SystemExit):
+@pytest.fixture
+def stand_in_test_set(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """A test folder of our own with one case, a copy of pr-hd-04 under a test-looking ID."""
+    folder = tmp_path / "test_set"
+    folder.mkdir()
+    (folder / "helpdesk.jsonl").write_text(BY_ID["pr-hd-04"].model_copy(update={"id": "te-secret-01"}).model_dump_json() + "\n")
+    monkeypatch.setattr(decontaminate, "TEST_DIR", folder)
+    monkeypatch.setitem(decontaminate.REFERENCES, "test", folder)
+    return folder
+
+
+def test_against_the_test_set_it_reports_without_naming_test_cases_and_changes_nothing(
+    stand_in_test_set: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    generated = tmp_path / "generated"
+    generated.mkdir()
+    path = generated / "tasks_round_1.jsonl"
+    kept = task("Please reset my password and text me the temporary one.")
+    close = BY_ID["pr-hd-04"].model_copy(update={"id": "t-2"})
+    original = kept.model_dump_json() + "\n" + close.model_dump_json() + "\n"
+    path.write_text(original)
+    (generated / "round_1.jsonl").write_text(json.dumps({"case_id": "t-2"}) + "\n" + json.dumps({"case_id": "t-1"}) + "\n")
+    monkeypatch.setattr(sys, "argv", ["decontaminate", "--against", "test", "--tasks", str(path)])
+    decontaminate.main()
+
+    assert path.read_text() == original  # no file changed: dropping now means retraining, the human's call
+    report_text = (generated / "tasks_round_1.decontaminate_test.json").read_text()
+    report = json.loads(report_text)
+    assert report["test_cases_compared"] == 1 and report["too_close"] == 1
+    assert [t["id"] for t in report["too_close_tasks"]] == ["t-2"]
+    assert report["training_examples_built_from_them"] == {"round_1.jsonl": 1}
+    assert "te-secret-01" not in report_text and "te-secret-01" not in capsys.readouterr().out
+    assert not (generated / "tasks_round_1.decontaminate.json").exists()  # the practice report is another file
+    with pytest.raises(SystemExit, match="already decontaminated against test"):
         decontaminate.main()
+
+
+def test_tasks_inside_the_test_folder_are_refused(stand_in_test_set: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for against in ("practice", "test"):
+        monkeypatch.setattr(sys, "argv", ["decontaminate", "--against", against, "--tasks", str(stand_in_test_set / "helpdesk.jsonl")])
+        with pytest.raises(SystemExit, match="locked"):
+            decontaminate.main()

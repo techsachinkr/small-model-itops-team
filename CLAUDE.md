@@ -60,7 +60,7 @@ factory/          sampler.py, writer.py, collect.py (Lightning rollouts via Gym)
 agents/           specialist.py, orchestrator.py, registry.json, cards/
 eval/             run_eval.py (wraps Gym), decontaminate.py, report.py
 bench/            vLLM serving benchmarks
-data/open/        outside open data (Loghub log samples, Workplace Assistant and When2Call subsets),
+data/open/        outside open data (Loghub log samples; Workplace Assistant and When2Call were planned and cut),
                   DATA_SOURCES.md
 data/practice/    hand-written cases; the analyst may read results on these
 data/test/        hand-written cases; LOCKED

@@ -1425,3 +1425,62 @@ uv run python -m bench.structured
 # answers with the servers' flags (no re-run). Task 4.1's Done-when check passes: tables for (1), (2) and (4).
 uv run pytest -q   # 301 passed
 ```
+
+### The demo's safety net (the human ran it, both servers up)
+
+```bash
+scripts/demo_reset.sh
+# chaos off; every specialist active in the registry; warm: lightning, student, helpdesk_r1, ops_r1; the three steps
+# replay as recorded (helpdesk only: team FAIL, the honest failure; both: team PASS; chaos: team PASS, 2 automatic
+# retries; single_base FAIL in all three). "demo_reset: ready".
+```
+
+## 2026-10-18: task 5.1 step 1, the audits before the final run (read-only)
+
+```bash
+# Test-set lock audit (PROMPTS.md): grep the code (not the data) for data/test, test splits, globs and data paths.
+grep -rn ... agents bench common demo eval factory gym_env resources_servers responses_api_agents scripts tests
+# Only eval/run_eval.py reads data/test/, through load_cases(split) with --split test, refused without --final before
+# any case is read (tested). Everything else is a guard, a refusal, a docstring or a test with its own temporary
+# data/test/; every glob targets data/practice/, data/generated/, the fixtures or the model snapshot.
+# Gap: eval/decontaminate.py has only --against practice; 5.1 step 3 (--against test) can't run yet.
+# Note: a final run writes the test cases into runs/<id>/ (tasks.jsonl, rollouts.jsonl); rescore_answers.py,
+# bench.traffic --run and factory.filter --run would read them if pointed at that run (none does by default).
+# Fairness audit (PROMPTS.md): each setup's merged Gym config, the setup files' keys, configs/eval.yaml, and the
+# 16 table runs' recorded settings and task rows (inline scripts).
+# Seatbelt off only in base_raw; escalate only in team_escalate; setup files set only models, servers and those two
+# switches; the 16 runs recorded the same eval settings (0.6/0.95, 8192 tokens, thinking off, 10 turns, 3 attempts,
+# 2 of 3 to pass, seatbelt 2/3/0.5), chaos off, split practice; within each group (helpdesk, ops, multi) the tools,
+# cases and prompts are byte-identical and match today's code. By design: turn and retry budgets are per step (a
+# team attempt can have up to 6 steps, and an escalated step gives Lightning its own); single setups see all 12
+# tools, each specialist its API's 6; adapters are priced as the student; the runs come from 5 commits.
+```
+
+### The fixes after the audits (the user's go), and the rules audit (read-only)
+
+```bash
+# eval/decontaminate.py --against test: reads data/test/ only then (a human runs it, task 5.1 step 3), changes no file,
+# writes <tasks stem>.decontaminate_test.json with how many test cases were compared (never which), the tasks too close
+# to one, and the training examples built from them. Tested on a stand-in test folder, never data/test/.
+# eval/run_eval.py test_run_refusal(): rescore_answers.py, bench/traffic.py, bench/structured.py and factory/filter.py
+# refuse a run recorded on the test split (its files hold the test cases).
+uv run pytest -q   # 303 passed
+# Rules audit (PROMPTS.md): the models the code names and loads, the serving flags, data/generated/ and data/open/
+# (file names only), and every saved git_diff.patch (counts of data/test diff headers only).
+# Models: lightning (30B total, card; Hugging Face metadata 31.6B, 32.9B summed by dtype, MTP layers included), the
+# student (3.97B), and its LoRA adapters helpdesk_r1, ops_r1, all_r1 (r=16, 17.1M each); no draft model (benchmark (5)
+# cut), no analyst (task 2.3 not run). Each is under 33B, the per-model rule the organizers gave (task 0.1).
+# data/generated/: every tasks file has its .config.json and .decontaminate.json, every round file its .stats.json;
+# README.md has the methodology. 29 saved patch files (data/generated/, runs/): none has a data/test diff.
+# data/open/DATA_SOURCES.md: Loghub with its license, commit and files (LICENSE next to them). Workplace Assistant and
+# When2Call are listed as used by task 5.1 step 5, but no code mentions them and neither is downloaded.
+```
+
+### Task 5.1 step 5 cut (the user's decision; cut list item 6)
+
+```bash
+# data/open/DATA_SOURCES.md: Workplace Assistant and When2Call moved to "Considered and not used" (planned for the
+# regression checks, cut for time, never downloaded or run); the only outside data used is Loghub. PLAN.md (open data,
+# 5.1 step 5) and CLAUDE.md (repo layout) updated to match. Docs only.
+uv run pytest -q   # 303 passed
+```

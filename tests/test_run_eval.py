@@ -2,6 +2,7 @@
 Nothing here reads data/test/ (hard rule 4)."""
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -386,3 +387,35 @@ def test_gym_resolves_every_setup_s_config(setup: str) -> None:
         skip_load_from_cli=True, skip_load_from_dotenv=True, offline=True,
     ))
     assert run_eval.agent_name(setup) in config
+
+
+def test_scripts_that_read_runs_refuse_a_run_on_the_test_split(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A final run keeps the test cases in its files; only its report may read it (hard rules 4 and 5)."""
+    runs = tmp_path / "runs"
+    for name, split in (("final_test_run", "test"), ("practice_run", "practice")):
+        (runs / name).mkdir(parents=True)
+        (runs / name / "config.json").write_text(json.dumps({"args": {"split": split, "api": "helpdesk"}}))
+    assert "test split" in run_eval.test_run_refusal(runs / "final_test_run")
+    assert run_eval.test_run_refusal(runs / "practice_run") is None and run_eval.test_run_refusal(runs / "none") is None
+
+    from bench import structured, traffic
+    from factory import filter as factory_filter
+
+    monkeypatch.setattr(traffic, "RUNS", runs)
+    monkeypatch.setattr(structured, "REPO", tmp_path)
+    monkeypatch.setattr(factory_filter, "REPO", tmp_path)
+    for refused in (lambda: traffic.build("final_test_run"), lambda: structured.self_check_requests("final_test_run")):
+        with pytest.raises(SystemExit, match="test split"):
+            refused()
+    monkeypatch.setattr(sys, "argv", ["filter", "--run", "final_test_run", "--round", "1", "--output", str(tmp_path / "x.jsonl")])
+    with pytest.raises(SystemExit, match="test split"):
+        factory_filter.main()
+
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("rescore", run_eval.REPO / "scripts" / "checks" / "rescore_answers.py")
+    rescore = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rescore)
+    monkeypatch.setattr(sys, "argv", ["rescore_answers.py", str(runs / "final_test_run")])
+    with pytest.raises(SystemExit, match="test split"):
+        rescore.main()

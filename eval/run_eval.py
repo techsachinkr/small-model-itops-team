@@ -94,6 +94,15 @@ def refusal(
     return None
 
 
+def test_run_refusal(run_dir: Path) -> str | None:
+    """Why a script other than eval/report.py must not read this run, or None: a run on the test split keeps the test
+    cases in its files (tasks.jsonl, rollouts.jsonl), and only its own report may read them (hard rules 4 and 5)."""
+    config = run_dir / "config.json"
+    if config.exists() and json.loads(config.read_text()).get("args", {}).get("split") == "test":
+        return f"{run_dir.name} ran on the test split, so its files hold the test cases (hard rules 4 and 5)."
+    return None
+
+
 def server_chaos_enabled() -> bool:
     return bool(yaml.safe_load(ITOPS_CONFIG.read_text())["itops"]["resources_servers"]["itops"]["chaos"]["enabled"])
 

@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from common.seatbelt import SELF_CHECK_PROMPT
-from eval.run_eval import REPO, git
+from eval.run_eval import REPO, git, test_run_refusal
 from factory.filter import conversation, student_tokenizer
 
 RUNS = REPO / "runs"
@@ -101,6 +101,8 @@ def session_calls(row: dict[str, Any], session: str) -> list[dict[str, Any]]:
 def build(run_id: str) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     """A run's API, its calls, and their stats."""
     run_dir = RUNS / run_id
+    if reason := test_run_refusal(run_dir):
+        raise SystemExit(f"Refusing: {reason}")
     api = json.loads((run_dir / "config.json").read_text())["args"]["api"]
     rows = [json.loads(line) for line in (run_dir / "rollouts.jsonl").read_text().splitlines() if line.strip()]
     calls = [c for row in rows for c in session_calls(row, f"{row['task_id']}#{row['_ng_rollout_index'] + 1}")]

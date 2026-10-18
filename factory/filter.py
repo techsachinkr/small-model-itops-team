@@ -41,7 +41,7 @@ import yaml
 
 from common.llm import MODELS_CONFIG
 from common.schemas import Case, TrainingExample
-from eval.run_eval import REPO
+from eval.run_eval import REPO, test_run_refusal
 from gym_env.tasks import read_cases, rollout_answer
 from gym_env.verify import ASCII_LOOKALIKES, answer_check
 
@@ -192,6 +192,8 @@ def main() -> None:
     args = parser.parse_args()
 
     run_dir = REPO / "runs" / args.run
+    if reason := test_run_refusal(run_dir):
+        raise SystemExit(f"Refusing: {reason}")
     collect_config = json.loads((run_dir / "config.json").read_text())
     tasks_path = REPO / collect_config["tasks"]
     cases = {case.id: case for case in read_cases(tasks_path)}
