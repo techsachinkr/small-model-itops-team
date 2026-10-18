@@ -1578,3 +1578,15 @@ for a in helpdesk_r1 ops_r1 all_r1; do uv run python scripts/smoke_toolcall.py -
 # escalation), team_small_planner 5/15 (17/45).
 uv run pytest -q   # 309 passed
 ```
+
+## 2026-10-18: task 5.2, README and write-ups
+
+```bash
+# LICENSE (Apache-2.0, as task 5.2 says), fetched rather than retyped: 202 lines,
+# sha256 cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30 (the canonical file)
+curl -sfL https://www.apache.org/licenses/LICENSE-2.0.txt -o $SCRATCH/license/LICENSE && cp -n $SCRATCH/license/LICENSE LICENSE
+# README.md and .env.example written. .gitignore now keeps runs/bench/summary.md (the README cites its numbers) and
+# leaves out runs.zip (a local archive of runs/, over GitHub's 100 MB file limit)
+git check-ignore -v runs/bench/summary.md runs.zip runs/bench/merged   # summary.md included, the other two ignored
+git status --short -uall runs/bench/                                     # only runs/bench/summary.md would be added
+```

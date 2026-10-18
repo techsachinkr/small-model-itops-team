@@ -8,6 +8,12 @@ __pycache__/
 adapters/
 runs/*
 !runs/final/
+# The serving benchmark tables the README cites; the benchmark run folders and merged models stay local
+!runs/bench/
+runs/bench/*
+!runs/bench/summary.md
+# A local archive of runs/, far over GitHub's 100 MB file limit
+/runs.zip
 # The final runs' patches: each held only the earlier final runs' outputs (no code; 4.1 GB in all), before
 # eval/run_eval.py left runs/ out of patches. The runs ran commit 997e6a0 (final-candidate) as committed.
 runs/final/*/git_diff.patch

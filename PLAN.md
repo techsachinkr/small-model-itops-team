@@ -4,7 +4,7 @@ The hackathon runs October 17–18, 2026 at the Red Hat Annex, Raleigh. All code
 
 **Deadline:** submission and presentation on Sunday, October 18, at 11:00 a.m. ET. Feature freeze is Sunday at 07:00 ET.
 
-**GPU:** one H200 (141 GB) on Brev. **Team:** solo.
+**GPU:** one H200 (141 GB) on Brev. **Team:** solo, named Lightning & the Specialists (decided 2026-10-18).
 
 **Student base:** `nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16` (3.97B). See task 0.2 and `configs/models.yaml`.
 
@@ -591,6 +591,11 @@ its license) and the adapters to Hugging Face with dataset and model cards.
 
 Notes for 5.2 (2026-10-18, the user's decision):
 - Every cost is GPU time at full load (configs/eval.yaml: one H200 at $6.53 an hour over each model's measured throughput), and adapters are priced as the student base model. That understates the setups that run adapters (r1, single_trained, team_trained, team_escalate) next to those that don't: LoRA serving is slower, 46% more time per output token at 1 session (task 4.1). Say both wherever a cost appears, and list it under the README's limitations. eval/report.py prints this note under every table.
+
+Progress (2026-10-18):
+- `README.md` written: what it does; the ladder and system results as fractions, with the AI-written test set and the retrained adapters; a mermaid architecture diagram; every model with its official parameter count; quick start; scoring from a fresh clone; the demo; data and provenance; the three bounty write-ups; limitations; next steps; roster; license. Also `.env.example` and `LICENSE` (Apache-2.0, the canonical text). Roster (the user): Sachin Kumar, Senior Data Scientist III at LexisNexis; the README's contact is the GitHub handle, since no other was given.
+- `.gitignore` now keeps `runs/bench/summary.md`, which the README's vLLM numbers cite, and leaves out `runs.zip`.
+- Not done: the Hugging Face scripts and uploads. The dataset is in the repo, and the quick start retrains the adapters, so the Done-when's "the dataset and adapters are public" isn't met.
 
 ### [ ] 5.3 Demo app, video and submission
 
