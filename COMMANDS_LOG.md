@@ -1506,3 +1506,25 @@ ls -la data/test/   # the human: "No such file or directory"
 .venv/bin/python scripts/checks/check_cases.py $SCRATCH/checker_selftest/*.jsonl
 uv run pytest -q   # 307 passed
 ```
+
+### Faster drafting: YAML drafts and try_calls.py (the human asked Claude to write the cases; declined, hard rule 4)
+
+```bash
+# check_cases.py reads YAML drafts too and, with --jsonl and no problems, writes the .jsonl next to each; the practice
+# cases as YAML (new IDs, in $SCRATCH) passed and came back identical. try_calls.py runs calls on a fresh fixture.
+.venv/bin/python scripts/checks/check_cases.py $SCRATCH/yaml_selftest/*.yaml --jsonl
+.venv/bin/python scripts/checks/try_calls.py default list_devices '{"employee_id": "E1003"}'
+uv run pytest -q   # 308 passed
+```
+
+### The test set, written by a fresh subagent (the user edited hard rule 4 to allow it; disclosed as AI-written)
+
+```bash
+# A general-purpose subagent, briefed with TEST_SET_GUIDE.md, fixture_overview.py, try_calls.py and check_cases.py
+# only; told not to read data/practice, data/generated, data/test, runs, PLAN.md, COMMANDS_LOG.md, PROMPTS.md, agents,
+# factory, demo, bench, eval, tests or common, not to run any model, to write ~/test_drafts/ only, and to report counts
+# only. This session doesn't read ~/test_drafts/.
+# The subagent's report (counts only; this session hasn't opened ~/test_drafts/): helpdesk 10 (7 single, 1 read_only,
+# 1 no_tool, 1 missing_info), ops 10 (6, 2, 1, 1), multi 15 (10 multi, 2 read_only, 2 no_tool, 1 missing_info); its
+# checker run: "35 cases, 0 with problems", no_tool and missing_info 7/35; about 16 minutes.
+```

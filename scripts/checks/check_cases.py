@@ -5,8 +5,11 @@ change, and a read_only case's answer strings are in what its gold calls return.
 practice IDs, files that match the layout (helpdesk.jsonl and ops.jsonl single-API, any other file multi-API), and
 the mix of kinds.
 
-    .venv/bin/python scripts/checks/check_cases.py ~/test_drafts/*.jsonl
+    .venv/bin/python scripts/checks/check_cases.py ~/test_drafts/*.yaml            # check
+    .venv/bin/python scripts/checks/check_cases.py ~/test_drafts/*.yaml --jsonl    # and, if all pass, write .jsonl
 
+A file is JSONL (one case per line, the format data/test/ needs) or YAML (a list of cases, easier to write by hand).
+With --jsonl and no problems, each YAML file is written next to itself as <name>.jsonl, ready to move into data/test/.
 It refuses files under data/test/: only eval/run_eval.py --final and eval/decontaminate.py --against test read those
 (hard rule 4), so check drafts first, then move them in. Its output quotes the cases: keep it to yourself (Claude must
 not see test cases).
@@ -15,10 +18,12 @@ not see test cases).
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+import yaml  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
 from common.schemas import Case  # noqa: E402
@@ -59,8 +64,21 @@ def file_problem(path: Path, case: Case) -> str | None:
     return None
 
 
+def entries(path: Path) -> list[tuple[str, Any]]:
+    """(where, raw case) for each case in a JSONL or YAML file; a YAML file holds a list of cases."""
+    if path.suffix in (".yaml", ".yml"):
+        try:
+            cases = yaml.safe_load(path.read_text()) or []
+        except yaml.YAMLError as error:
+            return [(f"{path.name}", f"YAML error: {error}")]
+        return [(f"{path.name} case {i}", case) for i, case in enumerate(cases if isinstance(cases, list) else [cases], 1)]
+    return [(f"{path.name}:{n}", line) for n, line in enumerate(path.read_text().splitlines(), 1) if line.strip()]
+
+
 def main() -> None:
-    paths = [Path(arg) for arg in sys.argv[1:]]
+    args = sys.argv[1:]
+    write_jsonl = "--jsonl" in args
+    paths = [Path(arg) for arg in args if arg != "--jsonl"]
     if not paths:
         raise SystemExit(__doc__)
     if any(path.resolve().is_relative_to(TEST_DIR) for path in paths):
@@ -69,16 +87,20 @@ def main() -> None:
     seen: Counter[str] = Counter()
     kinds: Counter[str] = Counter()
     bad = 0
+    checked: dict[Path, list[Case]] = {}
     for path in paths:
-        for number, line in enumerate(path.read_text().splitlines(), start=1):
-            if not line.strip():
-                continue
+        checked[path] = []
+        for where, raw in entries(path):
             try:
-                case = Case.model_validate_json(line)
-            except ValidationError as error:
+                if isinstance(raw, str) and raw.startswith("YAML error"):
+                    raise ValueError(raw)
+                case = Case.model_validate_json(raw) if isinstance(raw, str) else Case.model_validate(raw)
+            except (ValidationError, ValueError) as error:
                 bad += 1
-                print(f"{path.name}:{number}: doesn't parse: {error.errors()[0]['msg']} ({error.errors()[0]['loc']})")
+                detail = error.errors()[0] if isinstance(error, ValidationError) else None
+                print(f"{where}: doesn't parse: " + (f"{detail['msg']} ({detail['loc']})" if detail else str(error)))
                 continue
+            checked[path].append(case)
             seen[case.id] += 1
             kinds[case.kind] += 1
             found = problems_of(case)
@@ -89,11 +111,19 @@ def main() -> None:
             if seen[case.id] > 1:
                 found.append("the ID is used twice")
             bad += bool(found)
-            print(f"{path.name}:{number} {case.id} ({case.kind}): {'ok' if not found else 'PROBLEM: ' + '; '.join(found)}")
+            print(f"{where} {case.id} ({case.kind}): {'ok' if not found else 'PROBLEM: ' + '; '.join(found)}")
     total = sum(kinds.values())
     quiet = kinds["no_tool"] + kinds["missing_info"]
     print(f"\n{total} cases, {bad} with problems. Kinds: {dict(kinds)}; no_tool and missing_info {quiet}/{total} "
           f"(aim for about 20%).")
+    if write_jsonl and not bad:
+        for path, cases in checked.items():
+            if path.suffix in (".yaml", ".yml"):
+                out = path.with_suffix(".jsonl")
+                out.write_text("".join(case.model_dump_json(exclude_none=True) + "\n" for case in cases))
+                print(f"Wrote {out} ({len(cases)} cases)")
+    elif write_jsonl:
+        print("No .jsonl written: fix the problems first.")
     sys.exit(1 if bad else 0)
 
 

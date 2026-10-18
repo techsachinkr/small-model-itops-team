@@ -36,3 +36,23 @@ def test_files_in_data_test_are_refused(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(sys, "argv", ["check_cases.py", str(check_cases.TEST_DIR / "helpdesk.jsonl")])
     with pytest.raises(SystemExit, match="locked"):
         check_cases.main()
+
+
+def test_yaml_drafts_are_checked_and_written_as_jsonl(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import json
+
+    import yaml
+
+    cases = [json.loads(c.model_dump_json(exclude_none=True).replace('"pr-', '"zz-')) for c in PRACTICE["ops"]]
+    draft = tmp_path / "ops.yaml"
+    draft.write_text(yaml.safe_dump(cases, sort_keys=False))
+    monkeypatch.setattr(sys, "argv", ["check_cases.py", str(draft), "--jsonl"])
+    with pytest.raises(SystemExit) as done:
+        check_cases.main()
+    assert done.value.code == 0
+    assert [json.loads(line) for line in (tmp_path / "ops.jsonl").read_text().splitlines()] == cases
+    draft.write_text("- id: [unclosed")  # a YAML mistake is reported, and nothing is written
+    (tmp_path / "ops.jsonl").unlink()
+    with pytest.raises(SystemExit) as failed:
+        check_cases.main()
+    assert failed.value.code == 1 and not (tmp_path / "ops.jsonl").exists()
