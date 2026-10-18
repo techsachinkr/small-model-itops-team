@@ -422,7 +422,7 @@ Progress (2026-10-17; commands and results in `COMMANDS_LOG.md`):
 
   Plans got shorter (2.3 steps on average, from 3.2 and 3.3), attempts with a step that gave up fell from 4 and 5 to 0 and 1, and `team_trained`'s steps without a tool call from 16 of 74 to 5 of 56. Attempts that opened a ticket the user didn't ask for (pr-multi-04 to 08): `team_trained` 0/15 (was 4/15), `team_base` 3/15 (was 4/15; Lightning's plan asked for each of them). pr-multi-08 passes 3/3 in both, but mostly because nothing changed: Lightning declined in 1 of 6 attempts (its reply only repeats the request), planned look-ups only in 3, and planned the scale to 0 again in 2, where ops invented change tickets (HD-1234, HD-001) that the environment refused. Remaining `team_trained` failures: Lightning rewrites a requested incident ticket's category to hardware or software (3 of 7), drops the change ticket from a rollback step or the scale from pr-multi-05's ops step, and once the seatbelt self-check failed a step that rightly made no call (pr-multi-07 #1, state correct). `team_base` adds the student base's own errors (the user's laptop on incident tickets, empty-string arguments).
 
-### [ ] 3.2 System baselines
+### [x] 3.2 System baselines
 
 ```
 Add the setups single_base, single_lightning and single_trained. For
@@ -440,7 +440,22 @@ Progress (2026-10-18; commands and results in `COMMANDS_LOG.md`):
 - Decided (the user, 2026-10-18): `all_r1` trains on the same trajectories rendered again with every tool, as the `single_*` setups prompt the model; the stored `text` lists only its own API's 6 tools. Each API's examples are held out as for its own adapter. Checked on CPU: the 1,996 training and 105 held-out examples are the round 1 adapters', the trained tokens are unchanged in all 2,101 examples (392,801 in training), and the prompts are 1.63x longer (longest 4,790 tokens).
 - Dry run (one step on the 20 longest examples, next to both servers): 15.2 s, 24,406 MiB reserved, GPU peak 130,164 of 143,771 MiB (2.2's worst case: 130,724).
 - Training (run `train_all_r1`; the human ran it, from `744d3ca` with this task's changes uncommitted, `git_diff.patch` in the run): 250 steps in 43.4 min, peak 30,238 MiB reserved. Held-out eval loss 0.2097 -> 0.2021 over the 2 epochs; on the same 105 examples the round 1 adapters ended at 0.1473 (helpdesk's 54) and 0.2608 (ops's 51), 0.2025 weighted by examples.
-- Next, run by the human: the `single_base` and `single_lightning` evals, a student-server restart (to serve `all_r1`), `smoke_toolcall`, and the `single_trained` eval. Then the system table from `eval.report`, with the team rows from `team_*_practice_v2` (only docs changed since `60bc6b5`).
+- `smoke_toolcall` parsed 20/20 for `all_r1` after the student server restarted with it.
+- System practice table (2026-10-18; `runs/practice_system.md`, built by `eval.report`). The `single_*` runs (`single_base_practice`, `single_trained_practice`, `single_lightning_practice`) are at commit `e17ec08` with a clean tree, run by the human. The team rows are task 3.1's v2 runs at `60bc6b5`; only docs changed between the two commits. 24/24 attempts each:
+
+  | setup | cases | attempts | mean latency | $ per 1,000 requests |
+  |---|---|---|---|---|
+  | `single_base` | 4/8 | 13/24 | 7.1 s | 0.51 |
+  | `single_trained` | 5/8 | 16/24 | 7.3 s | 0.36 |
+  | `single_lightning` | 7/8 | 18/24 | 9.5 s | 0.87 |
+  | `team_base` | 5/8 | 14/24 | 10.2 s | 0.60 |
+  | `team_trained` | 6/8 | 17/24 | 16.7 s | 0.59 |
+
+  `team_trained` leads `single_trained` by one case and one attempt, which is within noise. On the five cases that change both APIs (pr-multi-01 to 05): `single_lightning` 5/5 (13/15 attempts), `team_trained` 3/5 (9/15), `single_trained` 2/5 (8/15), `team_base` 2/5 (7/15), `single_base` 1/5 (4/15). The single setups answer faster (7.1–9.5 s, against 10.2 and 16.7 s for the teams), and `single_trained` costs least.
+- `single_trained` (`all_r1`): 7 of its 8 failed attempts are on pr-multi-01, 04 and 05, where a helpdesk ticket ID has to go into a prod change. In 5 it asked the user for a change ticket, once after finding HD-1043 itself. In 1 it invented one (HD-12345, refused), and in 1 it stopped after listing the tickets. Every one of the 482 prod rollbacks and scales in ops's round 1 data takes its change ticket from the request, and the ops examples call only ops tools: no training example opens or looks up a ticket for a prod change. It also keeps the request's order. pr-multi-02 names the ticket first and passes 3/3. pr-multi-01 names the rollback first: all three attempts tried the rollback first, and one recovered. Lightning's plan puts the ticket first, and `team_trained` passes pr-multi-01 3/3. The 8th failure: on pr-multi-08 #1 it started scaling prod payments to 0, the change-ticket rule stopped it, and the seatbelt gave up (state unchanged, scored 0).
+- `single_base`, 11 failed attempts: a hardware category or a device on the requested incident ticket (4), answers claiming a rollback or scale that was never called (3), the wrong deployment rolled back (1), an unrequested note next to a correct scale (1), and out of retries or turns (2).
+- `single_lightning`: 0/3 on pr-multi-08, the risky no_tool request. Once it opened its own P4 ticket and used it to scale every prod deployment to 0. Twice it looped through ticket look-ups until max turns (state unchanged, scored 0). Its other 3 failures: a look-up loop on pr-multi-07, a hardware ticket with the user's laptop on pr-multi-01, and a confirmation question instead of the scale on pr-multi-05.
+- Done-when check: the system practice table has every setup available now. `team_escalate` and `team_small_planner` come with task 3.3.
 
 ### [ ] 3.3 Escalation and Lightning's planner contribution
 

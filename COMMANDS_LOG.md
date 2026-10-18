@@ -1179,3 +1179,47 @@ uv run --group train python -m factory.train_lora --api all --round 1
 nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader   # 104,987 MiB, 0 %: training released its memory
 curl -s localhost:8001/v1/models   # student, helpdesk_r1, ops_r1: all_r1 is served only after the student server restarts
 ```
+
+### single_* evals and the all_r1 smoke check (the human ran the chain, commit e17ec08, clean tree)
+
+```bash
+uv run python -m eval.run_eval --setup single_base --split practice --run-id single_base_practice && \
+uv run python -m eval.run_eval --setup single_lightning --split practice --run-id single_lightning_practice && \
+scripts/stop_vllm.sh student && scripts/serve_student.sh && \
+uv run python scripts/smoke_toolcall.py --model all_r1 --min-parsed 19 && \
+uv run python -m eval.run_eval --setup single_trained --split practice --run-id single_trained_practice
+# 24/24 attempts each, every step on the setup's model (student, lightning, all_r1). all_r1 (live): 20/20 parsed,
+# pass mark 19: PASS (runs/smoke_toolcall/all_r1_live_20261018-035620). The student server now serves student,
+# all_r1, helpdesk_r1 and ops_r1.
+# single_base 4/8 cases (13/24 attempts), 7.1 s, $0.51 per 1,000 requests; single_trained 5/8 (16/24), 7.3 s, $0.36;
+# single_lightning 7/8 (18/24), 9.5 s, $0.87.
+```
+
+### The system practice table: the Done-when check passed
+
+```bash
+uv run python -m eval.report --run single_base_practice --run single_trained_practice --run single_lightning_practice \
+  --run team_base_practice_v2 --run team_trained_practice_v2 --output runs/practice_system.md
+# | setup            | cases passed | attempts | mean latency (s) | $ per 1,000 requests | run                       |
+# | single_base      | 4/8          | 24/24    | 7.1              | 0.51                 | single_base_practice      |
+# | single_trained   | 5/8          | 24/24    | 7.3              | 0.36                 | single_trained_practice   |
+# | single_lightning | 7/8          | 24/24    | 9.5              | 0.87                 | single_lightning_practice |
+# | team_base        | 5/8          | 24/24    | 10.2             | 0.60                 | team_base_practice_v2     |
+# | team_trained     | 6/8          | 24/24    | 16.7             | 0.59                 | team_trained_practice_v2  |
+# Cases (base / trained / lightning / team_base / team_trained): 01 0/3 1/3 2/3 1/3 3/3, 02 0/3 3/3 3/3 2/3 1/3,
+# 03 2/3 3/3 3/3 1/3 2/3, 04 1/3 0/3 3/3 1/3 2/3, 05 1/3 1/3 2/3 2/3 1/3, 06 3/3 3/3 3/3 2/3 3/3, 07 3/3 3/3 2/3 2/3 2/3,
+# 08 3/3 2/3 0/3 3/3 3/3. Attempts 13, 16, 18, 14, 17 of 24.
+# Per failed attempt (calls, seatbelt events, state diff, answer): a read-only script over the runs' rollouts.jsonl.
+.venv/bin/python -I $SCRATCH/failures.py single_trained_practice single_base_practice single_lightning_practice
+# single_trained: 7 of 8 failures need a helpdesk ticket ID in a prod change (pr-multi-01, 04, 05): asked the user for
+# a change ticket 5 times (once after finding HD-1043), invented HD-12345 once, stopped after list_tickets once; the
+# 8th began scaling prod to 0 on pr-multi-08 and the seatbelt gave up. single_base: incident tickets as hardware or
+# with a device (4), claimed rollbacks or scales never called (3), wrong deployment (1), an extra note (1), out of
+# retries or turns (2). single_lightning: pr-multi-08 0/3 (once scaled all of prod to 0 under its own P4 ticket,
+# twice a look-up loop to max turns), a look-up loop on 07, a hardware ticket with the laptop on 01, a question on 05.
+# The order of create_ticket and rollback on pr-multi-01 and 02 (inline script over the same rollouts): all_r1 follows
+# the request's order (02, ticket named first: 3/3 ticket -> rollback; 01, rollback named first: 3/3 rollback first,
+# 400 from the change-ticket rule, one recovered); Lightning opened the ticket first in all 6 attempts.
+# Where ops's training data gets prod change tickets (inline script): all 482 prod rollback/scale calls in
+# data/generated/ops/round_1.jsonl take change_ticket from the user's request; the ops examples call only ops tools.
+```
