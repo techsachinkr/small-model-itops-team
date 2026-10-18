@@ -405,7 +405,15 @@ Progress (2026-10-17; commands and results in `COMMANDS_LOG.md`):
 - New fixture `incident_prod_checkout_tickets` (deferred from the 1.2 review): the checkout incident plus five tickets. E1012 has five tickets in all, with open change tickets for checkout (HD-1046) and payments capacity (HD-1043) and a resolved one; E1011 has an in_progress one. The next ticket is HD-1047, so a guessed HD-1042 is caught. The other fixtures' state is unchanged (their `generated_by.config` gained `ticket_fixtures`).
 - `data/practice/multi.jsonl`: 8 multi-API cases drafted by Claude (5 multi, 1 read_only, 1 missing_info, 1 no_tool), waiting for the human's review.
 - The demo request (pr-multi-01) through the CLI on `team_trained`: PASS in 3.4 s. Lightning planned the ticket first although the request names it second; helpdesk_r1 opened HD-1042, ops_r1 rolled payments back from 9 to 8 with it, and the 4 pods are Running. Recorded with `LLM_MODE=record`; the replay reproduces it.
-- Left for "Done when": the human reviews the cases, then runs `team_base` and `team_trained` on them.
+- Team evals on the practice cases (2026-10-17, runs `team_base_practice` and `team_trained_practice`, 24/24 attempts each; the human ran them):
+
+  | setup | cases | attempts | mean latency | $ per 1,000 requests | failed attempts |
+  |---|---|---|---|---|---|
+  | `team_base` | 4/8 | 12/24 | 19.1 s | 0.86 | 5 routing, 7 specialist |
+  | `team_trained` | 2/8 | 11/24 | 18.3 s | 0.75 | 4 routing, 9 specialist |
+
+  The case gap is within noise (attempts 12 vs 11). The demo request passes 3/3 on `team_trained` and 0/3 on `team_base` (the student base attaches the user's laptop to the incident ticket). Most failures trace to the planner: on pr-multi-07 and 08 it planned the work, including tickets nobody asked for, instead of asking or declining (all the routing failures), and some "specialist" failures are its instructions (no acting user, a wrong category, the card's tags copied). The adapters act less often on its instructions (16 of 74 steps with no tool call, against 5 of 71). Details in `COMMANDS_LOG.md`.
+- Planner prompt revised for these failures (2026-10-18, the user's decision; schema unchanged). Re-runs `team_base_practice_v2` and `team_trained_practice_v2` pending.
 
 ### [ ] 3.2 System baselines
 

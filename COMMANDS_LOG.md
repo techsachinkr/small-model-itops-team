@@ -1031,3 +1031,43 @@ LLM_MODE=record .venv/bin/python -m agents.orchestrator --case pr-multi-01 --set
 LLM_MODE=replay .venv/bin/python -m agents.orchestrator --case pr-multi-01 --setup team_trained
 # Same plan, calls and PASS from runs/cache/, with no server; prod/payments has 4 Running pods after the run.
 ```
+
+### Team evals on the multi-API practice cases (the human ran them, commit 0aa4e7b, clean tree)
+
+```bash
+uv run python -m eval.run_eval --setup team_base --split practice --run-id team_base_practice && \
+uv run python -m eval.run_eval --setup team_trained --split practice --run-id team_trained_practice
+# team_base: 4/8 cases (12/24 attempts), mean latency 19.1 s, $0.86 per 1,000 requests; failed attempts 5 routing, 7 specialist
+# team_trained: 2/8 cases (11/24 attempts), 18.3 s, $0.75; failed attempts 4 routing, 9 specialist. 24/24 attempts each,
+# no Gym failures, under a minute each. Case by case (base / trained): 01 0/3 3/3, 02 2/3 1/3, 03 1/3 1/3, 04 3/3 0/3,
+# 05 2/3 1/3, 06 3/3 3/3, 07 0/3 1/3, 08 1/3 1/3.
+.venv/bin/python -m eval.report --run team_base_practice --run team_trained_practice
+# Per attempt (plan, instructions, calls, seatbelt events, state diff, final answer): read-only scripts in $SCRATCH
+# over runs/team_*_practice/rollouts.jsonl and traces.jsonl.
+.venv/bin/python $SCRATCH/team_attempts.py team_base_practice team_trained_practice
+.venv/bin/python $SCRATCH/team_detail.py team_trained_practice pr-multi-02 1 pr-multi-02 2 pr-multi-03 1 pr-multi-07 1 pr-multi-08 1
+# Findings: every routing failure is pr-multi-07 or 08, where Lightning planned the work (opening tickets nobody asked
+# for, scaling prod to 0, rolling back to "revision 1") instead of asking or declining; the planner prompt's example
+# ("found or opened in an earlier step") invites the extra tickets. Several "specialist" failures are the planner's
+# instructions too: no acting user (helpdesk_r1 asked for an employee ID, pr-multi-02 #1), "category software" for a
+# requested incident ticket (pr-multi-03 #1), all categories listed (pr-multi-02 #2), the card's tags copied. The labels
+# (CLAUDE.md "Scoring") only compare the plan's agents with the gold APIs. Specialists: the student base attaches the
+# user's laptop to incident tickets (pr-multi-01 0/3, as in 1.2's baseline); the adapters don't (3/3) but act less
+# often on the planner's instructions: steps with no tool call 16 of 74 (team_trained) against 5 of 71 (team_base).
+```
+
+### Planner prompt revision (2026-10-18; the user's decision after the first practice runs)
+
+`PLANNER_PROMPT` in `agents/orchestrator.py`, for the failures above; the plan schema is unchanged. `analysis` now
+starts with the actions the user asked for and whether to carry them out, ask or decline. New rules: only the actions
+asked for (a ticket only when asked; no checks, follow-ups or "if" steps); a prod change needs a ticket the user gave,
+pointed to or asked to open, otherwise ask for one; decline what would cause an outage in prod or undo work that isn't
+the user's, and ask only for what no specialist can look up; one step per action; instructions written as the user's
+request (the employee named, the user's details kept exactly, no questions, no card fields, values from earlier
+steps taken from their results). The demo responses recorded on 2026-10-17 in runs/cache/ no longer match the
+planner's request, so replay needs a new recording (task 5.3).
+
+```bash
+.venv/bin/python -m pytest -q          # 251 passed
+curl -s -m 3 http://localhost:8000/v1/models   # ['lightning']; 8001: ['student', 'helpdesk_r1', 'ops_r1']; port 11000 free
+```

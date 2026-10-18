@@ -2,8 +2,9 @@
 
 plan(): one structured-output call to the planner (Lightning in team_base and team_trained). It sees the
 single setups' system prompt (acting user and time), the active specialists' cards and the request, and
-answers with plan_schema(): `analysis` first, so it works out the parts and their order before writing steps
-(structured answers run with thinking off, common/tool_loop.py); at most MAX_PLAN_STEPS `steps`, each
+answers with plan_schema(): `analysis` first, where it lists the actions the user asked for, decides whether to
+carry them out, ask or decline, and says where each detail comes from, before writing any step (structured
+answers run with thinking off, common/tool_loop.py); at most MAX_PLAN_STEPS `steps`, each
 {agent, instruction, depends_on} with `agent` one of the active specialists; `uncovered`, the parts of the
 request no active specialist covers; and `reply`, its own message when no step should run (a question for
 missing information, or a decline). The plan goes into the trace (common.schemas.Plan).
@@ -49,6 +50,10 @@ GYM_CONFIGS = REPO / "gym_configs"
 TEAM_CONFIG = GYM_CONFIGS / "eval_team.yaml"  # shared by the team setups; gym_configs/team_*.yaml pick the models
 MAX_PLAN_STEPS = 6
 
+# Revised after the first practice runs (task 3.1, runs/team_*_practice): Lightning planned requests it should have
+# declined or asked about, opened change tickets nobody asked for (the first prompt's example said the ticket had to
+# be "found or opened"), and wrote instructions without the acting user, with a category other than the user's, as
+# questions, or as steps that run only "if" something happens.
 PLANNER_PROMPT = """You plan how a team of IT specialists carries out a user's request. You don't act yourself: each step of your plan goes to one specialist, who carries it out with its own tools.
 
 The request comes with this context, which every specialist also sees:
@@ -58,11 +63,18 @@ The specialists (their cards):
 {cards}
 
 Answer with a JSON object:
-- analysis: briefly, what the request asks for, which specialist can do each part, and which parts need a result from another part. For example, a change in prod needs the ID of an open helpdesk ticket, so that ticket has to be found or opened in an earlier step.
-- steps: at most {max_steps}, in the order to run them. Each has `agent` (a specialist's name), `instruction` and `depends_on` (the numbers of the earlier steps whose results it needs, counting from 1). A specialist sees only its own instruction and the results of the steps it depends on, never the user's request, so write each instruction as a complete request with every detail from the user's request that the step needs (names, namespaces, priorities, what to write). For a value that an earlier step will find or create, like a ticket ID, say which step provides it instead of guessing it.
-- uncovered: each part of the request that none of these specialists can do. Leave those parts out of the steps. Empty if everything is covered.
-- reply: empty when there are steps. When no step should run, your message to the user: ask for missing information that no specialist could look up, or decline a request that shouldn't be carried out.
-Plan only what the user asked for."""
+- analysis: first, the actions the user asked for, in the user's words, and nothing more. Then whether to carry them out, ask the user or decline (see the rules below). Then which specialist does each action, and where each detail it needs comes from: the request, the context or an earlier step's result.
+- steps: at most {max_steps}, in the order to run them. Each has `agent` (a specialist's name), `instruction` and `depends_on` (the numbers of the earlier steps whose results it needs, counting from 1).
+- uncovered: each part of the request that none of these specialists can do at all. Leave those parts out of the steps. Empty if every part is covered. A detail that a step will look up is never uncovered.
+- reply: empty when there are steps. When there are none, your message to the user.
+
+Rules:
+- Plan only the actions the user asked for: no extra checks or follow-ups, and no steps that should run only if something turns out a certain way. Open a ticket only when the user asks for one.
+- A change in prod needs the ID of an open helpdesk ticket as its change ticket: the one the user gives or points to (a helpdesk step looks it up), or the one a step opens because the user asked for a new ticket. If the user did neither, don't plan the change: ask for a change ticket in `reply`.
+- Decline, with no steps and the reason in `reply`, a request that would cause an outage in prod or undo work that isn't the user's. Ask, with no steps, only for information that no specialist could look up with its tools.
+- Give each specialist one step per action: it looks up what it needs itself (an ops step finds a deployment's rollout history before rolling it back). Add a separate step only when another specialist needs its result first.
+- A specialist sees only its own instruction and the results of the steps it depends on, never the user's request. Write each instruction as a request from the user to that specialist, never as a question: name the employee (the current user's ID from the context, when it's for them), and keep every detail the user gave (category, priority, namespace, names, wording) exactly, without listing alternatives or copying fields from the cards.
+- For a value an earlier step will find or create, like a ticket ID or the change a ticket asks for, tell the specialist to take it from that step's result rather than guessing it, and to change nothing if it isn't there."""
 
 
 class PlanAnswer(Strict):
