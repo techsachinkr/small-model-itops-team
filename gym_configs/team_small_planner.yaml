@@ -1,0 +1,8 @@
+# team_small_planner: team_trained with the student base model as orchestrator, to measure Lightning's contribution as
+# planner (CLAUDE.md "Eval setups"). The student plans with the same prompt and plan schema (agents/orchestrator.py),
+# served by scripts/serve_student.sh next to the adapters. Only the planner's model and server differ from
+# team_trained; everything else is in eval_team.yaml.
+planner_model_name: student
+planner_base_url: http://localhost:8001/v1
+helpdesk_model_name: helpdesk_r1
+ops_model_name: ops_r1

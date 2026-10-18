@@ -16,7 +16,8 @@ with `gym eval run`, stops the servers, and writes to runs/<run_id>/:
     traces.jsonl    one Trace per attempt (common/schemas.py); a failed team attempt is labeled routing or
                     specialist (CLAUDE.md "Scoring")
     per_case.json   passed attempts per case
-    summary.json    the RunSummary: passes as "k/n", mean latency, cost per 1,000 requests
+    summary.json    the RunSummary: passes as "k/n", mean latency, cost per 1,000 requests, and for team_escalate the
+                    steps small models handled ("k/n" of the steps run; the rest were escalated to Lightning)
 
 A case passes if at least `pass_min_attempts` of its attempts pass; an attempt Gym failed to collect
 counts as failed, and the run is reported as partial. Refuses to start when LLM_MODE=replay, when
@@ -54,6 +55,7 @@ ITOPS_CONFIG = REPO / "resources_servers" / "itops" / "configs" / "itops.yaml"
 SETUPS = sorted(path.stem for path in GYM_CONFIGS.glob("*.yaml") if not path.stem.startswith("eval"))
 ADAPTER_SETUPS = ("r1", "r2")  # one adapter per API; their gym_configs leave the model unset
 SYSTEM_SETUPS = ("single_", "team_")  # prefixes of the setups that run on the multi-API cases
+ESCALATING_SETUP = "team_escalate"  # the only setup that escalates (hard rule 7; gym_configs/team_escalate.yaml)
 APIS = ("helpdesk", "ops")
 HEAD_SERVER_PORT = 11000  # Gym's default
 READY = re.compile(r"All (\d+) / \1 servers ready")
@@ -191,10 +193,12 @@ def collect(tasks: Path, rollouts: Path, attempts: int, log_path: Path, agent: s
 
 
 def cost_usd(trace: dict[str, Any], steps: list[Step], plan: Plan | None, config: EvalConfig) -> float:
-    """Every token at the price of the model that produced it, the same formula for every setup (hard rule 7).
-    Tokens that no step or plan accounts for (traces from before steps carried their tokens) go to the first
-    step's model."""
-    parts = [(step.model, step.prompt_tokens, step.completion_tokens) for step in steps]
+    """Every token at the price of the model that produced it, the same formula for every setup (hard rule 7). An
+    escalated step's two parts are priced separately: the specialist's at its rate, Lightning's (the step's
+    `escalation`) at Lightning's (the user's decision, 2026-10-18). Tokens that no step or plan accounts for (traces
+    from before steps carried their tokens) go to the first step's model."""
+    parts = [(part.model, part.prompt_tokens, part.completion_tokens)
+             for step in steps for part in (step, step.escalation) if part is not None]
     if plan is not None:
         parts.append((plan.model, plan.prompt_tokens, plan.completion_tokens))
     rest = (trace["prompt_tokens"] - sum(part[1] for part in parts),
@@ -249,10 +253,15 @@ def summarize(
             "passed": passed >= config.pass_min_attempts,
         }
     passes = sum(result["passed"] for result in per_case.values())
+    small_model_steps = None
+    if setup == ESCALATING_SETUP:
+        steps = [step for trace in traces for step in trace.steps]
+        small_model_steps = f"{sum(not step.escalated for step in steps)}/{len(steps)}"
     summary = SetupSummary(
         passes=f"{passes}/{len(cases)}",
         mean_latency_s=sum(t.latency_s for t in traces) / len(traces) if traces else 0.0,
         cost_per_1k_usd=1000 * sum(t.cost_usd for t in traces) / len(traces) if traces else 0.0,
+        small_model_steps=small_model_steps,
     )
     return RunSummary({setup: summary}), per_case
 
@@ -322,6 +331,9 @@ def main() -> None:
         labels = [trace.failure_label for trace in traces if not trace.passed]
         print(f"  failed attempts: {labels.count('routing')} routing, {labels.count('specialist')} specialist")
     result = summary.root[args.setup]
+    if result.small_model_steps is not None:
+        small, steps = (int(part) for part in result.small_model_steps.split("/"))
+        print(f"  steps: {result.small_model_steps} handled by small models, {steps - small} escalated to Lightning")
     print(f"{args.setup} on {args.api or 'multi-API cases'} {args.split}: {result.passes} cases passed; "
           f"mean latency {result.mean_latency_s:.1f} s; ${result.cost_per_1k_usd:.2f} per 1,000 requests")
     if returncode != 0 or len(traces) != expected:

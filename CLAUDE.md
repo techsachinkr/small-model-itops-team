@@ -87,10 +87,10 @@ Training example (`data/generated/<api>/round_<n>.jsonl`):
 Each generated task file comes with `tasks_<name>.config.json` (settings, seed, git commit, each task's origin) and `tasks_<name>.decontaminate.json` (dropped tasks); each `round_<n>.jsonl` with `round_<n>.stats.json` (kept and rejected counts). Round 1 is broad (`data/generated/<api>/tasks_round_1.jsonl`), round 2 targeted; the pilot in `data/generated/helpdesk/pilot/` isn't training data. Methodology for publishing: `data/generated/README.md`.
 
 Trace (`runs/<run_id>/traces.jsonl`):
-`{run_id, setup, case_id, attempt, plan?, steps: [{agent, model, calls, seatbelt_events, escalated, prompt_tokens, completion_tokens}], prompt_tokens, completion_tokens, latency_s, cost_usd, passed, failure_label?: routing|specialist}`
-where `plan` (team setups) is `{model, analysis, steps: [{agent, instruction, depends_on}], uncovered, reply, prompt_tokens, completion_tokens, error?}`, each step's and the plan's tokens are priced at their own model's rate, a call is `{turn, tool, args, status, output}` (status 0: blocked by the seatbelt, never run) and a seatbelt event is `{kind: invalid_call|tool_error|transient_retry|self_check|gave_up, turn, tool?, detail, complete?, retries_left?}`. A step with a `gave_up` event failed.
+`{run_id, setup, case_id, attempt, plan?, steps: [{agent, model, calls, seatbelt_events, escalated, prompt_tokens, completion_tokens, escalation?}], prompt_tokens, completion_tokens, latency_s, cost_usd, passed, failure_label?: routing|specialist}`
+where `plan` (team setups) is `{model, analysis, steps: [{agent, instruction, depends_on}], uncovered, reply, prompt_tokens, completion_tokens, error?}`, each step's and the plan's tokens are priced at their own model's rate, a call is `{turn, tool, args, status, output}` (status 0: blocked by the seatbelt, never run) and a seatbelt event is `{kind: invalid_call|tool_error|transient_retry|self_check|gave_up, turn, tool?, detail, complete?, retries_left?}`. A step with a `gave_up` event failed, except an escalated one (`team_escalate`): its `escalation` is Lightning's part, a step of its own (`{agent, model, calls, seatbelt_events, prompt_tokens, completion_tokens}`), and the step failed only if that part gave up.
 
-Run summary (`runs/<run_id>/summary.json`): per setup, passes as `"k/n"`, mean latency, cost per 1,000 requests, and for `team_escalate` the share of steps handled by small models.
+Run summary (`runs/<run_id>/summary.json`): per setup, passes as `"k/n"`, mean latency, cost per 1,000 requests, and for `team_escalate` the share of steps handled by small models (`small_model_steps`, `"k/n"` of the steps run; the rest were escalated).
 
 Failure cluster (`runs/<run_id>/clusters.json`): `[{name, description, case_ids, guidance}]`
 
@@ -133,8 +133,9 @@ System, on multi-API cases:
 
 ## Escalation
 
-- Lightning receives the step's conversation so far, including calls already executed and their results, and finishes the step with the same tools and seatbelt. It never restarts the step, so no action is repeated.
-- The step is marked `escalated: true` and its tokens are priced at Lightning's rate.
+- Lightning receives the step's conversation so far, including calls already executed and their results, plus one hand-off message with the seatbelt's reason, and finishes the step with the same tools and seatbelt settings, with its own retries and turns (`finish` in `agents/specialist.py`). It never restarts the step, so no action is repeated.
+- The step is marked `escalated: true`, and Lightning's part is recorded as its `escalation`, priced at Lightning's rate. The specialist's tokens from before the hand-off stay at the specialist's rate: every token at the rate of the model that produced it (the user's decision, 2026-10-18, task 3.3).
+- Only `team_escalate` escalates (`escalate: true` in `gym_configs/team_escalate.yaml`); in every other setup a step the seatbelt gave up on fails the attempt.
 
 ## Scoring
 
@@ -210,6 +211,10 @@ uv run python -m agents.orchestrator --case pr-multi-01 --setup team_trained [--
 # Team setups on the multi-API practice cases (no --api). Needs Lightning on 8000 and the student with the setup's
 # adapters on 8001, port 11000 free; refuses while agents/registry.json has a specialist switched off.
 uv run python -m eval.run_eval --setup team_trained --split practice --run-id team_trained_practice
+# Task 3.3: team_escalate (team_trained plus escalation to Lightning; the same servers) and team_small_planner
+# (team_trained with the student base model as planner; only the student server). The CLI takes both setups too.
+uv run python -m eval.run_eval --setup team_escalate --split practice --run-id team_escalate_practice
+uv run python -m eval.run_eval --setup team_small_planner --split practice --run-id team_small_planner_practice
 # The single-model system setups (task 3.2) on the same cases, also without --api: one model with every tool and no
 # orchestrator. single_trained runs all_r1 on the student server.
 uv run python -m eval.run_eval --setup single_trained --split practice --run-id single_trained_practice

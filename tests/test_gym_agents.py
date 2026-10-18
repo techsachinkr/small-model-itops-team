@@ -82,7 +82,7 @@ def run(agent_class: type, config: Any, case: Case, **scripts: list[dict[str, An
         if server_name == "itops":
             response = resources.post(url_path, json=kwargs.get("json"), cookies=kwargs.get("cookies"))
             return FakeResponse(response.status_code, response.content, response.cookies)
-        requests[server_name].append(kwargs["json"])
+        requests[server_name].append(json.loads(json.dumps(kwargs["json"])))  # as sent: the loop keeps its lists
         completion = {"choices": [{"message": scripts[server_name].pop(0)}],
                       "usage": {"prompt_tokens": 100, "completion_tokens": 10}}
         return FakeResponse(200, json.dumps(completion).encode(), {})
@@ -99,14 +99,19 @@ SERVER = {"host": "0.0.0.0", "port": 8081, "entrypoint": ""}
 RESOURCES = {"type": "resources_servers", "name": "itops"}
 
 
-def run_team(case_id: str, **scripts: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
+def run_team(case_id: str, escalate: bool = False, **scripts: list[dict[str, Any]]
+             ) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
+    """`escalate`: team_escalate's switch; Lightning's escalation server is configured either way, as in
+    gym_configs/eval_team.yaml."""
     config = ItopsTeamAgentConfig(
         **SERVER, name="itops_team", resources_server=RESOURCES,
         planner_server={"type": "responses_api_models", "name": "planner_model"}, planner_model_name="lightning",
         helpdesk_server={"type": "responses_api_models", "name": "helpdesk_model"}, helpdesk_model_name="helpdesk_r1",
         ops_server={"type": "responses_api_models", "name": "ops_model"}, ops_model_name="ops_r1",
+        escalate=escalate, escalation_server={"type": "responses_api_models", "name": "escalation_model"},
+        escalation_model_name="lightning",
     )
-    return run(ItopsTeamAgent, config, CASES[case_id], **scripts)
+    return run(ItopsTeamAgent, config, CASES[case_id], **({"escalation_model": []} | scripts))
 
 
 def test_the_single_agent_runs_one_step_and_scores_it() -> None:
@@ -162,6 +167,50 @@ def test_the_demo_request_through_the_gym_agent() -> None:
     ([message("not a plan")], []),
 ], ids=["failed step", "invalid plan"])
 def test_a_failed_team_attempt_scores_0_whatever_the_state(planner: list[dict[str, Any]], helpdesk: list[dict[str, Any]]) -> None:
-    verdict, _ = run_team("pr-multi-08", planner_model=planner, helpdesk_model=helpdesk, ops_model=[])
+    verdict, requests = run_team("pr-multi-08", planner_model=planner, helpdesk_model=helpdesk, ops_model=[])
     assert verdict["verifier_reward"] == 1.0  # nothing changed, which is right for this case
     assert verdict["reward"] == 0.0
+    assert requests["escalation_model"] == []  # escalation is off, as in every setup but team_escalate
+
+
+TICKET = {"employee_id": "E1012", "category": "incident", "summary": "Payments crashing in prod", "priority": "P1"}
+DEMO_PLAN = plan(("helpdesk", "Open a P1 incident ticket for payments crashing in prod.", []),
+                 ("ops", "Roll payments in prod back to its last healthy revision with step 1's ticket.", [1]))
+# Opens HD-1042, then three invalid calls: no retries left, so the seatbelt gives up on the step.
+HELPDESK_GIVES_UP = [message(create_ticket=TICKET), message(drop_tickets={}, close_all={}, purge={})]
+
+
+def test_without_escalation_a_step_the_seatbelt_gave_up_on_fails_the_attempt() -> None:
+    """team_base, team_trained and team_small_planner (hard rule 7: only team_escalate escalates)."""
+    verdict, requests = run_team("pr-multi-01", planner_model=[DEMO_PLAN], helpdesk_model=list(HELPDESK_GIVES_UP),
+                                 ops_model=[])
+    assert verdict["reward"] == 0.0 and requests["escalation_model"] == [] and requests["ops_model"] == []
+    (step,) = verdict["trace"]["steps"]
+    assert not step["escalated"] and step["escalation"] is None
+
+
+def test_team_escalate_has_lightning_finish_a_step_the_seatbelt_gave_up_on() -> None:
+    rollback = {"namespace": "prod", "deployment": "payments", "to_revision": 8, "change_ticket": "HD-1042"}
+    verdict, requests = run_team(
+        "pr-multi-01", escalate=True, planner_model=[DEMO_PLAN], helpdesk_model=list(HELPDESK_GIVES_UP),
+        escalation_model=[message("HD-1042 is open for the payments incident."), message(SELF_CHECK_OK)],
+        ops_model=[message(rollout_history={"namespace": "prod", "deployment": "payments"}), message(rollback=rollback),
+                   message("Rolled payments back to revision 8."), message(SELF_CHECK_OK)],
+    )
+    assert verdict["reward"] == 1.0 and verdict["state_diff"] == []
+
+    sent = requests["escalation_model"][0]  # the step's conversation so far, with helpdesk's tools
+    assert {tool["function"]["name"] for tool in sent["tools"]} == {tool.name for tool in tools_for(["helpdesk"])}
+    assert sent["messages"][:2] == requests["helpdesk_model"][0]["messages"][:2]
+    tool_outputs = [json.loads(m["content"]) for m in sent["messages"] if m["role"] == "tool"]
+    assert tool_outputs[0]["ticket"]["id"] == "HD-1042" and sent["messages"][-1]["role"] == "user"  # then the hand-off
+    assert "HD-1042 is open" in requests["ops_model"][0]["messages"][1]["content"]
+
+    helpdesk, ops = verdict["trace"]["steps"]
+    assert (helpdesk["model"], helpdesk["escalated"], helpdesk["escalation"]["model"]) == ("helpdesk_r1", True, "lightning")
+    assert helpdesk["escalation"]["prompt_tokens"] == 200 and helpdesk["prompt_tokens"] == 200  # each part's own
+    assert not ops["escalated"] and verdict["trace"]["prompt_tokens"] == 100 + 200 + 200 + 400
+    # The response holds each turn once: the executed create_ticket isn't repeated or replayed.
+    output = verdict["response"]["output"]
+    assert [item["name"] for item in output if item["type"] == "function_call"].count("create_ticket") == 1
+    assert output[-1]["content"][0]["text"] == "HD-1042 is open for the payments incident.\n\nRolled payments back to revision 8."

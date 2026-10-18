@@ -1,0 +1,6 @@
+# team_escalate: team_trained plus escalation (CLAUDE.md "Escalation"). When the seatbelt gives up on a step, Lightning
+# (eval_team.yaml's escalation server) takes over the step's conversation and finishes it with the same tools and
+# seatbelt settings. The only setup that escalates (hard rule 7); everything else is team_trained's.
+helpdesk_model_name: helpdesk_r1
+ops_model_name: ops_r1
+escalate: true

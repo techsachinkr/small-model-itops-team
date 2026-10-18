@@ -12,8 +12,10 @@ missing information, or a decline). The plan goes into the trace (common.schemas
 run_team(): runs the steps in dependency order, keeping the plan's order where the dependencies allow. A
 step's instruction gets the answer and successful tool results of each step it depends on, so an ID that one
 specialist finds or creates (like a new ticket's) reaches the next. The team stops at the first failed step:
-a failed step fails the case (CLAUDE.md "Seatbelt"; escalation is task 3.3). The final answer joins the
-planner's reply, each step's answer and a sentence naming the uncovered parts.
+a failed step fails the case (CLAUDE.md "Seatbelt"). In team_escalate only (hard rule 7), a step the seatbelt
+gave up on first goes to escalation (`Escalation`, agents/specialist.finish): Lightning finishes it in the same
+conversation, and the step fails only if Lightning's part gives up too. The final answer joins the planner's
+reply, each step's answer (Lightning's, for an escalated step) and a sentence naming the uncovered parts.
 
 Like common/tool_loop.py, it needs only async functions: a ModelFn for the planner and one per specialist,
 and a ToolFn. So the same code runs inside NeMo Gym (ItopsTeamAgent in common/gym_agent.py) and outside it,
@@ -35,10 +37,10 @@ from typing import TYPE_CHECKING, Any, Literal
 import yaml
 from pydantic import ValidationError
 
-from agents.specialist import Specialist, active_names, load_specialists
+from agents.specialist import Specialist, active_names, finish, load_specialists
 from agents.specialist import run as run_specialist
 from common.eval_config import EVAL_CONFIG, REPO, SeatbeltConfig, load_eval_config
-from common.schemas import Plan, PlanStep, Strict
+from common.schemas import Plan, PlanStep, Step, Strict
 from common.tool_loop import ModelFn, StepResult, ToolFn
 
 if TYPE_CHECKING:
@@ -120,6 +122,14 @@ class Member:
     model_name: str
 
 
+@dataclass(frozen=True)
+class Escalation:
+    """team_escalate only (hard rule 7): the model that finishes a step the seatbelt gave up on (Lightning)."""
+
+    model: ModelFn
+    model_name: str
+
+
 @dataclass
 class TeamResult:
     plan: Plan
@@ -131,7 +141,8 @@ class TeamResult:
 
     @property
     def failed(self) -> bool:
-        """No valid plan, or a failed step: the attempt fails (scores 0 in Gym)."""
+        """No valid plan, or a failed step (an escalated one only if Lightning's part gave up too): the attempt fails
+        (scores 0 in Gym)."""
         return self.plan.error is not None or any(result.gave_up for result in self.steps)
 
     @property
@@ -181,7 +192,7 @@ def step_instruction(number: int, plan: Plan, results: dict[int, StepResult]) ->
     for d in needed:
         result = results[d]
         lines.append(f"Step {d} ({plan.steps[d - 1].agent}) answered: {result.answer or '(no answer)'}")
-        outputs = [{"tool": call.tool, "output": call.output} for call in result.step.calls if call.status == 200]
+        outputs = [{"tool": call.tool, "output": call.output} for call in result.step.all_calls if call.status == 200]
         if outputs:
             lines.append(f"Its tool results: {json.dumps(outputs, separators=(',', ':'))}")
     return "\n".join(lines)
@@ -207,9 +218,11 @@ async def run_team(
     *,
     max_steps: int,
     seatbelt: SeatbeltConfig | None,
+    escalation: Escalation | None = None,
 ) -> TeamResult:
     """Plan the request with the members' cards, then run the plan. `tools` are the request's chat-format
-    tools (every API's); `max_steps` and `seatbelt` apply to each step, as in the single setups."""
+    tools (every API's); `max_steps` and `seatbelt` apply to each step, as in the single setups, and to Lightning's
+    part of an escalated step. `escalation` is set only for team_escalate."""
     start = time.perf_counter()
     by_name = {member.specialist.name: member for member in members}
     the_plan = await plan(request, system_prompt, [member.specialist.card for member in members], planner, planner_model)
@@ -229,10 +242,14 @@ async def run_team(
                 member.specialist, system_prompt, step_instruction(number, the_plan, results), tools, member.model,
                 call_tool, max_steps=max_steps, seatbelt=seatbelt, model_name=member.model_name,
             )
+            if result.gave_up and escalation is not None:
+                result = await finish(member.specialist, result, tools, escalation.model, call_tool,
+                                      max_steps=max_steps, seatbelt=seatbelt, model_name=escalation.model_name)
             results[number] = result
             order.append(number)
             if result.gave_up:
-                notes.append(f"Step {number} ({member.specialist.name}) failed, so the team stopped there.")
+                how = "failed, also after escalation to Lightning," if result.step.escalated else "failed,"
+                notes.append(f"Step {number} ({member.specialist.name}) {how} so the team stopped there.")
                 break
     ran = [results[number] for number in order]
     return TeamResult(the_plan, ran, order, final_answer(the_plan, ran, notes), time.perf_counter() - start, notes)
@@ -250,11 +267,28 @@ def team_setups() -> list[str]:
     return sorted(path.stem for path in GYM_CONFIGS.glob("team_*.yaml"))
 
 
+def setup_values(setup: str) -> dict[str, Any]:
+    """A team setup's values: gym_configs/eval_team.yaml's, with the setup's own file on top (the values Gym gets)."""
+    return yaml.safe_load(TEAM_CONFIG.read_text()) | yaml.safe_load((GYM_CONFIGS / f"{setup}.yaml").read_text())
+
+
 def setup_models(setup: str) -> tuple[str, dict[str, str]]:
-    """A team setup's planner model and each specialist's model, from gym_configs/eval_team.yaml and the setup's
-    own file (the same values Gym gets)."""
-    values = yaml.safe_load(TEAM_CONFIG.read_text()) | yaml.safe_load((GYM_CONFIGS / f"{setup}.yaml").read_text())
+    """A team setup's planner model and each specialist's model."""
+    values = setup_values(setup)
     return values["planner_model_name"], {name: values[f"{name}_model_name"] for name in load_specialists()}
+
+
+def escalation_model(setup: str) -> str | None:
+    """The model a team setup escalates to, or None: only team_escalate escalates (hard rule 7)."""
+    values = setup_values(setup)
+    return values["escalation_model_name"] if values["escalate"] else None
+
+
+def part_lines(step: Step) -> list[str]:
+    """A step's calls and seatbelt events (for an escalated step, its own part or Lightning's)."""
+    lines = [f"  {call.tool} {json.dumps(call.args)} -> {call.status} {json.dumps(call.output)[:300]}"
+             for call in step.calls]
+    return lines + [f"  seatbelt {event.kind}: {event.detail}" for event in step.seatbelt_events]
 
 
 def describe(result: TeamResult) -> list[str]:
@@ -273,12 +307,13 @@ def describe(result: TeamResult) -> list[str]:
         lines.append(f"  reply: {plan.reply}")
     for number, result_step in zip(result.order, result.steps):
         step = result_step.step
-        lines.append(f"Step {number}: {step.agent} on {step.model} ({result_step.prompt_tokens} prompt + "
-                     f"{result_step.completion_tokens} completion tokens, {result_step.latency_s:.1f} s)")
-        for call in step.calls:
-            lines.append(f"  {call.tool} {json.dumps(call.args)} -> {call.status} {json.dumps(call.output)[:300]}")
-        for event in step.seatbelt_events:
-            lines.append(f"  seatbelt {event.kind}: {event.detail}")
+        lines.append(f"Step {number}: {step.agent} on {step.model} ({step.prompt_tokens} prompt + "
+                     f"{step.completion_tokens} completion tokens, {result_step.latency_s:.1f} s)")
+        lines += part_lines(step)
+        if (lightning := step.escalation) is not None:
+            lines.append(f"  escalated to {lightning.model} ({lightning.prompt_tokens} prompt + "
+                         f"{lightning.completion_tokens} completion tokens):")
+            lines += part_lines(lightning)
         lines.append(f"  answer: {result_step.answer}")
     lines.append(f"Final answer ({result.latency_s:.1f} s in all):\n{result.answer}")
     return lines
@@ -342,10 +377,12 @@ def main() -> None:
         return llm_model(name, config.sampling(), config.thinking)
 
     members = [Member(specialists[name], model(models[name]), models[name]) for name in names]
+    target = escalation_model(args.setup)  # team_escalate only
+    escalation = Escalation(model(target), target) if target else None
     env = Env(case.fixture, apis=case.apis)  # chaos off
     result = asyncio.run(run_team(
         case.request, system_prompt(case), chat_tools(tool_schemas(case.apis)), model(planner_model), planner_model,
-        members, env_tools(env), max_steps=config.max_steps, seatbelt=config.seatbelt,
+        members, env_tools(env), max_steps=config.max_steps, seatbelt=config.seatbelt, escalation=escalation,
     ))
     verdict = check(case, env.state, result.answer)
     print(f"{case.id} ({case.kind}, {case.fixture}, {case.user_id}) on {args.setup} with {', '.join(names)}:")

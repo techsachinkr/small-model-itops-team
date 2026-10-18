@@ -1223,3 +1223,50 @@ uv run python -m eval.report --run single_base_practice --run single_trained_pra
 # Where ops's training data gets prod change tickets (inline script): all 482 prod rollback/scale calls in
 # data/generated/ops/round_1.jsonl take change_ticket from the user's request; the ops examples call only ops tools.
 ```
+
+## 2026-10-18: task 3.3 Escalation and Lightning's planner contribution
+
+### team_small_planner (gym_configs/team_small_planner.yaml: team_trained with the student base model as planner)
+
+```bash
+curl -s localhost:8001/v1/models; curl -s localhost:8000/v1/models   # 8001: student, all_r1, helpdesk_r1, ops_r1; 8000: lightning
+# Handed over for an early run while escalation was built, but not run; it moved into the chain at the final commit.
+```
+
+### Escalation checks without a GPU
+
+```bash
+# pr-multi-01 through the CLI from the replay cache, before handing over the evals: both miss on the planner's first
+# request (the same cache key, f11b138f...), because the recording (task 3.1) predates the planner prompt revision.
+# So team_escalate sends exactly team_trained's requests; the live check is in the human's chain below.
+LLM_MODE=replay uv run python -m agents.orchestrator --case pr-multi-01 --setup team_trained    # ReplayMiss
+LLM_MODE=replay uv run python -m agents.orchestrator --case pr-multi-01 --setup team_escalate   # ReplayMiss
+```
+
+### The three team setups at one commit (handed over to the human; both vLLM servers up, port 11000 free)
+
+```bash
+# One live demo request on team_escalate (also refreshes the replay cache for pr-multi-01), then the three evals.
+LLM_MODE=record uv run python -m agents.orchestrator --case pr-multi-01 --setup team_escalate && \
+uv run python -m eval.run_eval --setup team_trained --split practice --run-id team_trained_practice_v3 && \
+uv run python -m eval.run_eval --setup team_escalate --split practice --run-id team_escalate_practice && \
+uv run python -m eval.run_eval --setup team_small_planner --split practice --run-id team_small_planner_practice
+```
+# Started 06:59:57 UTC, all three done by about 07:02. 24/24 attempts each, commit 954c591 with this task's changes
+# uncommitted (each run's git_diff.patch equals the tree's tracked diff; the two new setup files are untracked and
+# predate the runs). The demo request on team_escalate: PASS, no escalation; it now replays with no server.
+# team_trained v3 6/8 (16/24), 11.8 s, $0.54; team_escalate 3/8 (11/24), 12.0 s, $0.60, 49/51 small-model steps
+# (2 escalated: pr-multi-05 #2 rescued, pr-multi-01 #3 not); team_small_planner 3/8 (11/24), 5.0 s, $0.28.
+```
+
+### The system practice table: the Done-when check passed
+
+```bash
+.venv/bin/python -m eval.report --run single_base_practice --run single_trained_practice --run single_lightning_practice \
+  --run team_base_practice_v2 --run team_trained_practice_v2 --run team_trained_practice_v3 \
+  --run team_escalate_practice --run team_small_planner_practice --output runs/practice_system.md
+# Per failed or escalated attempt (plan, steps, escalations, state diff): a read-only script over the runs' traces and
+# rollouts; failure counts (routing/specialist): team_trained v3 1/7, team_escalate 4/9, team_small_planner 7/6.
+.venv/bin/python -I $SCRATCH/team_attempts.py team_escalate_practice team_trained_practice_v3 team_small_planner_practice
+# Lightning's escalated parts: $0.041 per 1,000 requests; the specialists' parts at Lightning's rate would add $0.023.
+LLM_MODE=replay uv run python -m agents.orchestrator --case pr-multi-01 --setup team_escalate   # PASS, from the cache

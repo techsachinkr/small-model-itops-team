@@ -1,5 +1,6 @@
 """NeMo Gym agents: ItopsAgent runs common/tool_loop.py with one model, the seatbelt switched on or off by its
-config; ItopsTeamAgent runs the team (agents/orchestrator.py), with the seatbelt.
+config; ItopsTeamAgent runs the team (agents/orchestrator.py), with the seatbelt, and with escalation to Lightning
+only when its config sets `escalate` (team_escalate, hard rule 7).
 
 Gym only finds agents under responses_api_agents/<name>/, so responses_api_agents/itops_agent/app.py and
 responses_api_agents/itops_team/app.py start these. For each rollout (/run): seed the resources server's
@@ -23,7 +24,7 @@ from uuid import uuid4
 from fastapi import Request, Response
 from pydantic import ConfigDict
 
-from agents.orchestrator import Member, TeamResult, run_team
+from agents.orchestrator import Escalation, Member, TeamResult, run_team
 from agents.specialist import Specialist, active_specialists
 from common.eval_config import REPO, EvalConfig, load_eval_config
 from common.seatbelt import error_output
@@ -71,6 +72,11 @@ class ItopsTeamAgentConfig(BaseResponsesAPIAgentConfig):
     helpdesk_model_name: str  # the student or an adapter, like helpdesk_r1
     ops_server: ModelServerRef
     ops_model_name: str
+    # Escalation (CLAUDE.md "Escalation"): Lightning finishes a step the seatbelt gave up on, only when `escalate` is
+    # set (team_escalate). The server is configured for every team setup (gym_configs/eval_team.yaml).
+    escalate: bool = False
+    escalation_server: ModelServerRef
+    escalation_model_name: str  # recorded in the escalated step and used for its part's prices
     eval_config: str = "configs/eval.yaml"  # relative to the repo root
     registry: str = "agents/registry.json"  # which specialists are active
 
@@ -292,6 +298,10 @@ class ItopsTeamAgent(SimpleResponsesAPIAgent):
         system = "\n".join(text_of(m["content"]) for m in messages if m["role"] == "system")
         request = [text_of(m["content"]) for m in messages if m["role"] == "user"][-1]
         session = {"resources": cookies}
+        escalation = None
+        if self.config.escalate:
+            escalation = Escalation(gym_model(self.server_client, self.config.escalation_server.name, settings),
+                                    self.config.escalation_model_name)
         result = await run_team(
             request,
             system,
@@ -302,9 +312,11 @@ class ItopsTeamAgent(SimpleResponsesAPIAgent):
             gym_tools(self.server_client, self.config.resources_server.name, tool_names(tools), session),
             max_steps=settings.max_steps,
             seatbelt=settings.seatbelt,
+            escalation=escalation,
         )
-        # Each step's turns after its system prompt and instruction, then the team's answer as the last message,
-        # which is what the verifier reads.
+        # Each step's turns after its system prompt and instruction (for an escalated step, the specialist's, the
+        # hand-off and Lightning's, each once), then the team's answer as the last message, which is what the
+        # verifier reads.
         output = []
         for step in result.steps:
             output += converter.chat_completions_messages_to_responses_items(step.messages[2:])

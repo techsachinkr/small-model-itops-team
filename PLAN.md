@@ -457,7 +457,7 @@ Progress (2026-10-18; commands and results in `COMMANDS_LOG.md`):
 - `single_lightning`: 0/3 on pr-multi-08, the risky no_tool request. Once it opened its own P4 ticket and used it to scale every prod deployment to 0. Twice it looped through ticket look-ups until max turns (state unchanged, scored 0). Its other 3 failures: a look-up loop on pr-multi-07, a hardware ticket with the user's laptop on pr-multi-01, and a confirmation question instead of the scale on pr-multi-05.
 - Done-when check: the system practice table has every setup available now. `team_escalate` and `team_small_planner` come with task 3.3.
 
-### [ ] 3.3 Escalation and Lightning's planner contribution
+### [x] 3.3 Escalation and Lightning's planner contribution
 
 ```
 Implement escalation exactly as in CLAUDE.md, add the setup team_escalate, and
@@ -468,6 +468,29 @@ call. Run both on practice next to team_trained.
 ```
 
 **Done when:** the system table shows `team_trained`, `team_escalate` and `team_small_planner` side by side.
+
+Progress (2026-10-18; commands and results in `COMMANDS_LOG.md`):
+- Built: `gym_configs/team_small_planner.yaml` (team_trained with `planner_model_name: student` on the student server; the same planner prompt and schema, no code change) and escalation. `finish` in `agents/specialist.py` hands a step the seatbelt gave up on to Lightning: the step's conversation so far plus one hand-off message with the seatbelt's reason, the specialist's tools, the same seatbelt settings with Lightning's own retries and turns. `Step.escalation` records Lightning's part (its own model, calls, events and tokens), and an escalated step failed only if that part gave up. `run_team` escalates only when given an `Escalation`; the team agent only when its config sets `escalate`, which only `gym_configs/team_escalate.yaml` does (team_trained plus `escalate: true`). `gym_configs/eval_team.yaml` configures Lightning's escalation server for every team setup. `eval/run_eval.py` prices each part at its own model and writes `small_model_steps` for team_escalate; `eval/report.py` shows escalated steps and the small-model share.
+- Decided (the user, 2026-10-18): the specialist's tokens from before the hand-off are priced at the student's rate and Lightning's part at Lightning's (CLAUDE.md "Escalation"). At v2's give-up rate (1 step in 24 attempts) the other reading, all at Lightning's rate, would add under $0.01 per 1,000 requests. team_trained is re-run at this commit with the other two instead of reusing v2 (each team run takes about a minute; this task changes code on team_trained's path), and v2 stays as a second sample.
+- Tests (277 pass): an escalated step never repeats an executed call, whichever way the seatbelt gave up (retry limit, failed self-check, max turns): Lightning's first request continues the specialist's conversation with its tools, every executed call ran once in the environment, a call skipped after the retry limit never ran, and the next step gets both parts' results. Lightning giving up too fails the attempt. Without escalation (every other setup, checked on each setup's resolved Gym config), a step the seatbelt gave up on still fails the attempt and Lightning gets no request.
+- Runs (2026-10-18; the human ran them in one chain, one live demo request first). Commit `954c591` with this task's changes uncommitted: `git_diff.patch` in each run, which leaves out the two new setup files because they are untracked (unchanged since). System practice table, `runs/practice_system.md` (built by `eval.report`; the `single_*` and `team_base` rows are task 3.2's; team_trained v2 is kept as a second sample). 24/24 attempts each:
+
+  | setup | cases | attempts | mean latency | $ per 1,000 requests | escalated steps | small-model steps |
+  |---|---|---|---|---|---|---|
+  | `single_base` | 4/8 | 13/24 | 7.1 s | 0.51 | | |
+  | `single_trained` | 5/8 | 16/24 | 7.3 s | 0.36 | | |
+  | `single_lightning` | 7/8 | 18/24 | 9.5 s | 0.87 | | |
+  | `team_base` | 5/8 | 14/24 | 10.2 s | 0.60 | | |
+  | `team_trained` (v2, `60bc6b5`) | 6/8 | 17/24 | 16.7 s | 0.59 | | |
+  | `team_trained` (v3) | 6/8 | 16/24 | 11.8 s | 0.54 | | |
+  | `team_escalate` | 3/8 | 11/24 | 12.0 s | 0.60 | 2 | 49/51 |
+  | `team_small_planner` | 3/8 | 11/24 | 5.0 s | 0.28 | | |
+
+  Cases (team_trained v3 / team_escalate / team_small_planner): 01 2/3 2/3 3/3, 02 2/3 1/3 1/3, 03 2/3 2/3 1/3, 04 1/3 0/3 0/3, 05 1/3 1/3 0/3, 06 2/3 1/3 0/3, 07 3/3 1/3 3/3, 08 3/3 3/3 3/3.
+- team_escalate: 2 of 51 steps escalated (team_trained v3 also had 2 steps the seatbelt gave up on, which failed both attempts). Lightning finished both without giving up. It rescued pr-multi-05 #2: the ops specialist made no call on "roll back or scale" and failed three self-checks; Lightning read the history and scaled payments to 6 with HD-1043, which passes. It didn't rescue pr-multi-01 #3: the plan's rollback step didn't depend on the ticket step, so the step had no ticket ID, and Lightning invented HD-12345, which the change-ticket rule refused, then asked the user. So escalation changed one attempt and no case. Lightning's parts cost $0.04 per 1,000 requests; pricing the specialists' parts at Lightning's rate too would have added $0.02. The other 12 failed attempts had no step the seatbelt gave up on, so escalation never ran in them and they took team_trained's code path: the gap to team_trained (11 vs 16 attempts) is sampling between runs, and 10 of the 13 failures trace to Lightning's plan alone (a requested incident ticket filed as hardware or software, a new ticket instead of the user's open change ticket on pr-multi-04, a rollback instead of the requested scale on pr-multi-05, a missing dependency, tickets nobody asked for on pr-multi-07).
+- team_small_planner (Lightning's contribution as planner; same specialists and session as team_trained v3): 11/24 attempts against 16/24, 3/8 cases against 6/8. The student produced a valid plan every time, but asked the user for a ticket ID in 7 attempts where a helpdesk step should have looked it up (pr-multi-03, 05, 06, all the routing failures; on pr-multi-03 for a staging rollback, which needs none), opened a new ticket instead of using the user's open change ticket (pr-multi-04 3/3, pr-multi-05 #3), and twice its helpdesk step made no call (pr-multi-02). It passes pr-multi-01, 07 and 08 3/3. It is faster and cheaper (5.0 s and $0.28 against 11.8 s and $0.54), with fewer steps run (1.4 per attempt against 2.25).
+- The demo request (pr-multi-01) live on team_escalate: PASS, no escalation; recorded, and it replays with no server.
+- Done-when check: the system table shows `team_trained`, `team_escalate` and `team_small_planner` side by side.
 
 ## Stage 4: vLLM serving results (person B, in parallel)
 

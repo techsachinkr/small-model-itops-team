@@ -76,7 +76,7 @@ def test_system_setups_take_no_api_and_ladder_setups_need_one(
 
 def test_setups_are_the_gym_configs() -> None:
     assert run_eval.SETUPS == ["base_raw", "base_seatbelt", "lightning", "r1", "single_base", "single_lightning",
-                               "single_trained", "team_base", "team_trained"]
+                               "single_trained", "team_base", "team_escalate", "team_small_planner", "team_trained"]
 
 
 def test_system_setups_run_on_the_multi_api_cases_of_every_file() -> None:
@@ -86,11 +86,29 @@ def test_system_setups_run_on_the_multi_api_cases_of_every_file() -> None:
     assert all(case.apis == ["ops"] for case in run_eval.load_cases("practice", "ops"))
 
 
-def test_team_setups_run_the_team_agent_and_differ_only_in_the_specialists_models() -> None:
+def test_team_setups_run_the_team_agent_and_differ_only_in_their_models() -> None:
     assert run_eval.agent_name("team_base") == "itops_team" and run_eval.agent_name("r1") == "itops_agent"
     assert [path.name for path in run_eval.gym_configs("team_trained")] == ["itops.yaml", "eval_team.yaml", "team_trained.yaml"]
-    base, trained = (yaml.safe_load((run_eval.GYM_CONFIGS / f"{setup}.yaml").read_text()) for setup in ("team_base", "team_trained"))
+    base, trained, small_planner, escalate = (yaml.safe_load((run_eval.GYM_CONFIGS / f"{setup}.yaml").read_text())
+                                              for setup in ("team_base", "team_trained", "team_small_planner", "team_escalate"))
     assert base.keys() == trained.keys() == {"helpdesk_model_name", "ops_model_name"}  # hard rule 7
+    # team_small_planner is team_trained with the student base model, on the student server, as planner
+    assert small_planner == trained | {"planner_model_name": "student", "planner_base_url": "http://localhost:8001/v1"}
+    assert escalate == trained | {"escalate": True}  # team_escalate is team_trained plus escalation
+
+
+def test_only_team_escalate_escalates() -> None:
+    """Hard rule 7: every other setup keeps a failed step failed, which fails the attempt. The single agent has no
+    escalation at all."""
+    omegaconf = pytest.importorskip("omegaconf")
+    for setup in run_eval.SETUPS:
+        config = omegaconf.OmegaConf.merge(*[omegaconf.OmegaConf.load(path) for path in run_eval.gym_configs(setup)])
+        agent = run_eval.agent_name(setup)
+        assert config[agent].responses_api_agents[agent].get("escalate", False) is (setup == "team_escalate"), setup
+    pytest.importorskip("nemo_gym")
+    from common.gym_agent import ItopsAgentConfig
+
+    assert not any("escalat" in name for name in ItopsAgentConfig.model_fields)
 
 
 def test_the_specialists_models_reach_the_team_agent_and_its_model_servers() -> None:
@@ -99,15 +117,23 @@ def test_the_specialists_models_reach_the_team_agent_and_its_model_servers() -> 
     config = omegaconf.OmegaConf.merge(*files)
     agent = config.itops_team.responses_api_agents.itops_team
     assert (agent.planner_model_name, agent.helpdesk_model_name, agent.ops_model_name) == ("lightning", "helpdesk_r1", "ops_r1")
-    servers = {name: config[name].responses_api_models.vllm_model for name in ("planner_model", "helpdesk_model", "ops_model")}
+    servers = {name: config[name].responses_api_models.vllm_model
+               for name in ("planner_model", "helpdesk_model", "ops_model", "escalation_model")}
     assert {name: (server.model, server.base_url) for name, server in servers.items()} == {
         "planner_model": ("lightning", "http://localhost:8000/v1"),
         "helpdesk_model": ("helpdesk_r1", "http://localhost:8001/v1"),
         "ops_model": ("ops_r1", "http://localhost:8001/v1"),
+        "escalation_model": ("lightning", "http://localhost:8000/v1"),  # used only by team_escalate
     }
+    assert (agent.escalation_server.name, agent.escalation_model_name) == ("escalation_model", "lightning")
     single = omegaconf.OmegaConf.merge(*[omegaconf.OmegaConf.load(path) for path in run_eval.gym_configs("lightning")])
     for key in ("return_token_id_information", "uses_reasoning_parser"):  # the model servers match the single setups'
         assert all(server[key] == single.policy_model.responses_api_models.vllm_model[key] for server in servers.values())
+    small = omegaconf.OmegaConf.merge(*[omegaconf.OmegaConf.load(path) for path in run_eval.gym_configs("team_small_planner")])
+    planner = small.planner_model.responses_api_models.vllm_model
+    assert small.itops_team.responses_api_agents.itops_team.planner_model_name == "student"
+    assert (planner.model, planner.base_url) == ("student", "http://localhost:8001/v1")
+    assert CONFIG.prices_for("student") == CONFIG.prices_usd_per_1m_tokens["student"]  # the plan is priced as the student
 
 
 def test_r1_is_base_seatbelt_with_the_api_s_own_adapter() -> None:
@@ -258,6 +284,38 @@ def test_team_attempts_price_each_model_s_tokens_and_label_failures() -> None:
     specialist = run_eval.to_trace(team_rollout(0.0, ["ops", "helpdesk"], ["helpdesk", "ops"]), "run", "team_base", CONFIG)
     assert (routing.failure_label, specialist.failure_label) == ("routing", "specialist")
     assert run_eval.to_trace(rollout("a", 1, 0.0), "run", "base_seatbelt", CONFIG).failure_label is None
+
+
+def escalated_rollout() -> dict[str, Any]:
+    """A team_escalate attempt whose helpdesk step the seatbelt gave up on and Lightning finished, with 1M prompt and
+    100k completion tokens in each part."""
+    row = team_rollout(1.0, ["helpdesk", "ops"], ["helpdesk", "ops"])
+    lightning = {"agent": "helpdesk", "model": "lightning", "calls": [], "seatbelt_events": [],
+                 "prompt_tokens": 1_000_000, "completion_tokens": 100_000}
+    gave_up = {"kind": "gave_up", "turn": 2, "detail": "retry limit: too many invalid calls, errors or failed self-checks"}
+    row["trace"]["steps"][0] |= {"seatbelt_events": [gave_up], "escalated": True, "escalation": lightning}
+    row["trace"]["prompt_tokens"] += 1_000_000
+    row["trace"]["completion_tokens"] += 100_000
+    return row
+
+
+def test_an_escalated_step_prices_the_specialist_s_part_at_its_rate_and_lightning_s_at_lightning_s() -> None:
+    """The user's decision (2026-10-18): every token at the rate of the model that produced it, as in every setup."""
+    prices = CONFIG.prices_usd_per_1m_tokens
+    student = prices["student"].prompt + 0.1 * prices["student"].completion
+    lightning = prices["lightning"].prompt + 0.1 * prices["lightning"].completion
+    trace = run_eval.to_trace(escalated_rollout(), "run", "team_escalate", CONFIG)
+    assert trace.passed and trace.steps[0].escalated and not trace.steps[0].gave_up
+    assert trace.cost_usd == pytest.approx(prices["lightning"].prompt + 2 * student + lightning)  # plan, 2 specialists
+
+
+def test_team_escalate_s_summary_counts_the_steps_small_models_handled() -> None:
+    escalated = run_eval.to_trace(escalated_rollout(), "run", "team_escalate", CONFIG)
+    plain = run_eval.to_trace(team_rollout(1.0, ["helpdesk", "ops"], ["helpdesk", "ops"]), "run", "team_escalate", CONFIG)
+    summary, _ = run_eval.summarize([escalated, plain], [case("pr-multi-01")], "team_escalate", CONFIG)
+    assert summary.root["team_escalate"].small_model_steps == "3/4"  # one of the four steps went to Lightning
+    trained, _ = run_eval.summarize([plain], [case("pr-multi-01")], "team_trained", CONFIG)
+    assert trained.root["team_trained"].small_model_steps is None  # team_escalate only (common/schemas.py)
 
 
 @pytest.mark.parametrize("setup", run_eval.SETUPS)

@@ -3,8 +3,10 @@
     uv run python -m eval.report --run <run_id> [--run <run_id> ...] [--output <file.md>]
 
 One row per run, from runs/<run_id>/config.json and summary.json (written by eval/run_eval.py): setup, API,
-split, cases passed as "k/n", attempts collected, mean latency and cost per 1,000 requests. A run that
-collected fewer attempts than it should is marked partial (hard rule 8).
+split, cases passed as "k/n", attempts collected, mean latency, cost per 1,000 requests, and for team_escalate the
+steps escalated to Lightning and the share of steps small models handled ("k/n" of the steps run; "-" for every
+other setup, which never escalates). A run that collected fewer attempts than it should is marked partial (hard
+rule 8).
 """
 
 import argparse
@@ -12,9 +14,17 @@ import json
 from pathlib import Path
 
 from common.eval_config import REPO
-from common.schemas import RunSummary
+from common.schemas import RunSummary, SetupSummary
 
 RUNS = REPO / "runs"
+
+
+def escalation_columns(summary: SetupSummary) -> list[str]:
+    """Steps escalated to Lightning, and steps small models handled out of the steps run (team_escalate only)."""
+    if summary.small_model_steps is None:
+        return ["-", "-"]
+    small, steps = (int(part) for part in summary.small_model_steps.split("/"))
+    return [str(steps - small), summary.small_model_steps]
 
 
 def row(run_id: str) -> list[str]:
@@ -33,6 +43,7 @@ def row(run_id: str) -> list[str]:
         f"{collected}/{expected}",
         f"{summary.mean_latency_s:.1f}",
         f"{summary.cost_per_1k_usd:.2f}",
+        *escalation_columns(summary),
         "on" if eval_config.get("thinking", True) else "off",
         run_id,
     ]
@@ -40,7 +51,7 @@ def row(run_id: str) -> list[str]:
 
 def table(run_ids: list[str]) -> str:
     header = ["setup", "api", "split", "cases passed", "attempts", "mean latency (s)", "$ per 1,000 requests",
-              "thinking", "run"]
+              "escalated steps", "small-model steps", "thinking", "run"]
     lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     lines += ["| " + " | ".join(row(run_id)) + " |" for run_id in run_ids]
     return "\n".join(lines) + "\n"

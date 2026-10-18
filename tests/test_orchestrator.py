@@ -1,6 +1,6 @@
 """The team without servers: the cards, the plan schema, dependency order, results passed between steps, the
-6-step cap, uncovered parts, each specialist's tools, stopping at a failed step and the failure labels. Scripted
-fake models play against a real Env on the multi-API practice cases."""
+6-step cap, uncovered parts, each specialist's tools, stopping at a failed step, escalation (team_escalate) and the
+failure labels. Scripted fake models play against a real Env on the multi-API practice cases."""
 
 import asyncio
 import json
@@ -11,14 +11,17 @@ import pytest
 
 from agents.orchestrator import (
     MAX_PLAN_STEPS,
+    Escalation,
     Member,
     TeamResult,
+    escalation_model,
     failure_label,
     plan_schema,
     run_order,
     run_team,
     setup_models,
     step_instruction,
+    team_setups,
 )
 from agents.specialist import active_names, inactive_names, load_specialists
 from common.eval_config import SeatbeltConfig
@@ -76,12 +79,16 @@ class ScriptedModel:
 
 
 def run(case_id: str, planner: ScriptedModel, seatbelt: SeatbeltConfig | None = SEATBELT,
-        **models: ScriptedModel) -> tuple[TeamResult, Env]:
+        escalation: ScriptedModel | None = None, max_steps: int = 10, **models: ScriptedModel) -> tuple[TeamResult, Env]:
+    """`escalation`: the model that finishes steps the seatbelt gave up on (team_escalate); None, as in every other
+    setup, leaves a given-up step failed."""
     case = CASES[case_id]
     env = Env(case.fixture, apis=case.apis)
     members = [Member(SPECIALISTS[name], model, f"{name}_r1") for name, model in models.items()]
+    lightning = Escalation(escalation, "lightning") if escalation is not None else None
     result = asyncio.run(run_team(case.request, system_prompt(case), chat_tools(tool_schemas(case.apis)), planner,
-                                  "lightning", members, env_tools(env), max_steps=10, seatbelt=seatbelt))
+                                  "lightning", members, env_tools(env), max_steps=max_steps, seatbelt=seatbelt,
+                                  escalation=lightning))
     return result, env
 
 
@@ -189,6 +196,103 @@ def test_the_team_stops_at_the_first_failed_step() -> None:
     assert result.failed and result.order == [1] and not ops.requests
     assert "Step 1 (helpdesk) failed, so the team stopped there." in result.answer
     assert env.state.tickets == Env("incident_prod_payments").state.tickets
+    # Without escalation (every setup but team_escalate, hard rule 7) nobody takes the step over.
+    step = result.steps[0].step
+    assert step.gave_up and not step.escalated and step.escalation is None
+
+
+DEMO_PLAN = (("helpdesk", "Open a P1 incident ticket for the current user: payments in prod crashes after the deploy.", []),
+             ("ops", "Roll payments in prod back to its last healthy revision, with step 1's ticket ID as change_ticket.",
+              [1]))
+ROLLBACK = {"namespace": "prod", "deployment": "payments", "to_revision": 8, "change_ticket": "HD-1042"}
+
+
+def ops_rolls_back() -> ScriptedModel:
+    return ScriptedModel(turn(("rollout_history", {"namespace": "prod", "deployment": "payments"})),
+                         turn(("rollback", ROLLBACK)), *done("Rolled payments back to revision 8."))
+
+
+def opens_the_ticket_then_gives_up(cause: str) -> tuple[ScriptedModel, int]:
+    """A helpdesk specialist that opens HD-1042 and then makes the seatbelt give up on its step, and the max steps
+    that takes."""
+    opened = turn(("create_ticket", TICKET))
+    if cause == "retry limit":
+        # The third invalid call uses up the last retry, so the valid call after it is never executed.
+        note = {"ticket_id": "HD-1042", "note": "Rolling payments back."}
+        return ScriptedModel(opened, turn(*[("drop_tickets", {})] * 3, ("update_ticket", note))), 10
+    if cause == "self-check":
+        needed = turn(text=json.dumps({"reason": "the rollback isn't done yet", "tool_call_needed": True}))
+        return ScriptedModel(opened, *[reply for _ in range(3) for reply in (turn(text="Opened HD-1042."), needed)]), 10
+    # max turns: still looking things up when the step's turns run out
+    return ScriptedModel(opened, turn(("get_ticket", {"ticket_id": "HD-1042"})),
+                         turn(("list_tickets", {"employee_id": "E1012"}))), 3
+
+
+@pytest.mark.parametrize("cause", ["retry limit", "self-check", "max turns"])
+def test_an_escalated_step_never_repeats_an_executed_call(cause: str) -> None:
+    """CLAUDE.md "Escalation": Lightning gets the step's conversation so far, with the calls already executed and
+    their results, and finishes the step with the same tools and seatbelt. It continues the step and never restarts
+    it, so every call runs in the environment once, in the order it was made, and a call that was never executed
+    stays that way."""
+    helpdesk, max_steps = opens_the_ticket_then_gives_up(cause)
+    # Lightning has its own retries: one invalid call, then a look-up, then its answer.
+    lightning = ScriptedModel(turn(("drop_tickets", {})), turn(("get_ticket", {"ticket_id": "HD-1042"})),
+                              *done("HD-1042 is open for the payments incident."))
+    ops = ops_rolls_back()
+    result, env = run("pr-multi-01", ScriptedModel(plan(*DEMO_PLAN)), escalation=lightning, max_steps=max_steps,
+                      helpdesk=helpdesk, ops=ops)
+
+    step = result.steps[0].step
+    assert step.seatbelt_events[-1].kind == "gave_up" and step.escalated and step.escalation is not None
+    assert (step.agent, step.model, step.escalation.agent, step.escalation.model) == (
+        "helpdesk", "helpdesk_r1", "helpdesk", "lightning")
+    assert not step.gave_up and not result.failed and result.order == [1, 2]  # Lightning finished it; ops ran
+
+    # Lightning continues the step's conversation, with the specialist's tools and a fresh seatbelt.
+    sent = lightning.requests[0]
+    last_turn = [request for request in helpdesk.requests if request["json_schema"] is None][-1]["messages"]
+    assert sent["messages"][:len(last_turn)] == last_turn
+    assert sent["messages"][-1]["role"] == "user" and step.seatbelt_events[-1].detail in sent["messages"][-1]["content"]
+    assert {tool["function"]["name"] for tool in sent["tools"]} == {tool.name for tool in tools_for(["helpdesk"])}
+    assert [event.kind for event in step.escalation.seatbelt_events] == ["invalid_call", "self_check"]
+    assert step.escalation.calls[0].status == 0  # blocked by Lightning's own seatbelt, never run
+
+    # Every executed call ran once, in order: the ticket was opened once, and nothing was replayed.
+    made = [(call.tool, call.args) for s in result.steps for call in s.step.all_calls if call.status != 0]
+    assert [(call.tool, call.args) for call in env.calls] == made
+    assert [tool for tool, _ in made].count("create_ticket") == 1
+    before = {ticket.id for ticket in Env("incident_prod_payments").state.tickets}
+    assert {ticket.id for ticket in env.state.tickets} - before == {"HD-1042"}
+    assert "update_ticket" not in {call.tool for call in env.calls}  # skipped after the retry limit: never executed
+
+    # Ops gets the whole step's results: the ticket from the specialist's part, the look-up from Lightning's.
+    instruction = ops.requests[0]["messages"][1]["content"]
+    assert '"id":"HD-1042"' in instruction and '"tool":"get_ticket"' in instruction
+    assert "Step 1 (helpdesk) answered: HD-1042 is open for the payments incident." in instruction
+    assert result.answer == "HD-1042 is open for the payments incident.\n\nRolled payments back to revision 8."
+    assert check(CASES["pr-multi-01"], env.state, result.answer).passed
+    assert result.prompt_tokens == result.plan.prompt_tokens + sum(
+        s.step.prompt_tokens + (s.step.escalation.prompt_tokens if s.step.escalation else 0) for s in result.steps)
+
+
+def test_a_step_lightning_also_gives_up_on_fails_the_attempt() -> None:
+    helpdesk = ScriptedModel(turn(*[("drop_tickets", {})] * 3))
+    lightning = ScriptedModel(turn(*[("close_all", {})] * 3))
+    ops = ScriptedModel()
+    result, env = run("pr-multi-01", ScriptedModel(plan(*DEMO_PLAN)), escalation=lightning, helpdesk=helpdesk, ops=ops)
+    step = result.steps[0].step
+    assert step.escalated and step.escalation.gave_up and step.gave_up
+    assert result.failed and result.order == [1] and not ops.requests and env.calls == []
+    assert "Step 1 (helpdesk) failed, also after escalation to Lightning, so the team stopped there." in result.answer
+
+
+def test_escalation_takes_only_steps_the_seatbelt_gave_up_on() -> None:
+    lightning = ScriptedModel()
+    helpdesk = ScriptedModel(turn(("create_ticket", TICKET)), *done("Opened HD-1042."))
+    result, env = run("pr-multi-01", ScriptedModel(plan(*DEMO_PLAN)), escalation=lightning, helpdesk=helpdesk,
+                      ops=ops_rolls_back())
+    assert not lightning.requests and not any(s.step.escalated for s in result.steps)
+    assert check(CASES["pr-multi-01"], env.state, result.answer).passed
 
 
 @pytest.mark.parametrize("seatbelt", [SEATBELT, None], ids=["seatbelt", "no seatbelt"])
@@ -236,6 +340,11 @@ def test_failure_labels_compare_the_plan_s_agents_with_the_gold_apis() -> None:
     assert failure_label(planned("ops").model_copy(update={"error": "invalid"}), {"ops"}, SPECIALISTS) == "routing"
 
 
-def test_team_setups_differ_only_in_the_specialists_models() -> None:
+def test_team_setups_differ_only_in_their_models() -> None:
     assert setup_models("team_base") == ("lightning", {"helpdesk": "student", "ops": "student"})
     assert setup_models("team_trained") == ("lightning", {"helpdesk": "helpdesk_r1", "ops": "ops_r1"})
+    assert setup_models("team_small_planner") == ("student", {"helpdesk": "helpdesk_r1", "ops": "ops_r1"})
+    assert setup_models("team_escalate") == setup_models("team_trained")
+    # Only team_escalate escalates (hard rule 7), to Lightning.
+    assert {setup: escalation_model(setup) for setup in team_setups()} == {
+        "team_base": None, "team_escalate": "lightning", "team_small_planner": None, "team_trained": None}

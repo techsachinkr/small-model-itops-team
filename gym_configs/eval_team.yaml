@@ -3,7 +3,9 @@
 # (responses_api_agents/itops_team, code in common/gym_agent.py) reads sampling, max steps and seatbelt limits from
 # configs/eval.yaml like every setup (hard rule 7), and the active specialists from agents/registry.json.
 # The planner and each specialist get their own model server: Gym's vllm_model server always sends its configured
-# model name, and each specialist may run a different adapter on the student server. eval/run_eval.py loads:
+# model name, and each specialist may run a different adapter on the student server. So does escalation (CLAUDE.md
+# "Escalation"): Lightning, for every team setup, but only team_escalate sets `escalate` and sends it anything (hard
+# rule 7). eval/run_eval.py loads:
 #   gym env start --config resources_servers/itops/configs/itops.yaml \
 #     --config gym_configs/eval_team.yaml --config gym_configs/<setup>.yaml
 planner_model_name: lightning
@@ -12,6 +14,9 @@ specialist_base_url: http://localhost:8001/v1
 team_api_key: EMPTY
 helpdesk_model_name: ???  # set by the setup's file
 ops_model_name: ???
+escalate: false  # true only in team_escalate.yaml
+escalation_model_name: lightning
+escalation_base_url: http://localhost:8000/v1
 itops_team:
   responses_api_agents:
     itops_team:
@@ -31,6 +36,11 @@ itops_team:
         type: responses_api_models
         name: ops_model
       ops_model_name: ${ops_model_name}
+      escalate: ${escalate}
+      escalation_server:
+        type: responses_api_models
+        name: escalation_model
+      escalation_model_name: ${escalation_model_name}
 planner_model:
   responses_api_models:
     vllm_model:
@@ -56,6 +66,15 @@ ops_model:
       base_url: ${specialist_base_url}
       api_key: ${team_api_key}
       model: ${ops_model_name}
+      return_token_id_information: false
+      uses_reasoning_parser: true
+escalation_model:
+  responses_api_models:
+    vllm_model:
+      entrypoint: app.py
+      base_url: ${escalation_base_url}
+      api_key: ${team_api_key}
+      model: ${escalation_model_name}
       return_token_id_information: false
       uses_reasoning_parser: true
 # resources_servers/itops/configs/itops.yaml also defines a simple agent for smoke runs. Its model server is

@@ -150,10 +150,33 @@ class Step(Strict):
     # The step's own tokens, priced at its model's rate (0 in traces written before task 3.1).
     prompt_tokens: int = Field(0, ge=0)
     completion_tokens: int = Field(0, ge=0)
+    # team_escalate (CLAUDE.md "Escalation"): Lightning's continuation of a step the seatbelt gave up on, with its own
+    # model, calls, seatbelt events and tokens. The fields above keep the specialist's part, so each part is priced at
+    # its own model's rate (the user's decision, 2026-10-18).
+    escalation: "Step | None" = None
+
+    @model_validator(mode="after")
+    def _escalated_after_the_seatbelt_gave_up(self) -> "Step":
+        if self.escalated != (self.escalation is not None):
+            raise ValueError("a step is escalated exactly when it records its escalation")
+        if self.escalation is not None:
+            if not any(event.kind == "gave_up" for event in self.seatbelt_events):
+                raise ValueError("only a step the seatbelt gave up on is escalated")
+            if self.escalation.escalated:
+                raise ValueError("an escalation isn't escalated again")
+        return self
 
     @property
     def gave_up(self) -> bool:
+        """The step failed: the seatbelt gave up on it, and, if it was escalated, on Lightning's part too."""
+        if self.escalation is not None:
+            return self.escalation.gave_up
         return any(event.kind == "gave_up" for event in self.seatbelt_events)
+
+    @property
+    def all_calls(self) -> list[Call]:
+        """Every call made for this step, in order: the specialist's, then Lightning's if it was escalated."""
+        return self.calls + (self.escalation.calls if self.escalation is not None else [])
 
 
 class PlanStep(Strict):
@@ -208,7 +231,7 @@ class SetupSummary(Strict):
     passes: Fraction
     mean_latency_s: float = Field(ge=0)
     cost_per_1k_usd: float = Field(ge=0)
-    small_model_steps: Fraction | None = None  # team_escalate only
+    small_model_steps: Fraction | None = None  # team_escalate only: steps not escalated, of all steps run
 
 
 class RunSummary(RootModel[dict[Setup, SetupSummary]]):
