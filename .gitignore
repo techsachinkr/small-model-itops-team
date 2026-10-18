@@ -21,5 +21,8 @@ runs/final/*/git_diff.patch
 # Hydra run folders written by every gym command
 outputs/
 
+# Gradio's runtime folder (the share link's certificate)
+.gradio/
+
 # Event materials, kept locally only
 event_req/

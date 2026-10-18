@@ -1,6 +1,6 @@
 # Small-model IT operations team: project overview
 
-Our entry for the NVIDIA x Red Hat Small Models Hack (Raleigh, October 17–18, 2026), in the Multi-Agent Systems track. This page describes what the system does and how we measure it. For the rules we work by, see `CLAUDE.md`; for the task list and progress, see `PLAN.md`.
+Our entry for the NVIDIA x Red Hat Small Models Hack (Raleigh, October 17–18, 2026), in the fine-tuning track (planned as Multi-Agent Systems). **This page is the plan as written on 2026-10-17, before the results.** For what was built, the results and what was cut, see `README.md`: since then, the test set was written by a separate AI agent rather than by hand, and round 2, the Workplace Assistant and When2Call checks, and the Hugging Face upload were cut. This page describes what the system does and how we measure it. For the rules we work by, see `CLAUDE.md`; for the task list and progress, see `PLAN.md`.
 
 ## In short
 
@@ -136,7 +136,7 @@ Every outside source is listed with its license in `data/open/DATA_SOURCES.md`.
 
 ## What we are submitting
 
-- **Main track, Multi-Agent Systems:** the team of specialists coordinated by Lightning.
+- **Track, fine-tuning** (planned as Multi-Agent Systems): the specialists fine-tuned on Lightning's verified work, working as a team coordinated by Lightning.
 - **NeMo Gym bounty:** the IT environment, plus baseline vs final scores on held-out tasks, with each improvement isolated (seatbelt, round 1, round 2).
 - **Nemotron Lightning bounty:** Lightning as teacher, orchestrator, failure analyst and escalation target, measured three ways:
   - as planner, against a small planner;

@@ -1,10 +1,13 @@
 # Lightning & the Specialists
 
 A small-model IT operations team, built for the NVIDIA x Red Hat Small Models Hack (Raleigh, October 17–18, 2026) in
-the Multi-Agent Systems track. **NVIDIA Nemotron 3.5 Lightning** (30B-A3B; "Nemotron Lightning" below) plans each
+the fine-tuning track. **NVIDIA Nemotron 3.5 Lightning** (30B-A3B; "Nemotron Lightning" below) plans each
 request and taught the team. Small **NVIDIA Nemotron 3 Nano 4B** specialists, one LoRA adapter per API, make the tool
 calls. **NeMo Gym** hosts the environment and scores
 every attempt by its final state, and **vLLM** serves every model on one H200.
+
+**The result:** LoRA fine-tuning on Nemotron Lightning's verified work lifted the 4B model from 5/10 to 8/10 held-out
+helpdesk cases, above Nemotron Lightning's own 6/10, and from 5/10 to 7/10 on ops.
 
 > "The payments app keeps crashing after this morning's deploy: roll it back and open a P1 ticket."
 
@@ -70,6 +73,21 @@ output token at 1 session ([vLLM results](#red-hat-vllm)).
 1,016 ops training examples with the same state changes as a test case. `helpdesk_r1`, `ops_r1` and `all_r1` were
 retrained without them (`data/generated/<api>/round_1_test_clean.jsonl`), and the results above use the retrained
 adapters. The practice results during development came from the original adapters.
+
+## How the specialists were fine-tuned
+
+| what | setting |
+|---|---|
+| base model | NVIDIA Nemotron 3 Nano 4B (BF16), evaluated with thinking off |
+| data | 1,844 verified Nemotron Lightning trajectories: helpdesk 1,031 and ops 813 (`data/generated/<api>/round_1_test_clean.jsonl`), 5% of each held out for eval loss |
+| text | each trajectory rendered with the student's own chat template and tool list, with Nemotron Lightning's reasoning removed, so the tuned model's tool calls parse in vLLM |
+| method | LoRA with TRL + PEFT: rank 16, alpha 32, dropout 0.05, on the `q_proj`, `k_proj`, `v_proj`, `o_proj`, `up_proj`, `down_proj` and `in_proj` projections; 17.1M parameters per adapter |
+| training | learning rate 2e-4, cosine schedule with 3% warmup, 2 epochs, 16 examples per optimizer step (2 × 8 accumulation), up to 8,192 tokens, loss on assistant turns only, seed 0 ([`configs/factory.yaml`](configs/factory.yaml)) |
+| adapters | `helpdesk_r1` and `ops_r1`, one per API; `all_r1` on both APIs' examples with every tool in the prompt, for the one-model baseline |
+| runs | 124, 98 and 220 optimizer steps in 14, 11 and 38 minutes on the H200, next to both vLLM servers (up to 26.4 GB reserved); held-out eval loss 0.221, 0.279 and 0.243 |
+| check | `scripts/smoke_toolcall.py`: 20/20 tool calls parsed for each adapter |
+
+The commands are in the [quick start](#quick-start).
 
 ## How it works
 
@@ -332,8 +350,8 @@ Without guided decoding most of Nemotron Lightning's plans would be invalid, and
 
 - **A small, AI-written test set.** 35 cases, written by an agent of the same model family that built the system. One
   case is within noise.
-- **The main claim isn't confirmed.** The team ties one trained model with every tool and trails Nemotron Lightning alone. It
-  is also slower: about 21 s a request against 12 s.
+- **The team adds no accuracy over one fine-tuned model.** One fine-tuned 4B with every tool ties the team (8/15 each),
+  Nemotron Lightning alone does best (10/15), and the team is slower: about 21 s a request against 12 s.
 - **Costs understate the adapters,** which are priced as the student base model although LoRA serving takes 46% more
   time per output token at 1 session.
 - **Differences between setups by design.** Turn and retry budgets are per step: a team attempt can have up to 6

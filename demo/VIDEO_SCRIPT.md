@@ -14,8 +14,8 @@ Before recording: start the page (`uv run --group demo python -m demo.app`, tunn
 **On screen:** the cover slide, with you on camera.
 
 "Hi, I'm Sachin Kumar, a Senior Data Scientist III at LexisNexis, and this is Lightning & the Specialists, a solo entry
-in the Multi-Agent Systems track. I built a small-model IT operations team: a planner and small specialist models that
-handle helpdesk tickets and production incidents together, on one GPU."
+in the fine-tuning track. I fine-tuned small 4-billion-parameter specialists on verified work from Nemotron Lightning,
+and together they handle helpdesk tickets and production incidents as a team, on one GPU."
 
 ## 2. Elevator pitch (0:25 to 1:00)
 

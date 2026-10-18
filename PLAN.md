@@ -30,7 +30,7 @@ Repo: [`techsachinkr/small-model-itops-team`](https://github.com/techsachinkr/sm
 
 ## What we're submitting
 
-- **Main track:** Multi-Agent Systems. The team beats one small model with every tool.
+- **Track:** fine-tuning (the user's decision, 2026-10-18, after the final run): the held-out gain from fine-tuning is the strongest result, while the team only tied one trained model with every tool. The plan was Multi-Agent Systems, claiming the team beats one small model with every tool; the team stays the demo.
 - **NeMo Gym bounty:** our IT-ops environment in NeMo Gym, and baseline vs final scores for small specialists on held-out tasks, with each improvement isolated (seatbelt, round 1, round 2).
 - **Nemotron Lightning bounty:** Lightning is the teacher, orchestrator, failure analyst and escalation target. We measure its contribution as planner (vs a small planner), as teacher (verified data yield), and through escalation.
 - **Red Hat vLLM bounty:** vLLM serves Lightning and every specialist adapter. We report measured results for multi-LoRA serving vs separate servers, concurrency, prefix caching, structured outputs, and speculative decoding if supported.
@@ -42,7 +42,7 @@ Each bounty needs a short written explanation at submission (task 5.2).
 Source: `event_req/NVIDIA x Red Hat Small Models Hack.pdf` and the Submission Checklist and Demo Video Instructions pages it links to.
 
 **Submission:** through the [Airtable form](https://airtable.com/appm7NS9oN8K3friP/pagqXe6ElIlXx6oa3/form), due Sunday, October 18, at 11:00 a.m. ET. One submission per team. Required:
-- Team name, project description, and the challenge selected (Multi-Agent Systems).
+- Team name, project description, and the challenge selected (the fine-tuning track; Multi-Agent Systems until 2026-10-18).
 - A 3–5 minute demo video, unlisted on YouTube or Vimeo, showing the core loop live.
 - Repo link (public, or invite the judges). The README must have: a quick start (commands to run); the tech stack and an architecture diagram; how to reproduce the demo (env vars, API keys, a sample `.env`); the datasets and synthetic data used, with provenance; known limitations and next steps.
 - A deployed URL if there is one, otherwise a short screen capture of the working app.
