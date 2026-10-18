@@ -1494,3 +1494,15 @@ uv run python -m eval.decontaminate --against test --tasks data/generated/helpde
 # decontaminate.py now stops with a message saying where it looked instead (tested); the human checks the layout.
 uv run pytest -q   # 304 passed
 ```
+
+### The test set doesn't exist; helpers for writing it (the human writes it, Claude never sees it)
+
+```bash
+ls -la data/test/   # the human: "No such file or directory"
+# TEST_SET_GUIDE.md, scripts/checks/fixture_overview.py and scripts/checks/check_cases.py, from the code, the fixtures
+# and the practice cases' format. check_cases.py passed the 20 practice cases (copied to $SCRATCH with new IDs), caught
+# a failing gold call, a multi-API case in ops.jsonl and an unparseable line, and refuses data/test/.
+.venv/bin/python scripts/checks/fixture_overview.py default
+.venv/bin/python scripts/checks/check_cases.py $SCRATCH/checker_selftest/*.jsonl
+uv run pytest -q   # 307 passed
+```
