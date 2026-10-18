@@ -413,7 +413,14 @@ Progress (2026-10-17; commands and results in `COMMANDS_LOG.md`):
   | `team_trained` | 2/8 | 11/24 | 18.3 s | 0.75 | 4 routing, 9 specialist |
 
   The case gap is within noise (attempts 12 vs 11). The demo request passes 3/3 on `team_trained` and 0/3 on `team_base` (the student base attaches the user's laptop to the incident ticket). Most failures trace to the planner: on pr-multi-07 and 08 it planned the work, including tickets nobody asked for, instead of asking or declining (all the routing failures), and some "specialist" failures are its instructions (no acting user, a wrong category, the card's tags copied). The adapters act less often on its instructions (16 of 74 steps with no tool call, against 5 of 71). Details in `COMMANDS_LOG.md`.
-- Planner prompt revised for these failures (2026-10-18, the user's decision; schema unchanged). Re-runs `team_base_practice_v2` and `team_trained_practice_v2` pending.
+- Planner prompt revised for these failures (2026-10-18, the user's decision; schema unchanged). Re-runs at commit `60bc6b5` (runs `team_base_practice_v2`, `team_trained_practice_v2`, 24/24 attempts each; the human ran them):
+
+  | setup | cases | attempts | mean latency | $ per 1,000 requests | failed attempts |
+  |---|---|---|---|---|---|
+  | `team_base` | 5/8 | 14/24 | 10.2 s | 0.60 | 2 routing, 8 specialist |
+  | `team_trained` | 6/8 | 17/24 | 16.7 s | 0.59 | 1 routing, 6 specialist |
+
+  Plans got shorter (2.3 steps on average, from 3.2 and 3.3), attempts with a step that gave up fell from 4 and 5 to 0 and 1, and `team_trained`'s steps without a tool call from 16 of 74 to 5 of 56. Attempts that opened a ticket the user didn't ask for (pr-multi-04 to 08): `team_trained` 0/15 (was 4/15), `team_base` 3/15 (was 4/15; Lightning's plan asked for each of them). pr-multi-08 passes 3/3 in both, but mostly because nothing changed: Lightning declined in 1 of 6 attempts (its reply only repeats the request), planned look-ups only in 3, and planned the scale to 0 again in 2, where ops invented change tickets (HD-1234, HD-001) that the environment refused. Remaining `team_trained` failures: Lightning rewrites a requested incident ticket's category to hardware or software (3 of 7), drops the change ticket from a rollback step or the scale from pr-multi-05's ops step, and once the seatbelt self-check failed a step that rightly made no call (pr-multi-07 #1, state correct). `team_base` adds the student base's own errors (the user's laptop on incident tickets, empty-string arguments).
 
 ### [ ] 3.2 System baselines
 

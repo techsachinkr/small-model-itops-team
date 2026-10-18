@@ -1071,3 +1071,32 @@ planner's request, so replay needs a new recording (task 5.3).
 .venv/bin/python -m pytest -q          # 251 passed
 curl -s -m 3 http://localhost:8000/v1/models   # ['lightning']; 8001: ['student', 'helpdesk_r1', 'ops_r1']; port 11000 free
 ```
+
+### Team evals after the planner revision (the human ran them, commit 60bc6b5; dirty only for .claude/settings.json, deleted in the working tree)
+
+```bash
+uv run python -m eval.run_eval --setup team_base --split practice --run-id team_base_practice_v2 && \
+uv run python -m eval.run_eval --setup team_trained --split practice --run-id team_trained_practice_v2
+# team_base: 5/8 cases (14/24 attempts), 10.2 s, $0.60 per 1,000 requests; failed attempts 2 routing, 8 specialist
+# team_trained: 6/8 cases (17/24 attempts), 16.7 s, $0.59; failed attempts 1 routing, 6 specialist. 24/24 each, no Gym
+# failures. Cases (base / trained): 01 1/3 3/3, 02 2/3 1/3, 03 1/3 2/3, 04 1/3 2/3, 05 2/3 1/3, 06 2/3 3/3, 07 2/3 2/3, 08 3/3 3/3.
+.venv/bin/python -m eval.report --run team_base_practice --run team_trained_practice --run team_base_practice_v2 --run team_trained_practice_v2
+.venv/bin/python $SCRATCH/team_attempts.py team_base_practice_v2 team_trained_practice_v2   # and team_detail.py on the failures
+# v1 -> v2: mean plan steps 3.2/3.3 -> 2.3; attempts with a step that gave up 4/5 -> 0/1; team_trained steps without a
+# tool call 16 of 74 -> 5 of 56; attempts opening an unrequested ticket (pr-multi-04..08) base 4/15 -> 3/15 (all asked for
+# by Lightning's plan), trained 4/15 -> 0/15. pr-multi-08's 3/3 comes from nothing changing, not from declining: one
+# step-free plan (its reply repeats the request), three look-up-only plans, and two that planned the scale to 0, where
+# ops invented change tickets (HD-1234, HD-001) that the environment refused; E1012 has no open tickets to close.
+# Remaining: Lightning turns a requested incident ticket into hardware or software (team_trained 02 #1, #2, 03 #3),
+# leaves the change ticket out of a rollback step (04 #3), asks ops only to inspect in pr-multi-05; the seatbelt
+# self-check failed a step that rightly made no call (07 #1, state correct, scored 0).
+```
+
+### Restore the test-set deny rules (the user's decision)
+
+```bash
+# .claude/ was missing from the working tree (only .claude/settings.json is tracked; git status was clean at the start
+# of the session, so nothing untracked was in it). Restored from HEAD; identical to the committed file.
+git checkout -- .claude/settings.json
+git diff --quiet HEAD -- .claude/settings.json && echo "matches HEAD"   # matches HEAD
+```
