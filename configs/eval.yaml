@@ -29,6 +29,10 @@ chaos: false                # only true in the demo or in runs flagged --chaos
 #   price_per_1m = gpu_usd_per_hour / (measured_tokens_per_second * 3600 / 1e6)
 # The whole GPU's price is charged to whichever model is running, as if it had the H200 alone
 # (the other server was idle during each benchmark). Adapters are priced as the student.
+# That understates every setup that runs an adapter (r1, single_trained, team_trained, team_escalate) next to those
+# that run the base model: LoRA serving is slower. Task 4.1 measured, on our own traffic, 46% more time per output token
+# at 1 session (3.8 against 2.6 ms), and merged models serving 18% to 32% more output tokens per second at 32 sessions
+# (runs/bench/summary.md). Say so wherever these costs are reported.
 #
 # Throughput: `vllm bench serve` with the serve scripts' flags, random token prompts, 256 requests at
 # concurrency 64, seed 0, --ignore-eos. Results in runs/prices/<model>_{prefill,decode}.json.

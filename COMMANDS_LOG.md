@@ -1280,3 +1280,148 @@ uv run pytest -q   # 278 passed, with the new throwaway-repo test of git_commit
 # and comments; `git diff --cached --name-only` was the same before and after.
 .venv/bin/python -c "from pathlib import Path; from eval.run_eval import git_commit; print(git_commit(Path('$SCRATCH/patch_check')))"
 ```
+
+## 2026-10-18: task 4.1 Serving benchmarks ((1) and (2) first; (4) after 5.3 if there's time; (3) and (5) cut)
+
+### pandas in the vLLM venv (the user's OK): `vllm bench serve --dataset-name custom` reads JSONL with it
+
+```bash
+uv pip install --python .venv-vllm/bin/python pandas --exclude-newer 2026-10-03T00:00:00Z --dry-run   # adds pandas 3.0.6, python-dateutil; upgrades nothing
+uv pip install --python .venv-vllm/bin/python pandas --exclude-newer 2026-10-03T00:00:00Z             # numpy stays 2.4.6
+```
+
+### The traffic, rebuilt from the r1 practice runs (CPU)
+
+```bash
+uv run python -m bench.traffic
+# helpdesk (r1_helpdesk): 36 sessions, 147 calls (57 tool calls, 45 answers, 45 self-checks); prompt tokens 188,834
+# (the run recorded 188,834); output tokens 8,781 (recorded 8,695). ops (r1_ops): 36 sessions, 180 calls (110, 35, 35);
+# 325,480 (325,480); 13,204 (13,088).
+# First build: prompts 2% longer than recorded, exactly 42 tokens per call with tools. vLLM's /tokenize on the running
+# student server (CPU only) matched the rebuilt prompts, and dropping the converter's "strict": false from the 6 tools
+# gave the recorded counts exactly: the eval requests reached vLLM without it. The training text never has it (0 of
+# 2,101 round 1 examples), so training and eval agree; bench/traffic.py now drops it too.
+curl -s localhost:8001/tokenize -d '{"model": "helpdesk_r1", "messages": [...], "tools": [...], ...}'   # per call, from a script
+# vLLM's own loader reads the file as written: 147 requests in order, output lengths kept, 188,834 prompt tokens.
+HF_HUB_OFFLINE=1 .venv-vllm/bin/python -c "...CustomDataset(dataset_path='runs/bench/traffic/helpdesk.jsonl', disable_shuffle=True).sample(...)"
+```
+
+### The merged specialists (CPU, 19 s for both; 7.5 GB each in runs/bench/merged/)
+
+```bash
+uv run python -m bench.merge   # helpdesk_r1, ops_r1: 71 weights merged each (W + 2 * B @ A on the checkpoint's own tensors)
+uv run pytest -q               # 285 passed (tests/test_bench.py: traffic tokens, merge = PEFT's merge_and_unload, flags)
+```
+
+### The benchmarks (handed over to the human; Lightning stays up)
+
+```bash
+scripts/stop_vllm.sh student && uv run python -m bench.run; scripts/serve_student.sh
+# Run 20261018-074423_lora (commit 346daf8 plus the bench files, untracked, in git_diff.patch), about 20 min, every
+# configuration up, 0 failed requests. But every request generated 256 tokens, not its recorded length (about 66 on
+# average): vllm bench serve's --custom-output-len defaults to 256 and replaces the dataset's output_tokens unless it
+# is -1. The CPU check above sampled the dataset directly, without the CLI's arguments, so it missed this. Still a
+# valid comparison (every configuration did the same work), but of a decode-heavier load than ours. At 32 sessions:
+# A 3,267 output tok/s (TTFT p50 280 ms), B1 1,807 (2,284 ms), B2 2,950 (415 ms); at 1 session A 252, B1 372, B2 370
+# (TPOT 3.8 ms against 2.6: LoRA's decode cost). Memory: A 21,272 MiB (cache 581,632 tokens); B1 19,647 (53,248 + 53,248);
+# B2 42,293 (598,835 + 598,835). Greedy check: the merged models match the adapters on 15/16.
+# Fixed in bench/run.py (--custom-output-len -1, and an "output tokens per request" column from what the servers
+# generated); checked through vLLM's own CLI parser and get_samples: 147 samples, output lengths = recorded, 8,781 in all.
+# runs/bench/summary.md regenerated from this run's results.json, with 256.0 per request and a note in its Method.
+```
+
+### The re-run with the recorded output lengths (the human ran it, same command)
+
+```bash
+scripts/stop_vllm.sh student && uv run python -m bench.run; scripts/serve_student.sh
+# Run 20261018-081524_lora, about 15 min, 0 failed requests, output tokens per request 67.2 (54.2 at 1 session, the
+# first 40 calls of each), as recorded. Output tok/s at 1/8/32 sessions: A 219/744/1,239; B1 323/875/1,459; B2
+# 325/861/1,631. TPOT p50 at 1 session 3.8 ms (A) against 2.6 (B). TTFT p50 at 32: A 117 ms, B1 370, B2 89. Cache:
+# A 624,230 tokens, B1 82,739 + 82,739, B2 643,891 + 643,891. Greedy match 15/16 for both B. The student server came back
+# with student, all_r1, helpdesk_r1 and ops_r1.
+```
+
+### Gradio for task 5.3, in its own dependency group (the user's OK; checked first on a copy of the lockfile)
+
+```bash
+uv add --project $SCRATCH/lockcheck --group demo gradio --no-sync   # on copies of pyproject.toml and uv.lock
+uv add --group demo gradio --no-sync   # gradio 6.29.1 (uploaded 2026-10-02); 11 packages added, none changed or removed
+```
+
+## 2026-10-18: task 5.3 Demo app (built while the human re-ran the benchmarks)
+
+```bash
+# common/llm.py: optional LLM_CACHE_TAG in the replay cache key, so the demo's scenarios (with and without chaos)
+# record apart; unset, keys are unchanged: the recorded pr-multi-01 run on team_escalate still replays (PASS).
+LLM_MODE=replay uv run python -m agents.orchestrator --case pr-multi-01 --setup team_escalate
+# Chaos draws follow call order: with seed 0 the demo case's first five calls all pass at rate 0.5; seed 5 at 0.3
+# fails calls 1, 4, 7 and 12, never 4 in a row (the demo's default). An inline script over random.Random(f"{seed}:pr-multi-01").
+uv run --group demo python -c "import gradio"   # installs the demo group into .venv: 11 packages, nothing else changed
+uv run pytest -q                                # 296 passed (tests/test_demo.py: 9)
+timeout 60 uv run --group demo python -m demo.app --port 7861 &   # the page answered 200 after about 6 s; stopped by timeout
+```
+
+### The cost caveat, wherever a cost is reported (the user's decision)
+
+```bash
+# configs/eval.yaml (comment only: the prices are unchanged), CLAUDE.md "Scoring", PLAN.md notes for 5.2, eval/report.py
+# (a note under every table), the demo page and its counters ("of GPU time"). Then both tables rebuilt with it:
+.venv/bin/python -m eval.report --run baseline_base_raw_helpdesk --run baseline_base_seatbelt_helpdesk --run r1_helpdesk \
+  --run baseline_lightning_helpdesk --run baseline_base_raw_ops --run baseline_base_seatbelt_ops --run r1_ops \
+  --run baseline_lightning_ops --output runs/practice_ladder_r1.md
+.venv/bin/python -m eval.report --run single_base_practice --run single_trained_practice --run single_lightning_practice \
+  --run team_base_practice_v2 --run team_trained_practice_v2 --run team_trained_practice_v3 --run team_escalate_practice \
+  --run team_small_planner_practice --output runs/practice_system.md
+uv run pytest -q   # 296 passed
+```
+
+### The page, live (the human ran the helpdesk-only step), and what changed after it
+
+```bash
+uv run --group demo python -m demo.app   # the human: helpdesk only, live. The plan didn't list the rollback as uncovered
+# (it planned a note about a rollback that never happened); single_base filed a hardware ticket with the laptop.
+# Then: calls and seatbelt events in order; Models: record on the page (a take of a demo step becomes its recording);
+# demo/rehearse.py --step; replay replays each recorded step with its own settings.
+uv run pytest -q   # 298 passed
+```
+
+### The recorded takes (the human recorded them; checked here without a GPU)
+
+```bash
+uv run python -m demo.rehearse --mode replay   # "Every step replays as recorded." (takes from 08:51 UTC)
+# both specialists: team PASS (create_ticket, rollout_history, rollback), the good take. helpdesk only: the plan left
+# the rollback out of `uncovered` again and filed the ticket as software. chaos: 2 automatic retries, all steps done,
+# but the ticket filed as software (verifier fail). Retakes of those two are next. The rehearsal now prints a plan's
+# uncovered parts (demo/core.py keeps them).
+uv run pytest -q   # 298 passed
+```
+
+### Retakes (the human ran them) and the helpdesk-only plan
+
+```bash
+uv run python -m demo.rehearse --mode record --step helpdesk-only   # team FAIL (expected), no "not covered" again
+uv run python -m demo.rehearse --mode record --step chaos           # team PASS, 2 automatic 503 retries: the good take
+uv run python -m demo.rehearse --mode replay                        # "Every step replays as recorded."
+# The helpdesk-only take, replayed (CPU): Lightning's analysis says the rollback "needs to be done by an IT operations
+# specialist (not listed in the cards, but implied ...)", leaves it out of `uncovered`, and plans a helpdesk note
+# "saying which revision the payments app was rolled back to" (the helpdesk card's own example). helpdesk_r1 wrote
+# "Payments app rolled back to revision 2.1.3 after morning deploy.": no rollback happened, and 2.1.3 isn't a revision.
+# The verifier fails it (the rollback is missing). 3 of 3 helpdesk-only runs so far left the rollback out of `uncovered`.
+# demo/core.py now lists the notes of tickets a run opened, so the page shows that note.
+uv run pytest -q   # 299 passed
+```
+
+### (4) Structured outputs with and without guided decoding (built; the human runs it, both servers as they are)
+
+```bash
+uv run pytest -q   # 301 passed (tests/test_bench.py: grading, the rebuilt requests, the summary section)
+uv run python -c "from bench.structured import ...; print(len(jobs(...)))"   # 24 plan + 80 self-check requests: 416 answers
+uv run python -m bench.structured
+# Run 20261018-090408_structured (the human ran it): 416 answers. Fit the schema, guided on/off: plans Lightning
+# 24/24 vs 8/24 (22/24 JSON; missing uncovered/reply or extra fields; 2 cut off at 2,048 tokens; 197 vs 403 tokens,
+# 2.45 vs 5.22 s), plans student 24/24 vs 21/24; self-checks Lightning 80/80 vs 68/80 (9 only in a code fence),
+# adapters 80/80 vs 80/80. Why unguided plans failed: read from the stored texts (the run kept 600 characters of each;
+# bench/structured.py now keeps the whole text and the schema's complaints). Section 4 regenerated from the saved
+# answers with the servers' flags (no re-run). Task 4.1's Done-when check passes: tables for (1), (2) and (4).
+uv run pytest -q   # 301 passed
+```

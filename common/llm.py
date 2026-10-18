@@ -8,6 +8,10 @@ LLM_MODE (environment variable):
 
 A request is identified by everything sent to the server (model, messages, tools, schema, thinking,
 sampling), so identical sampled requests share one cache entry: the last one recorded wins.
+
+LLM_CACHE_TAG (optional environment variable): when set, it's part of that identity too, so recordings of different
+scenarios that send identical requests don't overwrite each other (the demo runs the same request with and without
+chaos, task 5.3). Unset, requests are identified as before, and earlier recordings still replay.
 """
 
 import hashlib
@@ -87,7 +91,9 @@ def _request(
 
 
 def _cache_path(request: dict[str, Any]) -> Path:
-    key = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+    tag = os.environ.get("LLM_CACHE_TAG")
+    keyed = {"cache_tag": tag, **request} if tag else request
+    key = hashlib.sha256(json.dumps(keyed, sort_keys=True).encode()).hexdigest()
     return CACHE_DIR / f"{key}.json"
 
 

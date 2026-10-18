@@ -6,7 +6,7 @@ One row per run, from runs/<run_id>/config.json and summary.json (written by eva
 split, cases passed as "k/n", attempts collected, mean latency, cost per 1,000 requests, and for team_escalate the
 steps escalated to Lightning and the share of steps small models handled ("k/n" of the steps run; "-" for every
 other setup, which never escalates). A run that collected fewer attempts than it should is marked partial (hard
-rule 8).
+rule 8). Below the table, a note on what the cost means (CLAUDE.md "Scoring").
 """
 
 import argparse
@@ -17,6 +17,12 @@ from common.eval_config import REPO
 from common.schemas import RunSummary, SetupSummary
 
 RUNS = REPO / "runs"
+COST_NOTE = (
+    "Cost: GPU time at full load, at configs/eval.yaml's prices per 1M tokens (one H200 at $6.53 an hour over each "
+    "model's measured throughput). Adapters are priced as the student base model, which understates the setups that "
+    "run them (r1, single_trained, team_trained, team_escalate): LoRA serving is slower, 46% more time per output "
+    "token at 1 session in task 4.1 (runs/bench/summary.md)."
+)
 
 
 def escalation_columns(summary: SetupSummary) -> list[str]:
@@ -54,7 +60,7 @@ def table(run_ids: list[str]) -> str:
               "escalated steps", "small-model steps", "thinking", "run"]
     lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     lines += ["| " + " | ".join(row(run_id)) + " |" for run_id in run_ids]
-    return "\n".join(lines) + "\n"
+    return "\n".join([*lines, "", COST_NOTE]) + "\n"
 
 
 def main() -> None:

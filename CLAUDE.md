@@ -67,7 +67,7 @@ data/test/        hand-written cases; LOCKED
 data/generated/   synthetic data, to be published
 adapters/         LoRA outputs (gitignored)
 runs/             traces, scores, reports, cache/ (gitignored except runs/final/)
-demo/             app.py
+demo/             core.py (one request on the team and single_base), app.py (Gradio page), rehearse.py
 scripts/          serve_lightning.sh, serve_student.sh, stop_vllm.sh, smoke_toolcall.py, demo_reset.sh
 tests/            pytest tests
 ```
@@ -144,7 +144,7 @@ System, on multi-API cases:
 - Each case runs 3 times and passes if at least 2 runs pass. Report fractions like `37/50`, never percentages.
 - Team failures are labeled `routing` if the plan's agents don't match the APIs in `gold_calls` (or there was no valid plan), otherwise `specialist`.
 - Eval runs refuse to start if chaos is on (unless flagged `--chaos`) or if `LLM_MODE=replay`.
-- Cost: each model has a price per 1M tokens in `configs/eval.yaml`, derived from the GPU's hourly price and measured throughput, with the derivation noted. Every setup is priced with the same formula.
+- Cost: each model has a price per 1M tokens in `configs/eval.yaml`, derived from the GPU's hourly price and measured throughput, with the derivation noted. Every setup is priced with the same formula. It is GPU time at full load, and adapters are priced as the student base, which understates the setups that run adapters because LoRA serving is slower (task 4.1: 46% more time per output token at 1 session). Wherever a cost is reported, say both.
 - The factory's filter uses the same verifier: a Lightning rollout becomes training data only if it passes and contains no failed calls.
 
 ## Tool-call format
@@ -161,6 +161,7 @@ uv sync                                     # Windows: core deps only. Linux: al
 uv sync --group train                       # Brev box: adds TRL, PEFT, transformers
 uv venv .venv-vllm --python 3.13            # Brev box: vLLM in its own venv
 uv pip install --python .venv-vllm/bin/python vllm==0.27.1 --exclude-newer 2026-10-03T00:00:00Z
+uv pip install --python .venv-vllm/bin/python pandas --exclude-newer 2026-10-03T00:00:00Z   # for vllm bench serve (task 4.1)
 scripts/serve_lightning.sh                  # background, port 8000; log and PID in runs/vllm/
 scripts/serve_student.sh                    # base model + every adapter in adapters/, port 8001
 scripts/stop_vllm.sh [lightning|student]    # no name: stop both
@@ -218,7 +219,20 @@ uv run python -m eval.run_eval --setup team_small_planner --split practice --run
 # The single-model system setups (task 3.2) on the same cases, also without --api: one model with every tool and no
 # orchestrator. single_trained runs all_r1 on the student server.
 uv run python -m eval.run_eval --setup single_trained --split practice --run-id single_trained_practice
-uv run python -m bench.run --suite all
+# Serving benchmarks (task 4.1): the r1 runs' model calls as vLLM saw them, the adapters merged into full models
+# (CPU, about 8 GB each in runs/bench/merged/), then one LoRA server against separate merged servers at 1, 8 and 32
+# sessions with `vllm bench serve` (human runs it: about 20 min, up to 0.30 of the GPU next to Lightning, so stop the
+# student server first and restart it after). Results in runs/bench/<run_id>/, tables in runs/bench/summary.md.
+uv run python -m bench.traffic
+uv run python -m bench.merge
+uv run python -m bench.run [--configuration A B1 B2] [--sessions 1 8 32]
+uv run python -m bench.structured   # (4): structured outputs valid with and without guided decoding (servers as they run)
+# The demo (task 5.3): the team (team_escalate) and single_base side by side on the demo request. Gradio is in its own
+# dependency group (gradio 6.29.1); the page listens on 127.0.0.1:7860, so tunnel to it (ssh -L 7860:localhost:7860).
+# Rehearse once live to record what replay needs (both vLLM servers up), then check the replay; demo_reset.sh checks
+# chaos and the registry, warms both servers and runs the replay check.
+uv run --group demo python -m demo.app
+uv run python -m demo.rehearse --mode record     # then --mode replay
 scripts/demo_reset.sh
 uv run python -m eval.report --run <run_id> [--run <run_id> ...] [--output <file.md>]   # results table
 uv run pytest

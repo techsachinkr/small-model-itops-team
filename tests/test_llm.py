@@ -103,6 +103,26 @@ def test_replay_miss_on_any_difference(calls, monkeypatch):
     assert len(calls) == 1
 
 
+def test_a_cache_tag_keeps_scenarios_apart_and_untagged_keys_unchanged(calls, monkeypatch, tmp_path):
+    """The demo records the same request in different scenarios (with and without chaos); unset, the key is the
+    request's own, so recordings made before the tag existed still replay."""
+    request = llm._request("student", MESSAGES, TOOLS, None, None, {"seed": 0})
+    untagged = llm._cache_path(request)
+    assert untagged.name == f"{llm.hashlib.sha256(llm.json.dumps(request, sort_keys=True).encode()).hexdigest()}.json"
+    monkeypatch.setenv("LLM_CACHE_TAG", "demo:with chaos")
+    tagged = llm._cache_path(request)
+    assert tagged != untagged
+    monkeypatch.setenv("LLM_MODE", "record")
+    llm.chat("student", MESSAGES, tools=TOOLS, seed=0)
+    monkeypatch.setenv("LLM_MODE", "replay")
+    assert llm.chat("student", MESSAGES, tools=TOOLS, seed=0).replayed
+    monkeypatch.setenv("LLM_CACHE_TAG", "demo:another scenario")
+    with pytest.raises(llm.ReplayMiss):
+        llm.chat("student", MESSAGES, tools=TOOLS, seed=0)
+    monkeypatch.delenv("LLM_CACHE_TAG")
+    assert llm._cache_path(request) == untagged
+
+
 def test_unknown_mode(calls, monkeypatch):
     monkeypatch.setenv("LLM_MODE", "offline")
     with pytest.raises(ValueError, match="LLM_MODE"):

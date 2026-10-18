@@ -495,7 +495,7 @@ Progress (2026-10-18; commands and results in `COMMANDS_LOG.md`):
 
 ## Stage 4: vLLM serving results (person B, in parallel)
 
-### [ ] 4.1 Serving benchmarks
+### [x] 4.1 Serving benchmarks
 
 ```
 Using GuideLLM or vLLM's own benchmark tools (check what's installed), write
@@ -510,6 +510,18 @@ Save results to runs/bench/ with the exact server flags used.
 ```
 
 **Done when:** `runs/bench/summary.md` has a table for each measurement, with the server flags beside it.
+
+Progress (2026-10-18; commands and results in `COMMANDS_LOG.md`):
+- Scope (the user's choice, 03:15 ET): (1) and (2) first, in depth; (4) after task 5.3 if there's time; (3) and (5) cut (cut list item 4). Round 2 (task 2.3) is kept for later, only if 4.1 and 5.3 finish early.
+- Built: `bench/traffic.py` rebuilds every model call of the r1 practice runs (`r1_helpdesk`, `r1_ops`: 147 and 180 calls, tool-call turns, answers and self-checks) as the exact prompt vLLM rendered, with its output length; the prompt tokens equal the runs' recorded usage exactly. `bench/merge.py` merges each adapter into a full copy of the student at the safetensors level, because transformers 5 would save the checkpoint's `backbone.*` tensors under its own `model.*` names. `bench/run.py` starts each configuration's servers itself (one at a time), replays the traffic with `vllm bench serve` (raw prompts in session order, `--ignore-eos` at the recorded lengths, each specialist's requests to its own adapter or server), records GPU memory (nvidia-smi and vLLM's log) and a greedy check of the merged models, and writes `runs/bench/summary.md`. Configurations: A, one server with both adapters (serve_student.sh's flags, 0.15 of the GPU); B1, two merged servers at 0.075 each (A's memory); B2, two at 0.15 each (A's per-server memory). Each at 1, 8 and 32 sessions.
+- Added pandas to `.venv-vllm` (the user's OK; `vllm bench serve` reads custom datasets with it): 3.0.6, nothing upgraded.
+- Found while checking the traffic: Gym's model server sends the tools to vLLM without the converter's `"strict": false` (7 tokens per tool). The training text doesn't have it either, so training and eval agree.
+- First run (`20261018-074423_lora`, the human ran it; every configuration up, 0 failed requests): every request generated 256 tokens instead of its recorded length (about 66 on average), because `vllm bench serve`'s `--custom-output-len` defaults to 256 and replaces the dataset's lengths. It's still a fair comparison of the configurations (the same work for each), on a decode-heavier load than ours: at 32 sessions A 3,267 output tok/s, B1 1,807, B2 2,950; at 1 session A 252 against 372 for both B (LoRA's decode cost: TPOT 3.8 against 2.6 ms). At the same memory, A has 581,632 cache tokens against B1's 53,248 + 53,248. Fixed (`--custom-output-len -1`, checked through vLLM's own CLI parser; the summary now shows the output tokens per request each server generated); the summary of this run says it used 256.
+- Re-run with the recorded lengths (`20261018-081524_lora`, the human ran it; `runs/bench/summary.md`; 0 failed requests, 67.2 output tokens per request as recorded). On our real traffic, short answers after long prompts, the merged servers are faster at every load: at 32 sessions A 1,239 output tok/s, B1 1,459 (A's memory), B2 1,631 (twice it); at 8 sessions 744, 875, 861; at 1 session 219 against 323 and 325, with TPOT 3.8 ms against 2.6 (LoRA's cost on every token, about 46% here; the "third more time per completion token" seen in task 2.2). What multi-LoRA buys is memory: one copy of the weights, so at the same memory A holds 624,230 cache tokens against B1's 82,739 + 82,739, and another specialist costs an adapter (17.1M parameters) instead of a 7.5 GB copy. B1's smaller cache didn't bind at 32 sessions of this traffic; with 256-token answers (the first run) it did (TTFT p50 2,284 ms, and A was faster at 8 and 32 sessions). The merged models match the adapters on 15/16 greedy completions. The servers got about 0.5 to 0.8 GiB more cache in the re-run than in the first run at the same flags.
+- Done-when: tables for (1) and (2) with the flags beside them; (3) and (5) are cut.
+- (4), the user's go (05:00 ET): `bench/structured.py` sends our two structured requests as the evals do, with and without guided decoding (`response_format`), thinking off: the planner's request on the 8 multi-API practice cases (3 times each) to Lightning and the student base, and the seatbelt's self-check after each of the 80 answers in the r1 runs to the specialist's adapter and Lightning; 416 answers, graded as our code parses them (the whole text as JSON, then the schema). It writes section 4 of `runs/bench/summary.md`, which bench/run.py now keeps.
+- (4)'s run (`20261018-090408_structured`, the human ran it; 416 answers): with guided decoding every answer fits its schema (plans 24/24 from Lightning and from the student; self-checks 80/80 from Lightning and from the adapters). Without it, Lightning's plans fit 8/24: 22 parse as JSON, but most leave out the required `uncovered` and `reply` or add fields of their own (`carry_out`, `to_carry_out`, ...), and 2 ran past 2,048 tokens; they are twice as long and slow (403 against 197 tokens, 5.2 against 2.5 s). The student's plans fit 21/24 without it (3 with fields of their own). Lightning's self-checks fit 68/80 without it (9 only inside a code fence, which our parser doesn't read); the adapters' 80/80 either way. So guided decoding is what makes the planner reliable: without it, most of Lightning's plans would be invalid and the attempt would score 0.
+- Done-when check: `runs/bench/summary.md` has a table for (1), (2) and (4), each with the server flags beside it; (3) and (5) are cut (the user's choice, cut list item 4).
 
 ## Stage 5: Final evaluation and submission
 
@@ -549,6 +561,9 @@ its license) and the adapters to Hugging Face with dataset and model cards.
 
 **Done when:** a teammate can run scoring from a fresh clone using only the README, and the dataset and adapters are public.
 
+Notes for 5.2 (2026-10-18, the user's decision):
+- Every cost is GPU time at full load (configs/eval.yaml: one H200 at $6.53 an hour over each model's measured throughput), and adapters are priced as the student base model. That understates the setups that run adapters (r1, single_trained, team_trained, team_escalate) next to those that don't: LoRA serving is slower, 46% more time per output token at 1 session (task 4.1). Say both wherever a cost appears, and list it under the README's limitations. eval/report.py prints this note under every table.
+
 ### [ ] 5.3 Demo app, video and submission
 
 ```
@@ -563,17 +578,29 @@ scripts/demo_reset.sh using the "Demo safety net" prompt in PROMPTS.md.
 
 **Done when:** the demo script runs twice in a row from a clean start, in live and replay mode. Then record the video following the event's Demo Video Instructions, and submit through the Airtable form with everything on the Submission Checklist.
 
+Progress (2026-10-18; commands and results in `COMMANDS_LOG.md`):
+- Built: `demo/core.py` runs one request on the team and, side by side, on single_base, each against its own fresh copy of the demo fixture (pr-multi-01's payments incident, user E1012), and returns the panels: Lightning's plan, each step with its specialist's name and icon, tool calls, seatbelt events and any escalation, the state change (tickets, rollbacks and scales, pods before and after), the answer, the verifier's verdict (for the case's own request) and the two counters. `demo/app.py` is the Gradio page on it (Live and Results tabs), `demo/rehearse.py` walks the demo script headlessly (record live, then check the replay), and `scripts/demo_reset.sh` is the safety net from `PROMPTS.md`.
+- Decided (the user, 2026-10-18): Gradio 6.29.1 in its own `demo` dependency group (11 packages added, none changed); the demo's team is team_escalate; `demo_reset.sh` leaves `agents/registry.json` alone (the evals refuse while a specialist is off) and checks that every specialist is active, and the page starts with only helpdesk ticked instead.
+- `common/llm.py` gained an optional `LLM_CACHE_TAG`: each demo scenario records under its own tag, so the same request with and without chaos don't overwrite each other's recordings. Unset, cache keys are unchanged.
+- Chaos is seeded by the case and draws follow call order, so the seed decides which calls fail: with seed 0 the demo's first five calls all pass at rate 0.5. The page defaults to rate 0.3 and seed 5 (calls 1, 4, 7 and 12 fail, never four in a row, so the automatic retries show and none runs out). An escalation needs a step to run out of retries: pick a rate and seed that do it in rehearsal, then replay repeats it.
+- First live run on the page (the human; helpdesk only): the team opened the right ticket (HD-1042, P1, incident), but Lightning's plan left the rollback out of `uncovered` and planned a note about a rollback that never happened, so the page didn't show the demo script's "no specialist can roll back". Lightning's sampling, not the code (the planner saw only the helpdesk card); changing the planner prompt now would invalidate the team results, so the demo uses a take that shows it. single_base rolled back but filed the ticket as hardware with the user's laptop (verifier fail), as the demo script expects.
+- After that run: each side's calls and seatbelt events are listed in the order they happened; the page has a third model mode, record (live, saving the answers), and a take recorded there with a demo step's specialists and chaos switch becomes that step's recording; `demo/rehearse.py --step <step>` takes one step again, and `--mode replay` replays every recorded step with its own settings.
+- Takes (the human; `runs/demo/rehearsal_record.json`), and the replay check passes for all three: both specialists PASS; chaos PASS with 2 automatic 503 retries (after a take that filed the incident as software). Helpdesk only, in 3 of 3 runs, left the rollback out of `uncovered`: in the kept take Lightning's analysis says the rollback "needs to be done by an IT operations specialist (not listed in the cards, but implied ...)", and it planned a helpdesk note on which revision payments "was rolled back to" (the helpdesk card's own example), so helpdesk_r1 noted "Payments app rolled back to revision 2.1.3 after morning deploy." (nothing was rolled back; revisions are integers). The verifier fails it on the missing rollback. The page now shows notes on tickets a run opened. Changing the planner prompt or the card now would change every team setup's plans and invalidate their results; for the README's next steps: tell the planner that only the listed specialists exist, and make any value from another step a dependency (the prompt asks for this; Lightning didn't follow it here).
+- Next: the video (after the freeze is fine).
+
 ### Demo script (about 3 minutes)
 
 These steps are the live demo and build narration in the event's recommended video flow ("Event requirements"). Open with the team intro and pitch, close with the "so what", and keep the whole video to 3–5 minutes.
 
 1. The problem in one sentence.
-2. Send the demo request to `single_base`. It fumbles, for example by inventing a revision number or rolling back without a ticket.
-3. Switch to the team with only helpdesk active. The ticket works, but Lightning's plan says no specialist can roll back.
-4. Show the ladder chart for ops (base, seatbelt, r1, r2), built with NeMo Gym. Activate the ops specialist. The same request succeeds: the plan opens the ticket first, passes its ID to ops, and pods return to Running.
-5. Turn on chaos and rerun. Seatbelt retries appear, and if a step escalates, the counter shows Lightning handled only that step.
-6. Show the results: the system table, and one vLLM result (for example, all specialists on one server using a fraction of the memory).
-7. Show one honest failure and explain it.
+Updated 2026-10-18 for the recorded takes (`runs/demo/rehearsal_record.json`; the page replays them with Models: replay):
+
+2. Every run shows `single_base` (one small model with every tool) next to the team. On the demo request it fumbles: in the takes it tries the rollback before any ticket exists (the change-ticket rule refuses it), then files the ticket as hardware with the user's laptop, or opens two tickets and never rolls back.
+3. Run the team with only helpdesk active. The ticket works, but nothing can roll back, and the plan doesn't say so: Lightning's analysis notes that the rollback needs an ops specialist "not listed in the cards, but implied", leaves it out of "not covered", and plans a note about the rollback, and the helpdesk specialist notes a rollback to "revision 2.1.3" that never happened. The verifier fails it: the state has no rollback. (The plan missed it in 3 of 3 runs; this take is step 7's honest failure.)
+4. Show the specialist ladders on the Results tab, built with NeMo Gym: helpdesk goes 4/12 (base) to 4/12 (seatbelt) to 7/12 (r1), with Lightning at 9/12; on ops every row is 8/12, so say that training didn't move ops on practice. Activate the ops specialist and run again: the plan opens the ticket first, passes its ID to ops, the rollback uses it, and the pods return to Running.
+5. Turn on chaos (rate 0.3, seed 5) and run again: the counters show 2 automatic 503 retries, and the team still passes with every step by a small model. No step needed Lightning in this take; the system table has escalation's practice result (2 of 51 steps escalated, one attempt rescued).
+6. Show the results: the system table (team_trained 6/8 cases, single_trained 5/8 and single_base 4/8, within noise on 8 practice cases; with the student as planner instead of Lightning, 11/24 attempts against 16/24) and one vLLM result: in the same memory, one server with both adapters holds 3.8 times the cache of two merged servers, though on our traffic the merged servers serve 18% more tokens per second.
+7. The honest failure is step 3's take: Lightning assumed a specialist that isn't there and asked for a value no step produces, the specialist made one up, and only the verifier's state check caught it. The fix (tell the planner that only the listed specialists exist, and make values from other steps dependencies) goes in the README's next steps.
 
 ---
 

@@ -25,7 +25,8 @@ def test_rows_show_escalations_for_team_escalate_only(tmp_path: Path, monkeypatc
     monkeypatch.setattr(report, "RUNS", tmp_path)
     write_run(tmp_path, "trained", "team_trained", 24)
     write_run(tmp_path, "escalate", "team_escalate", 23, small_model_steps="54/56")
-    header, _, trained, escalate = report.table(["trained", "escalate"]).splitlines()
+    header, _, trained, escalate, blank, note = report.table(["trained", "escalate"]).splitlines()
+    assert blank == "" and note == report.COST_NOTE and "priced as the student base model" in note
     columns = [cell.strip() for cell in header.strip("|").split("|")]
     assert columns[7:9] == ["escalated steps", "small-model steps"]
     assert trained == "| team_trained | all | practice | 6/8 | 24/24 | 16.7 | 0.59 | - | - | off | trained |"
