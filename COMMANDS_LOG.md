@@ -1528,3 +1528,36 @@ uv run pytest -q   # 308 passed
 # 1 no_tool, 1 missing_info), ops 10 (6, 2, 1, 1), multi 15 (10 multi, 2 read_only, 2 no_tool, 1 missing_info); its
 # checker run: "35 cases, 0 with problems", no_tool and missing_info 7/35; about 16 minutes.
 ```
+
+### 5.1 step 3: the generated tasks against the test set (the human ran it, after committing the test set)
+
+```bash
+uv run python -m eval.decontaminate --against test --tasks data/generated/helpdesk/tasks_round_1.jsonl data/generated/ops/tasks_round_1.jsonl
+# 35 test cases compared. helpdesk: 58/1,198 tasks too close (50 same changes, 8 same user), 54 of round_1.jsonl's
+# 1,085 examples built from them. ops: 209/1,149 too close (all same changes), 203 of 1,016 examples. Text scores
+# 0.2-0.6 (threshold 0.7): different wording, the same state changes as a test case or part of one (the fixtures and
+# their incidents are shared). Reports: data/generated/<api>/tasks_round_1.decontaminate_test.json. No file changed.
+```
+
+### Training data without the test overlap (CPU; reads only the decontamination reports and round_1.jsonl)
+
+```bash
+uv run python -m factory.drop_test_overlap --api helpdesk   # kept 1,031 of 1,085 (54 built from the 58 tasks too close)
+uv run python -m factory.drop_test_overlap --api ops        # kept 813 of 1,016 (203 built from the 209 tasks too close)
+uv run pytest -q tests/test_decontaminate.py                # 13 passed
+```
+
+### The adapters retrained without the test overlap (option A, the user's choice; the human ran it, next to both servers)
+
+```bash
+mkdir -p runs/adapters_practice && mv adapters/helpdesk_r1 adapters/ops_r1 adapters/all_r1 runs/adapters_practice/
+uv run --group train python -m factory.train_lora --api helpdesk --round 1 --data data/generated/helpdesk/round_1_test_clean.jsonl --run-id train_helpdesk_r1_test_clean
+uv run --group train python -m factory.train_lora --api ops --round 1 --data data/generated/ops/round_1_test_clean.jsonl --run-id train_ops_r1_test_clean
+uv run --group train python -m factory.train_lora --api all --round 1 --data data/generated/helpdesk/round_1_test_clean.jsonl data/generated/ops/round_1_test_clean.jsonl --run-id train_all_r1_test_clean
+scripts/stop_vllm.sh student && scripts/serve_student.sh
+for a in helpdesk_r1 ops_r1 all_r1; do uv run python scripts/smoke_toolcall.py --model $a --min-parsed 19; done
+# helpdesk_r1: 124 steps in 14.2 min, held-out eval loss 0.221; ops_r1: 98 steps (772 trained, 41 held out) in 11.0 min,
+# 0.279; all_r1: 220 steps in 38.1 min, 0.243 (other held-out sets than the originals', so the losses don't compare).
+# Peak reserved 23.9, 20.5 and 26.4 GB. smoke_toolcall: 20/20 parsed for each (pass mark 19). The student server serves
+# student, all_r1, helpdesk_r1, ops_r1 (the new ones); the originals are in runs/adapters_practice/.
+```

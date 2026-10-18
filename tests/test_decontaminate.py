@@ -149,3 +149,17 @@ def test_with_no_test_cases_found_it_stops_and_says_where_it_looked(
     with pytest.raises(SystemExit, match="No test cases found: .* data/test/\\*.jsonl"):
         decontaminate.main()
     assert not (tmp_path / "tasks_t.decontaminate_test.json").exists()
+
+
+def test_the_examples_built_from_tasks_too_close_to_a_test_case_are_dropped(tmp_path: Path) -> None:
+    from factory.drop_test_overlap import drop
+
+    folder = tmp_path / "helpdesk"
+    folder.mkdir()
+    (folder / "tasks_round_1.decontaminate_test.json").write_text(json.dumps({"too_close_tasks": [{"id": "t-2"}]}))
+    examples = [{"id": f"ex-{n}", "case_id": case_id} for n, case_id in enumerate(["t-1", "t-2", "t-3", "t-2"])]
+    (folder / "round_1.jsonl").write_text("".join(json.dumps(e) + "\n" for e in examples))
+    stats = drop("helpdesk", generated=tmp_path)
+    kept = [json.loads(line)["id"] for line in (folder / "round_1_test_clean.jsonl").read_text().splitlines()]
+    assert kept == ["ex-0", "ex-2"] and (stats["examples"], stats["dropped"], stats["kept"]) == (4, 2, 2)
+    assert (folder / "round_1.jsonl").read_text().count("\n") == 4  # the original stays as it was

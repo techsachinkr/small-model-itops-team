@@ -1,0 +1,11 @@
+{
+ "script": "factory/drop_test_overlap.py",
+ "created_at": "2026-10-18T10:10:45.674693+00:00",
+ "git_commit": "8218c056da2fe539a18bd0b828a7b80a41263df8",
+ "from": "round_1.jsonl",
+ "report": "tasks_round_1.decontaminate_test.json",
+ "tasks_too_close": 209,
+ "examples": 1016,
+ "dropped": 203,
+ "kept": 813
+}
