@@ -1,13 +1,14 @@
 # Lightning & the Specialists
 
 A small-model IT operations team, built for the NVIDIA x Red Hat Small Models Hack (Raleigh, October 17–18, 2026) in
-the Multi-Agent Systems track. **Nemotron 3.5 Lightning** plans each request and taught the team. Small **Nemotron 3
-Nano 4B** specialists, one LoRA adapter per API, make the tool calls. **NeMo Gym** hosts the environment and scores
+the Multi-Agent Systems track. **NVIDIA Nemotron 3.5 Lightning** (30B-A3B; "Nemotron Lightning" below) plans each
+request and taught the team. Small **NVIDIA Nemotron 3 Nano 4B** specialists, one LoRA adapter per API, make the tool
+calls. **NeMo Gym** hosts the environment and scores
 every attempt by its final state, and **vLLM** serves every model on one H200.
 
 > "The payments app keeps crashing after this morning's deploy: roll it back and open a P1 ticket."
 
-Lightning's plan opens the ticket first, because a production change needs one. The helpdesk specialist opens HD-1042,
+Nemotron Lightning's plan opens the ticket first, because a production change needs one. The helpdesk specialist opens HD-1042,
 the ops specialist rolls payments back from revision 9 to 8 with that ticket, and the verifier checks the final state.
 
 **Team:** Sachin Kumar, Senior Data Scientist III at LexisNexis (solo entry). GitHub:
@@ -33,7 +34,7 @@ session that built the system never opened it, and nothing was tuned on it.
 | `base_raw` | Nano 4B, no seatbelt | 6/10 (17/30) | 5/10 (18/30) |
 | `base_seatbelt` | + the seatbelt | 5/10 (15/30) | 5/10 (18/30) |
 | `r1` | + the round 1 LoRA adapter | **8/10 (23/30)** | **7/10 (21/30)** |
-| `lightning` | Lightning alone, for reference | 6/10 (18/30) | 9/10 (27/30) |
+| `lightning` | Nemotron Lightning alone, for reference | 6/10 (18/30) | 9/10 (27/30) |
 
 **System**, on the 15 multi-API cases:
 
@@ -41,21 +42,21 @@ session that built the system never opened it, and nothing was tuned on it.
 |---|---|---|---|---|---|
 | `single_base` | one Nano 4B with all 12 tools, no planner | 7/15 | 20/45 | 12.5 s | 0.54 |
 | `single_trained` | one Nano 4B + `all_r1`, all 12 tools | 8/15 | 24/45 | 12.6 s | 0.42 |
-| `single_lightning` | Lightning alone, all 12 tools | 10/15 | 30/45 | 11.7 s | 0.79 |
-| `team_base` | Lightning plans, untrained specialists | 6/15 | 18/45 | 16.4 s | 0.58 |
-| `team_trained` | Lightning plans, trained specialists | 8/15 | 25/45 | 21.5 s | 0.53 |
-| `team_escalate` | `team_trained` + escalation to Lightning | 7/15 | 24/45 | 20.7 s | 0.53 |
+| `single_lightning` | Nemotron Lightning alone, all 12 tools | 10/15 | 30/45 | 11.7 s | 0.79 |
+| `team_base` | Nemotron Lightning plans, untrained specialists | 6/15 | 18/45 | 16.4 s | 0.58 |
+| `team_trained` | Nemotron Lightning plans, trained specialists | 8/15 | 25/45 | 21.5 s | 0.53 |
+| `team_escalate` | `team_trained` + escalation to Nemotron Lightning | 7/15 | 24/45 | 20.7 s | 0.53 |
 | `team_small_planner` | Nano 4B plans, trained specialists | 5/15 | 17/45 | 9.4 s | 0.38 |
 
 What the results say:
 
 - Training helps both specialists on held-out cases (helpdesk 5/10 to 8/10, ops 5/10 to 7/10), and the trained
-  helpdesk specialist beats Lightning on helpdesk (8/10 against 6/10).
+  helpdesk specialist beats Nemotron Lightning on helpdesk (8/10 against 6/10).
 - The seatbelt alone adds nothing to the scores, as on the practice cases. It's there for reliability: schema checks,
   automatic 503 retries and the self-check.
 - The team does **not** beat one trained model with every tool: `team_trained` and `single_trained` tie (8/15 each,
-  25/45 against 24/45 attempts). Lightning alone does best (10/15).
-- Lightning as planner is worth 8 attempts (25/45 against the 4B planner's 17/45), and training is worth 7 inside the
+  25/45 against 24/45 attempts). Nemotron Lightning alone does best (10/15).
+- Nemotron Lightning as planner is worth 8 attempts (25/45 against the 4B planner's 17/45), and training is worth 7 inside the
   team (`team_base` 18/45).
 - No step needed escalation: all 87 of `team_escalate`'s steps ran on small models.
 - With 10 or 15 cases, one case is within noise; the attempts are a finer measure.
@@ -74,15 +75,15 @@ adapters. The practice results during development came from the original adapter
 
 ```mermaid
 flowchart LR
-    subgraph factory["Factory: Lightning teaches"]
+    subgraph factory["Factory: Nemotron Lightning teaches"]
         direction TB
-        W["Task writer<br/>code samples the action,<br/>Lightning phrases it"] --> R["Lightning solves each task<br/>as a NeMo Gym rollout"]
+        W["Task writer<br/>code samples the action,<br/>Nemotron Lightning phrases it"] --> R["Nemotron Lightning solves each task<br/>as a NeMo Gym rollout"]
         R --> F["Filter: keep clean passes<br/>(the same verifier)"]
         F --> T["LoRA per API<br/>TRL + PEFT, rank 16"]
     end
-    subgraph team["Team: Lightning plans, specialists act"]
+    subgraph team["Team: Nemotron Lightning plans, specialists act"]
         direction TB
-        Q["Request"] --> P["Lightning plans<br/>JSON plan, guided decoding"]
+        Q["Request"] --> P["Nemotron Lightning plans<br/>JSON plan, guided decoding"]
         P -- "step 1" --> H["Helpdesk specialist<br/>Nano 4B + helpdesk_r1"]
         H -- "ticket ID" --> O["Ops specialist<br/>Nano 4B + ops_r1"]
         S{{"Seatbelt on every call<br/>schema check, retries,<br/>503 backoff, self-check"}}
@@ -111,27 +112,27 @@ flowchart LR
 - **Verifier** ([`gym_env/verify.py`](gym_env/verify.py)). It runs the task's gold calls on one fresh copy and the
   system on another, and passes the attempt only if the final states match. The final answer must also contain any
   required strings. No LLM judges correctness.
-- **Factory** (`factory/`). Code samples a valid action and computes its gold calls, and Lightning phrases the request;
-  about 1 task in 5 Lightning writes whole. Near-copies of the practice cases are dropped. Lightning solves each task
+- **Factory** (`factory/`). Code samples a valid action and computes its gold calls, and Nemotron Lightning phrases the request;
+  about 1 task in 5 Nemotron Lightning writes whole. Near-copies of the practice cases are dropped. Nemotron Lightning solves each task
   as a NeMo Gym rollout, and a rollout becomes training data only if the verifier passes it and no call failed. Then one
   LoRA adapter per API, trained with loss on assistant turns only, on text rendered with the student's own chat
   template. Methodology: [`data/generated/README.md`](data/generated/README.md).
-- **Team** (`agents/`). Lightning reads the specialists' cards ([`agents/cards/`](agents/cards/), with the fields of an
+- **Team** (`agents/`). Nemotron Lightning reads the specialists' cards ([`agents/cards/`](agents/cards/), with the fields of an
   A2A Agent Card), writes a JSON plan, and hands each step to a specialist. Results such as a ticket ID pass to the
   steps that depend on them.
 - **Seatbelt** ([`common/seatbelt.py`](common/seatbelt.py)). Inside every tool loop: a call's arguments are checked
   against the tool's JSON schema before it runs, a step gets 2 retries, 503s are retried 3 times with backoff without
   the model, and before a step ends a self-check asks whether a tool call is still needed.
-- **Escalation** (`team_escalate` only). When the seatbelt gives up on a step, Lightning finishes it from where it
+- **Escalation** (`team_escalate` only). When the seatbelt gives up on a step, Nemotron Lightning finishes it from where it
   stopped, without repeating any action.
-- **Serving** (vLLM 0.27.1). Lightning on port 8000. The student with every adapter on port 8001 (multi-LoRA).
+- **Serving** (vLLM 0.27.1). Nemotron Lightning on port 8000. The student with every adapter on port 8001 (multi-LoRA).
 
 ### Models
 
 | role | model | parameters (official) |
 |---|---|---|
-| planner, teacher, escalation, reference | [`nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16`](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16) | 30B total, 3B active |
-| specialists | [`nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16`](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16) + LoRA adapters `helpdesk_r1`, `ops_r1`, `all_r1` | 3.97B; each adapter 17.1M |
+| planner, teacher, escalation, reference | NVIDIA Nemotron 3.5 Lightning 30B-A3B, BF16 ([`nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16`](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16)) | 30B total, 3B active |
+| specialists | NVIDIA Nemotron 3 Nano 4B, BF16 ([`nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16`](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16)), plus the LoRA adapters `helpdesk_r1`, `ops_r1` and `all_r1` | 3.97B; each adapter 17.1M |
 
 Each generative model is under the event's 33B limit, which the organizers confirmed applies per model, not to a
 combined total (2026-10-17; `PLAN.md`, task 0.1, Q1). Revisions are pinned in
@@ -139,7 +140,7 @@ combined total (2026-10-17; `PLAN.md`, task 0.1, Q1). Revisions are pinned in
 
 ### Hardware
 
-One H200 (140.4 GiB) holds everything. Lightning's server takes 79.7 GiB (0.55 of the GPU), the student's with every
+One H200 (140.4 GiB) holds everything. Nemotron Lightning's server takes 79.7 GiB (0.55 of the GPU), the student's with every
 adapter 22.9 GiB (0.15), and LoRA training reserved up to 29.5 GiB next to both. The GPU peaked at 127.1 GiB in a
 training dry run. Details: [`configs/gpu.md`](configs/gpu.md).
 
@@ -195,13 +196,13 @@ uv run python -m eval.report --run rerun/r1_helpdesk [--run <run_id> ...] --outp
 | setups | servers they need |
 |---|---|
 | `base_raw`, `base_seatbelt`, `r1`, `single_base`, `single_trained`, `team_small_planner` | the student (port 8001) |
-| `lightning`, `single_lightning` | Lightning (port 8000) |
+| `lightning`, `single_lightning` | Nemotron Lightning (port 8000) |
 | `team_base`, `team_trained`, `team_escalate` | both |
 
 ## Reproduce the demo
 
 The Gradio page runs the demo request on the team (`team_escalate`) and, side by side, on `single_base`. It shows
-Lightning's plan, every step and tool call, seatbelt events, escalations, the state change, the verifier's verdict, and
+Nemotron Lightning's plan, every step and tool call, seatbelt events, escalations, the state change, the verifier's verdict, and
 two counters: the share of steps handled by small models, and the cost of the request.
 
 ```bash
@@ -221,7 +222,7 @@ recordings aren't in the repo, so record them first.
 |---|---|---|
 | `data/practice/` | 32 hand-written cases (12 helpdesk, 12 ops, 8 multi-API) | development: every design choice was checked on these |
 | `data/test/` | 35 AI-written cases (10 helpdesk, 10 ops, 15 multi-API) | the held-out results above; locked during development |
-| `data/generated/` | synthetic tasks and verified Lightning trajectories, each file with its generation config and seed ([methodology](data/generated/README.md)) | training: 2,800 task slots, 2,347 Lightning rollouts after writer failures and near-copies of practice cases were dropped, 2,101 clean passes, and 1,844 examples after dropping the 257 too close to a test case (helpdesk 1,031, ops 813) |
+| `data/generated/` | synthetic tasks and verified Nemotron Lightning trajectories, each file with its generation config and seed ([methodology](data/generated/README.md)) | training: 2,800 task slots, 2,347 Nemotron Lightning rollouts after writer failures and near-copies of practice cases were dropped, 2,101 clean passes, and 1,844 examples after dropping the 257 too close to a test case (helpdesk 1,031, ops 813) |
 | `data/open/loghub/` | Loghub's `OpenStack_2k`, `Zookeeper_2k` and `Hadoop_2k` samples ([logpai/loghub](https://github.com/logpai/loghub)) | the canned ops logs in `gym_env/fixtures/logs.json` |
 
 No outside dataset is used for training or evaluation. [`data/open/DATA_SOURCES.md`](data/open/DATA_SOURCES.md) lists
@@ -237,7 +238,7 @@ whose schemas are generated from code (`gym_env/tools.py`), isolated state per t
 (`gym_env/chaos.py`), and the state-match verifier (`gym_env/verify.py`). Our cases become Gym task rows in
 `gym_env/tasks.py`. Two agents: `itops_agent` (`responses_api_agents/itops_agent/`, our tool loop with the seatbelt)
 for the single-model setups, and `itops_team` for the team setups. `gym_configs/eval.yaml` and `eval_team.yaml` hold
-the shared settings, and each setup's own file sets only its model, adapter or agent. The factory's Lightning rollouts
+the shared settings, and each setup's own file sets only its model, adapter or agent. The factory's Nemotron Lightning rollouts
 also run through Gym (`factory/collect.py`), so training data is filtered by the same verifier that scores the evals.
 
 **Baseline against final, on the same held-out tasks and eval config:**
@@ -248,30 +249,30 @@ also run through Gym (`factory/collect.py`), so training data is filtered by the
 | final: `r1` | 8/10 (23/30) | 7/10 (21/30) |
 
 **What caused each improvement.** Each ladder row changes one thing. The seatbelt (`base_raw` to `base_seatbelt`)
-changed nothing within noise. The gain comes from the round 1 adapter alone: Lightning's verified rollouts from the
+changed nothing within noise. The gain comes from the round 1 adapter alone: Nemotron Lightning's verified rollouts from the
 same Gym environment, decontaminated against the practice and test cases, LoRA rank 16. Round 2 was cut, so there is
 no `r2` row. **How to run scoring:** see [Run scoring](#run-scoring).
 
-### Nemotron Lightning
+### NVIDIA Nemotron 3.5 Lightning
 
-**What Lightning does.** It is the teacher: it wrote the request for each of 2,800 task slots (about a fifth of them
+**What Nemotron Lightning does.** It is the teacher: it wrote the request for each of 2,800 task slots (about a fifth of them
 whole, gold calls included), and solved 2,347 tasks as NeMo Gym rollouts. It is the planner: it splits each request into steps for the specialists. It is the
 escalation target, and the reference row in every table. (The failure analyst it was also meant to be was cut with
 round 2.)
 
-**Why Lightning.** It is the strongest model we could run under the 33B limit next to the specialists on one GPU:
+**Why Nemotron Lightning.** It is the strongest model we could run under the 33B limit next to the specialists on one GPU:
 alone, it is the best setup on the test set (10/15). With 3B active parameters per token, it answered the system cases
 about as fast as one 4B model (11.7 s against 12.5 s on average).
 
 **How we optimized it.**
 - Thinking only where it pays: on for writing whole tasks and for solving them (on practice, 33/36 helpdesk and 30/36
   ops attempts passed with thinking, against 27/36 and 21/36 without), off for phrasing sampled tasks.
-- Guided decoding for plans: without it, 8/24 of Lightning's plans fit the schema; with it, 24/24, at half the tokens
+- Guided decoding for plans: without it, 8/24 of Nemotron Lightning's plans fit the schema; with it, 24/24, at half the tokens
   and latency (197 against 403 tokens, 2.45 against 5.22 s).
 - Compact JSON (`disable_any_whitespace`), after a self-check answer generated whitespace until `max_tokens`.
-- A self-check that asks "is a tool call still needed?": asked "is the task complete?", Lightning said no whenever it
+- A self-check that asks "is a tool call still needed?": asked "is the task complete?", Nemotron Lightning said no whenever it
   had rightly asked the user a question, and correct attempts were thrown away.
-- Escalation continues the stopped step instead of restarting it, so Lightning only does the rest of the step.
+- Escalation continues the stopped step instead of restarting it, so Nemotron Lightning only does the rest of the step.
 - Served as its model card says: prefix caching on, its Mamba cache settings, `--max-num-seqs 128`.
 
 **The evidence.**
@@ -285,7 +286,7 @@ about as fast as one 4B model (11.7 s against 12.5 s on average).
 ### Red Hat vLLM
 
 **How vLLM fits.** Two vLLM servers share one H200 and serve every model call: plans, specialist steps, self-checks,
-the factory's rollouts and every eval. Lightning runs on port 8000 at 0.55 of the GPU. The student runs on port 8001 at
+the factory's rollouts and every eval. Nemotron Lightning runs on port 8000 at 0.55 of the GPU. The student runs on port 8001 at
 0.15 with every adapter (`--enable-lora --max-lora-rank 16 --max-loras 4`), with runtime loading on, so a newly trained
 adapter can be added without a restart. Tool calls are parsed by `--tool-call-parser qwen3_coder` and reasoning by
 `--reasoning-parser nemotron_v3`.
@@ -294,9 +295,9 @@ adapter can be added without a restart. Tool calls are parsed by `--tool-call-pa
 - Structured outputs with `{"backend": "xgrammar", "disable_any_whitespace": true}` for plans and self-checks.
 - `--max-num-seqs 256` for the student: at 0.15 of the GPU it has 643 Mamba cache blocks, one per running sequence,
   so vLLM's default of 1024 doesn't start.
-- Lightning with its card's settings: prefix caching, Mamba SSM cache in float16 with stochastic rounding, the
+- Nemotron Lightning with its card's settings: prefix caching, Mamba SSM cache in float16 with stochastic rounding, the
   flashinfer Mamba backend, `--max-num-seqs 128`. Both at `--max-model-len 32768`.
-- Prices from measured throughput (`vllm bench serve`, $6.53 an hour): Lightning $0.032 per 1M prompt and $0.459 per 1M
+- Prices from measured throughput (`vllm bench serve`, $6.53 an hour): Nemotron Lightning $0.032 per 1M prompt and $0.459 per 1M
   completion tokens, the student $0.023 and $0.192.
 
 **Measured results** ([`runs/bench/summary.md`](runs/bench/summary.md); our own traffic: every model call of the `r1`
@@ -319,27 +320,27 @@ Structured outputs, with and without guided decoding (`bench/structured.py`):
 
 | request | model | guided | fits the schema | mean output tokens | mean latency |
 |---|---|---|---|---|---|
-| plan | Lightning | on | 24/24 | 197 | 2.45 s |
-| plan | Lightning | off | 8/24 | 403 | 5.22 s |
+| plan | Nemotron Lightning | on | 24/24 | 197 | 2.45 s |
+| plan | Nemotron Lightning | off | 8/24 | 403 | 5.22 s |
 | plan | student | on / off | 24/24 / 21/24 | 130 / 172 | 1.60 / 2.06 s |
-| self-check | Lightning | on / off | 80/80 / 68/80 | 55 / 69 | 1.66 / 1.76 s |
+| self-check | Nemotron Lightning | on / off | 80/80 / 68/80 | 55 / 69 | 1.66 / 1.76 s |
 | self-check | the specialist's adapter | on / off | 80/80 / 80/80 | 54 / 59 | 0.66 / 0.66 s |
 
-Without guided decoding most of Lightning's plans would be invalid, and an attempt without a valid plan scores 0.
+Without guided decoding most of Nemotron Lightning's plans would be invalid, and an attempt without a valid plan scores 0.
 
 ## Limitations
 
 - **A small, AI-written test set.** 35 cases, written by an agent of the same model family that built the system. One
   case is within noise.
-- **The main claim isn't confirmed.** The team ties one trained model with every tool and trails Lightning alone. It
+- **The main claim isn't confirmed.** The team ties one trained model with every tool and trails Nemotron Lightning alone. It
   is also slower: about 21 s a request against 12 s.
 - **Costs understate the adapters,** which are priced as the student base model although LoRA serving takes 46% more
   time per output token at 1 session.
 - **Differences between setups by design.** Turn and retry budgets are per step: a team attempt can have up to 6
-  steps, each with its own, and an escalated step gives Lightning its own. The single-model setups see all 12 tools
+  steps, each with its own, and an escalated step gives Nemotron Lightning its own. The single-model setups see all 12 tools
   against a specialist's 6. The practice runs came from 5 commits; the final run from one.
 - **Escalation is unmeasured on the test set:** no step needed it.
-- **The planner can assume a specialist that isn't there.** In the demo's helpdesk-only take, Lightning's plan said the
+- **The planner can assume a specialist that isn't there.** In the demo's helpdesk-only take, Nemotron Lightning's plan said the
   rollback needed an ops specialist "not listed in the cards, but implied", left it out of the uncovered steps, and asked
   the helpdesk specialist to note which revision payments was rolled back to. The specialist noted "revision 2.1.3",
   which doesn't exist, and only the verifier's state check caught it.
@@ -353,11 +354,11 @@ Without guided decoding most of Lightning's plans would be invalid, and an attem
 ## Next steps
 
 1. Tell the planner that only the listed specialists exist, and make every value from another step a dependency.
-2. Round 2: the failure analyst and targeted tasks, starting with ops, where the specialist trails Lightning (7/10
+2. Round 2: the failure analyst and targeted tasks, starting with ops, where the specialist trails Nemotron Lightning (7/10
    against 9/10).
 3. A larger, human-written test set.
 4. Score `team_trained` with chaos on.
-5. The cut benchmarks: prefix caching on the shared tool schemas, and speculative decoding for Lightning.
+5. The cut benchmarks: prefix caching on the shared tool schemas, and speculative decoding for Nemotron Lightning.
 6. Price the adapters at their own measured LoRA throughput.
 7. The Workplace Assistant and When2Call regression checks.
 8. Wrap the specialists with the A2A SDK (their cards already use Agent Card fields), and add a calendar specialist.
